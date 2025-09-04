@@ -1,3 +1,4 @@
+import "server-only";
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
@@ -18,10 +19,7 @@ export default async function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    const requestCookies = await cookies();
-    const idToken = requestCookies.get("idToken")?.value;
-
-    const authenticatedUser = await getAuthenticatedUser(idToken);
+    const authenticatedUser = await getAuthenticatedUser();
 
     return (
         <html lang="en">

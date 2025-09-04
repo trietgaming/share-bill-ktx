@@ -17,6 +17,7 @@ import {
 import { firebaseClientAuth } from "@/lib/firebase/client";
 import { toast } from "sonner";
 import { FirebaseError } from "firebase/app";
+import { logIn } from "@/lib/auth";
 
 const GoogleLogo = (props: ComponentProps<"svg">) => (
     <svg
@@ -49,8 +50,7 @@ const GoogleLogo = (props: ComponentProps<"svg">) => (
 export default function LoginPage() {
     const handleGoogleLogin = async () => {
         try {
-            const googleProvider = new GoogleAuthProvider();
-            await signInWithPopup(firebaseClientAuth, googleProvider);
+            await logIn()
 
             window.location.replace("/");
         } catch (error) {

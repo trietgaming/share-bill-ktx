@@ -24,8 +24,6 @@ export const AuthProvider = ({ children, initialUser }: AuthContextProps) => {
     useEffect(() => {
         const unsubscribe = firebaseClientAuth.onAuthStateChanged(
             (authUser) => {
-                if (user && authUser && user?.uid === authUser?.uid) return;
-
                 // Set cookie for server-side authentication
                 authUser?.getIdToken().then((idToken) => {
                     setAuthCookie(idToken);

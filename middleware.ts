@@ -4,7 +4,7 @@ import { getAuthenticatedUser } from "./lib/firebase/server";
 
 // const protectedRoutes = ["/"];
 const publicRoutes = ["/login"];
-const authRoutes = ["/login", "/register"];
+const authRoutes = ["/login"];
 
 export default async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
@@ -12,10 +12,7 @@ export default async function middleware(req: NextRequest) {
     const isPublicRoute = publicRoutes.includes(path);
     const isAuthRoute = authRoutes.includes(path);
 
-    const requestCookies = await cookies();
-    const idToken = requestCookies.get("__session")?.value;
-
-    const user = await getAuthenticatedUser(idToken);
+    const user = await getAuthenticatedUser();
 
     if (!isPublicRoute && !user) {
         return NextResponse.redirect(new URL("/login", req.nextUrl));
