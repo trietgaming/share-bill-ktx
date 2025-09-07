@@ -1,20 +1,14 @@
 "use client"
 
+import { IRoomJoined } from "@/types/UserData"
 import { RoomCard } from "./room-card"
 
-interface Room {
-  id: string
-  name: string
-  members: number
-  maxMembers: number
-}
-
 interface RoomListProps {
-  rooms: Room[]
+  roomsJoined: IRoomJoined[]
   onRoomClick: (roomId: string) => void
 }
 
-export function RoomList({ rooms, onRoomClick }: RoomListProps) {
+export function RoomList({ roomsJoined, onRoomClick }: RoomListProps) {
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -23,8 +17,8 @@ export function RoomList({ rooms, onRoomClick }: RoomListProps) {
       </div>
 
       <div className="grid gap-4">
-        {rooms.map((room) => (
-          <RoomCard key={room.id} room={room} onClick={onRoomClick} />
+        {roomsJoined.map(({ room }) => (
+          <RoomCard key={room._id} room={room} onClick={onRoomClick} />
         ))}
       </div>
     </div>

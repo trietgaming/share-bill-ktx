@@ -8,13 +8,12 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/components/auth-context";
 import { logOut } from "@/lib/auth";
 
 export function UserMenu() {
-    const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
     const { user } = useAuth();
 
     const handleLogout = async () => {
@@ -35,10 +34,6 @@ export function UserMenu() {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    Thông tin cá nhân
-                </DropdownMenuItem>
                 <DropdownMenuItem
                     className="text-destructive"
                     onClick={handleLogout}

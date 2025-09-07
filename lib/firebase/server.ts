@@ -18,7 +18,7 @@ export async function getAuthenticatedUser() {
     const auth = getAuth(firebaseServerApp);
     await auth.authStateReady();
 
-    return auth.currentUser?.toJSON() as User;
+    return (auth.currentUser?.toJSON() as User) || null;
 }
 
 export async function setAuthCookie(authIdToken?: string | null) {

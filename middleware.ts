@@ -1,3 +1,4 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getAuthenticatedUser } from "./lib/firebase/server";
@@ -15,7 +16,7 @@ export default async function middleware(req: NextRequest) {
     const user = await getAuthenticatedUser();
 
     if (!isPublicRoute && !user) {
-        return NextResponse.redirect(new URL("/login", req.nextUrl));
+        return NextResponse.redirect(new URL(`/login?cb=${req.nextUrl.pathname}`, req.nextUrl));
     }
 
     if (user && isAuthRoute) {

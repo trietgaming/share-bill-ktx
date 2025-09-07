@@ -7,17 +7,15 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { ComponentProps } from "react";
+import { ComponentProps, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-    GoogleAuthProvider,
-    signInWithPopup,
     AuthErrorCodes,
 } from "firebase/auth";
-import { firebaseClientAuth } from "@/lib/firebase/client";
 import { toast } from "sonner";
 import { FirebaseError } from "firebase/app";
 import { logIn } from "@/lib/auth";
+import { useSearchParams } from "next/navigation";
 
 const GoogleLogo = (props: ComponentProps<"svg">) => (
     <svg
@@ -48,12 +46,29 @@ const GoogleLogo = (props: ComponentProps<"svg">) => (
 );
 
 export default function LoginPage() {
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+    const searchParams = useSearchParams();
+
     const handleGoogleLogin = async () => {
+        setIsLoggingIn(true);
+
         try {
             await logIn()
 
-            window.location.replace("/");
+            const searchCb = searchParams.get("cb");
+            
+            if (searchCb && searchCb.startsWith("/") && !searchCb.startsWith("//")) {
+                window.location.replace(searchCb);
+            }
+            else {
+                window.location.replace("/")
+            }
+
         } catch (error) {
+            // Only set state in catch block since we'll redirect user to / when logged in
+            setIsLoggingIn(false);
+
             if (!(error instanceof Error)) {
                 toast.error("Đã có lỗi xảy ra khi đăng nhập.");
                 return;
@@ -89,6 +104,7 @@ export default function LoginPage() {
                         onClick={handleGoogleLogin}
                         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-3"
                         size="lg"
+                        disabled={isLoggingIn}
                     >
                         <svg
                             width="20"

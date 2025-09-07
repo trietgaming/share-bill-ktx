@@ -11,4 +11,14 @@ const nextConfig = {
   },
 }
 
+// For codespaces
+if (process.env.NODE_ENV == 'development') {
+  nextConfig.experimental = {
+    serverActions: {
+      allowedOrigins: ['localhost:3000']
+    },
+  }
+    
+}
+
 export default nextConfig
