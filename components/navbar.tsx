@@ -7,9 +7,9 @@ import { useAuth } from "./auth-context"
 import Link from "next/link"
 
 export function Navbar() {
-  const { user } = useAuth();
+  const { userData } = useAuth();
 
-  if (!user) return null;
+  if (!userData) return null;
 
   return (
     <nav className="border-b border-border bg-card">

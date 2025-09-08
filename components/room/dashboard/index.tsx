@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Users, Zap, Receipt, Calendar, CheckCircle, XCircle, AlertCircle, DollarSign } from "lucide-react"
+import { useRoom, useRoommates } from "@/components/room/room-context"
+import RoomateList from "./roomate-list"
 
 // Mock data - trong thực tế sẽ fetch từ API
 const mockData = {
@@ -31,27 +33,16 @@ const mockData = {
 }
 
 export function HomeDashboard() {
-  const { members, electricBill, otherBills, attendanceStatus } = mockData
-  const activeMemberCount = members.filter((m) => m.status === "active").length
+  const room = useRoom();
+
+  const { electricBill, otherBills, attendanceStatus } = mockData
+
   const unpaidBills = otherBills.filter((bill) => bill.status === "unpaid")
 
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Overview Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">Thành viên</CardTitle>
-            <Users className="h-3 md:h-4 w-3 md:w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg md:text-2xl font-bold">
-              {activeMemberCount}/{members.length}
-            </div>
-            <p className="text-xs text-muted-foreground">Đang hoạt động</p>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs md:text-sm font-medium">Điện nước tháng này</CardTitle>
@@ -67,12 +58,14 @@ export function HomeDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">Hóa đơn chưa đóng</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium">Hóa đơn khác</CardTitle>
             <Receipt className="h-3 md:h-4 w-3 md:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg md:text-2xl font-bold text-destructive">{unpaidBills.length}</div>
-            <p className="text-xs text-muted-foreground">Cần xử lý</p>
+            <div className="text-lg md:text-2xl font-bold text-destructive">
+              {electricBill.amount.toLocaleString("vi-VN")}đ
+            </div>
+            <p className="text-xs text-muted-foreground">{electricBill.month} - Chưa thanh toán</p>
           </CardContent>
         </Card>
 
@@ -97,39 +90,13 @@ export function HomeDashboard() {
           <CardHeader>
             <CardTitle className="text-base md:text-lg flex items-center gap-2">
               <Users className="h-4 md:h-5 w-4 md:w-5" />
-              Thành viên trong phòng
+              <span>Thành viên trong phòng</span>
+              <span className="text-sm text-muted-foreground">({room.members.length}/{room.maxMembers})</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3 md:space-y-4">
-              {members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 md:h-10 w-8 md:w-10">
-                      <AvatarImage src={member.avatar || "/placeholder.svg"} />
-                      <AvatarFallback className="text-xs md:text-sm">
-                        {member.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-sm md:text-base">{member.name}</p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {member.isAdmin && (
-                          <Badge variant="secondary" className="text-xs">
-                            Quản trị viên
-                          </Badge>
-                        )}
-                        <Badge variant={member.status === "active" ? "default" : "outline"} className="text-xs">
-                          {member.status === "active" ? "Hoạt động" : "Không hoạt động"}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              <RoomateList />
             </div>
           </CardContent>
         </Card>

@@ -1,7 +1,10 @@
 import { RoomProvider } from '@/components/room/room-context';
 import { RoomLayout } from '@/components/room/room-layout';
 import { getAuthenticatedUser } from '@/lib/firebase/server';
-import { getUserDataById } from '@/lib/user-data';
+import { serializeDocument } from '@/lib/serializer';
+import { Membership } from '@/models/Membership';
+import { IRoom, IRoomDocument } from '@/types/Room';
+import mongoose, {Document} from 'mongoose';
 import { notFound } from 'next/navigation';
 import 'server-only';
 
@@ -12,15 +15,16 @@ export default async function RoomPage({
 }) {
     const { roomId } = await params;
     const user = await getAuthenticatedUser();
-    const userData = user ? await getUserDataById(user.uid) : null;
 
-    const room = userData?.roomsJoined.find(r => r.room._id === roomId)?.room;
+    if (!user || !roomId) return notFound();
 
-    if (!roomId || !user || !userData || !room) {
+    const membership = await Membership.findOne({ user: user.uid, room: roomId }).populate<{room: IRoom}>('room').lean();
+    
+    if (!membership) {
         return notFound()
     }
 
-    return <RoomProvider room={room}>
+    return <RoomProvider initialRoom={membership.room}>
         <RoomLayout />
     </RoomProvider>
 }

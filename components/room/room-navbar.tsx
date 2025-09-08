@@ -8,7 +8,7 @@ interface RoomNavbarProps {
 }
 
 const tabs = [
-  { id: "home", label: "Home", icon: Home },
+  { id: "dashboard", label: "Bảng điều khiển", icon: Home },
   { id: "bills", label: "Hóa đơn", icon: Receipt },
   { id: "attendance", label: "Tích ngày ở", icon: Calendar },
   { id: "history", label: "Lịch sử thay đổi", icon: History },

@@ -1,26 +1,45 @@
 "use client"
 
-import { IRoomJoined } from "@/types/UserData"
 import { RoomCard } from "./room-card"
+import { IRoom } from "@/types/Room";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getUserRooms } from "@/lib/actions/room";
+import { useQuery } from "@tanstack/react-query";
 
-interface RoomListProps {
-  roomsJoined: IRoomJoined[]
-  onRoomClick: (roomId: string) => void
-}
 
-export function RoomList({ roomsJoined, onRoomClick }: RoomListProps) {
-  return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-foreground mb-2">Danh sách phòng</h2>
-        <p className="text-muted-foreground">Quản lý và theo dõi các phòng của bạn</p>
-      </div>
+export function RoomList() {
+  const { data: rooms, isLoading, error } = useQuery<IRoom[]>({
+    queryKey: ['user-rooms'],
+    queryFn: getUserRooms
+  })
 
-      <div className="grid gap-4">
-        {roomsJoined.map(({ room }) => (
-          <RoomCard key={room._id} room={room} onClick={onRoomClick} />
-        ))}
-      </div>
+  const router = useRouter();
+
+  const handleRoomClick = (roomId: string) => {
+    router.push(`/room/${roomId}`)
+  }
+
+  if (isLoading) {
+    return <div className="grid gap-4">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <Skeleton key={index} className="h-32 w-full rounded-md" />
+      ))}
     </div>
+  }
+
+  if (error) {
+    toast.error("Đã có lỗi xảy ra khi tải danh sách phòng.");
+    return <div className="text-red-500">Đã có lỗi xảy ra khi tải danh sách phòng.</div>
+  }
+
+  return (
+    <div className="grid gap-4">
+      {rooms?.map((room) => (
+        <RoomCard key={room._id} room={room} onClick={handleRoomClick} />
+      ))}
+    </div>
+
   )
 }

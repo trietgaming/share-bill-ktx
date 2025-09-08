@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createNewRoom } from "@/lib/actions/room";
-import {toast} from "sonner";
 import { useRouter } from "next/navigation";
 
 const createRoomFormSchema = z.object({
@@ -31,8 +30,9 @@ export default function CreateRoomForm() {
 
             router.push(`/room/${newRoomId}?isNew=true`);
         } catch (err) {
-            // TODO: Handle errors
-            toast.error("Đã có lỗi xảy ra khi tạo phòng. Vui lòng thử lại sau")
+            console.error(err);
+
+            form.setError("root", { message: "Đã có lỗi xảy ra. Vui lòng thử lại sau." });
         }
     }
 
@@ -52,13 +52,13 @@ export default function CreateRoomForm() {
                 <FormItem>
                     <FormLabel>Số lượng thành viên tối đa</FormLabel>
                     <FormControl>
-                        <Input type="number" {...field} />
+                        <Input min={1} type="number" {...field} />
                     </FormControl>
                     <FormMessage />
                 </FormItem>
             )} />
 
-            <Button type="submit" disabled={form.formState.isSubmitting}>Tạo phòng</Button>
+            <Button type="submit" disabled={form.formState.isSubmitting || form.formState.isSubmitSuccessful}>Tạo phòng</Button>
         </form>
 
     </Form>;

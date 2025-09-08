@@ -8,18 +8,22 @@ export interface IIinvoice {
     _id: string;
     roomId: string;
     amount: number;
+    remainingAmount: number;
     /**
      * walec - water and electricity bill
      */
-    type: 'walec' | 'other';
+    type: 'walec' | 'roomCost' | 'other';
     name: string;
     description: string;
     createdBy: string;
-    createdAt: Date;
-    dueDate: Date;
+    dueDate?: Date;
     payInfo: IPayInfo[];
     advancePayer?: IPayInfo;
     status: 'pending' | 'paid' | 'overdue';
-    overdueAt?: Date;
-    applyTo: string[] | 'all'; // user IDs
+    /**
+     * list of user IDs
+     */
+    applyTo: string[];
+    createdAt: Date;
+    updatedAt: Date;
 }

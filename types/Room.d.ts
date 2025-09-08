@@ -1,12 +1,12 @@
-export interface IRoomMember {
-    userData: string;
-    role: 'admin' | 'member';
-    joinedAt: Date;
-}
+import { Document } from "mongoose";
 
 export interface IRoom {
     _id: string;
     name: string;
-    members: IRoomMember[];
+    members: string[];
     maxMembers: number;
+    createdAt: Date;
+    updatedAt: Date;
 }
+
+export interface IRoomDocument extends IRoom, Document {}

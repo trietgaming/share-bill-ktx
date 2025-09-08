@@ -6,14 +6,42 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { UserPlus, Settings, Shield, Users, DollarSign, Bell, Download, Upload, BarChart3, X } from "lucide-react"
+import { useConfirm } from "@/components/are-you-sure"
+import { useRoom } from "./room-context"
+import { useMutation } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { deleteRoom } from "@/lib/actions/room"
+import { useRouter } from "next/navigation"
 
 interface RoomSidebarProps {
   onClose?: () => void
 }
 
 export function RoomSidebar({ onClose }: RoomSidebarProps) {
+  const room = useRoom();
+  const router = useRouter();
+
+  const { mutate: handleDeleteRoom, isPending: isDeletingRoom, error: deleteRoomError, isSuccess: isDeleteRoomSuccess } = useMutation({
+    mutationFn: async () => {
+      await deleteRoom(room._id);
+      router.push('/');
+    },
+    onError: (error) => {
+      console.error("Error deleting room:", error);
+      toast.error("Đã có lỗi xảy ra khi xóa phòng.");
+    }
+  })
+
+  const confirmDeleteRoom = useConfirm(handleDeleteRoom, {
+    title: "Bạn có chắc chắn muốn xóa phòng này?",
+    description: "Hành động này không thể hoàn tác. Tất cả dữ liệu liên quan đến phòng sẽ bị xóa vĩnh viễn.",
+    variant: "destructive",
+    confirmText: "Xóa",
+    cancelText: "Hủy"
+  })
+
   return (
-    <div className="w-full lg:w-80 h-full lg:h-auto border-l border-border bg-sidebar overflow-y-auto">
+    <div className="w-full lg:w-80 h-full bg-sidebar overflow-y-auto">
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-border">
         <h2 className="text-lg font-semibold">Menu</h2>
         <Button variant="ghost" size="sm" onClick={onClose}>
@@ -39,42 +67,6 @@ export function RoomSidebar({ onClose }: RoomSidebarProps) {
               <DollarSign className="h-4 w-4 mr-2" />
               Thêm hóa đơn
             </Button>
-            <Button className="w-full justify-start bg-transparent text-sm" variant="outline">
-              <Bell className="h-4 w-4 mr-2" />
-              Gửi thông báo
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Room Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base lg:text-lg">Thông tin phòng</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 lg:space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-xs lg:text-sm text-muted-foreground">Mã phòng</span>
-              <Badge variant="secondary" className="text-xs">
-                A101
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs lg:text-sm text-muted-foreground">Số thành viên</span>
-              <Badge variant="default" className="text-xs">
-                3/4
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs lg:text-sm text-muted-foreground">Trạng thái</span>
-              <Badge variant="default" className="bg-green-500 text-xs">
-                Hoạt động
-              </Badge>
-            </div>
-            <Separator />
-            <div className="flex justify-between items-center">
-              <span className="text-xs lg:text-sm text-muted-foreground">Tiền phòng</span>
-              <span className="font-medium text-sm">3.000.000đ/tháng</span>
-            </div>
           </CardContent>
         </Card>
 
@@ -83,11 +75,11 @@ export function RoomSidebar({ onClose }: RoomSidebarProps) {
           <CardHeader>
             <CardTitle className="text-base lg:text-lg flex items-center gap-2">
               <Settings className="h-4 lg:h-5 w-4 lg:w-5" />
-              Cài đặt phòng
+              Cài đặt
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Accordion type="single" collapsible className="w-full">
+            {/* <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="general">
                 <AccordionTrigger className="text-sm">Cài đặt chung</AccordionTrigger>
                 <AccordionContent className="space-y-2">
@@ -132,12 +124,12 @@ export function RoomSidebar({ onClose }: RoomSidebarProps) {
                   </Button>
                 </AccordionContent>
               </AccordionItem>
-            </Accordion>
+            </Accordion> */}
           </CardContent>
         </Card>
 
         {/* Data Management */}
-        <Card>
+        {/* <Card>
           <CardHeader>
             <CardTitle className="text-base lg:text-lg flex items-center gap-2">
               <BarChart3 className="h-4 lg:h-5 w-4 lg:w-5" />
@@ -158,7 +150,7 @@ export function RoomSidebar({ onClose }: RoomSidebarProps) {
               Thống kê tháng
             </Button>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* Admin Settings */}
         <Card>
@@ -174,15 +166,11 @@ export function RoomSidebar({ onClose }: RoomSidebarProps) {
               Quản lý quyền
             </Button>
             <Button variant="outline" className="w-full justify-start bg-transparent text-sm">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Báo cáo tháng
-            </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent text-sm">
               <Settings className="h-4 w-4 mr-2" />
               Cài đặt hệ thống
             </Button>
             <Separator />
-            <Button variant="destructive" className="w-full justify-start text-sm">
+            <Button disabled={isDeletingRoom || isDeleteRoomSuccess} onClick={() => confirmDeleteRoom()} variant="destructive" className="w-full justify-start text-sm">
               Xóa phòng
             </Button>
           </CardContent>

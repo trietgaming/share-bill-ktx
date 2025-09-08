@@ -3,26 +3,30 @@
 import type React from "react"
 
 import { useState } from "react"
-import { RoomNavbar } from "./room-navbar"
-import { RoomSidebar } from "./room-sidebar"
-import { HomeDashboard } from "./home-dashboard"
-import { BillsManagement } from "./bills-management"
-import { AttendanceCalendar } from "./attendance-calendar"
-import { HistoryLog } from "./history-log"
-import { Menu, X } from "lucide-react"
+import { Hotel, Menu, Users, X } from "lucide-react"
+import { RoomNavbar } from "@/components/room/room-navbar"
+import { RoomSidebar } from "@/components/room/room-sidebar"
+import { HomeDashboard } from "@/components/room/dashboard"
+import { BillsManagement } from "@/components/room/bills"
+import { AttendanceCalendar } from "@/components/room/attendance"
+import { HistoryLog } from "@/components/room/history"
 import { Button } from "@/components/ui/button"
+import { useRoom } from "@/components/room/room-context"
+import { Badge } from "@/components/ui/badge"
 
 interface RoomLayoutProps {
   children?: React.ReactNode
 }
 
 export function RoomLayout({ children }: RoomLayoutProps) {
-  const [activeTab, setActiveTab] = useState("home")
+  const [activeTab, setActiveTab] = useState("dashboard")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  const room = useRoom();
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "home":
+      case "dashboard":
         return <HomeDashboard />
       case "bills":
         return <BillsManagement />
@@ -45,42 +49,45 @@ export function RoomLayout({ children }: RoomLayoutProps) {
             <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
               {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">Phòng A101</h1>
-              <p className="text-xs md:text-sm text-muted-foreground">Quản lý phòng trọ</p>
+            <div className="flex flex-col md:flex-row items-center gap-3">
+              <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
+                <Hotel className="inline-block" /> {room.name}
+              </h1>
+              <span className="text-sm text-muted-foreground hidden sm:inline-block">ID: {room._id}</span>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-medium">Nguyễn Văn A</p>
-              <p className="text-xs text-muted-foreground hidden sm:block">Quản trị viên</p>
-            </div>
+            <Badge className="text-right" variant="secondary">
+              <Users className="inline-block" /> {room.members.length}/{room.maxMembers}
+            </Badge>
           </div>
         </div>
-      </header>
+      </header >
 
       {/* Navigation */}
-      <RoomNavbar activeTab={activeTab} onTabChange={setActiveTab} />
+      < RoomNavbar activeTab={activeTab} onTabChange={setActiveTab} />
+
 
       {/* Main Content */}
       <div className="flex relative">
-        <main className="flex-1 p-4 md:p-6">{renderTabContent()}</main>
-
         <div
           className={`
           fixed lg:relative top-0 left-0 h-full z-50 
           transform transition-transform duration-300 ease-in-out
-          ${isSidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
         >
           <RoomSidebar onClose={() => setIsSidebarOpen(false)} />
         </div>
+        <main className="flex-1 p-4 md:p-6">{renderTabContent()}</main>
 
         {/* Mobile overlay */}
-        {isSidebarOpen && (
-          <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
-        )}
-      </div>
-    </div>
+        {
+          isSidebarOpen && (
+            <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
+          )
+        }
+      </div >
+    </div >
   )
 }

@@ -1,8 +1,8 @@
-import CreateRoomForm from "@/components/create-room/create-room-form";
+import JoinRoomForm from "@/components/join-room/join-room-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 
-export default function CreateRoomPage() {
+export default function JoinRoomPage() {
     return (
         <div className="min-h-[80vh] bg-background flex items-center justify-center">
             <Card className="w-full max-w-md mx-auto shadow-lg">
@@ -10,10 +10,10 @@ export default function CreateRoomPage() {
                     <Link href="/" className="text-sm text-primary mb-2 inline-block">
                         &larr; Quay lại
                     </Link>
-                    <CardTitle>Tạo phòng mới</CardTitle>
+                    <CardTitle>Gia nhập phòng</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <CreateRoomForm />  
+                    <JoinRoomForm />  
                 </CardContent>
             </Card>
         </div>

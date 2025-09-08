@@ -1,9 +1,16 @@
+"use client";
+
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Plus, Receipt, Calendar, Users, ChevronDown } from "lucide-react"
-import Link from "next/link"
+import JoinRoomDialog from "@/components/join-room/join-room-dialog"
+import CreateFormDialog from "@/components/create-room/create-room-dialog"
+import { useState } from "react";
 
 export function SubNavbar() {
+  const [isJoinRoomDialogOpen, setIsJoinRoomDialogOpen] = useState(false);
+  const [isCreateFormDialogOpen, setIsCreateFormDialogOpen] = useState(false);
+
   return (
     <div className="border-b border-border bg-card">
       <div className="flex h-14 items-center gap-4 px-6">
@@ -18,16 +25,18 @@ export function SubNavbar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem asChild>
-              <Link href="/room/create">
+
+              <Button onClick={() => setIsCreateFormDialogOpen(true)} variant="ghost" className="w-full justify-start">
                 <Plus className="mr-2 h-4 w-4" />
                 <span>Tạo phòng mới</span>
-              </Link>
+              </Button>
+
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/room/join">
+              <Button onClick={() => setIsJoinRoomDialogOpen(true)} variant="ghost" className="w-full justify-start">
                 <Users className="mr-2 h-4 w-4" />
                 <span>Gia nhập phòng</span>
-              </Link>
+              </Button>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -44,6 +53,8 @@ export function SubNavbar() {
           <span className="hidden md:inline-block">Điền ngày ở</span>
         </Button>
       </div>
+      <JoinRoomDialog isOpen={isJoinRoomDialogOpen} onOpenChange={setIsJoinRoomDialogOpen} />
+      <CreateFormDialog isOpen={isCreateFormDialogOpen} onOpenChange={setIsCreateFormDialogOpen} />
     </div>
   )
 }

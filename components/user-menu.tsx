@@ -14,21 +14,23 @@ import { logOut } from "@/lib/auth";
 
 export function UserMenu() {
     const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
-    const { user } = useAuth();
+    const { userData } = useAuth();
 
     const handleLogout = async () => {
         await logOut();
         window.location.reload();
     };
 
+    if (!userData) return null;
+
     return (
         <DropdownMenu open={showUserMenu} onOpenChange={setShowUserMenu}>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-9 w-9">
                     <Avatar className="w-8 h-8">
-                        <AvatarImage src={user?.photoURL || void 0} />
+                        <AvatarImage src={userData.photoURL || void 0} />
                         <AvatarFallback>
-                            {user?.displayName?.slice(0, 2) || "User"}
+                            {userData.displayName.slice(0, 2) || "User"}
                         </AvatarFallback>
                     </Avatar>
                 </Button>

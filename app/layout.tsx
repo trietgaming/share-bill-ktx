@@ -1,4 +1,5 @@
 import "server-only";
+import "./globals.css";
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
@@ -6,9 +7,11 @@ import { Analytics } from "@vercel/analytics/next";
 import { getAuthenticatedUser } from "@/lib/firebase/server";
 import { AuthProvider } from "@/components/auth-context";
 import { Toaster } from "@/components/ui/sonner";
-import { getUserDataById } from "@/lib/user-data";
 import { Navbar } from "@/components/navbar";
-import "./globals.css";
+import { getAuthenticatedUserData } from "@/lib/actions/user-data";
+import { queryClient } from "@/lib/query-client";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ConfirmModalProvider } from "@/components/are-you-sure";
 
 export const metadata: Metadata = {
     title: "Share bill KTX",
@@ -20,18 +23,21 @@ export default async function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    const authenticatedUser = await getAuthenticatedUser();
-    const userData = authenticatedUser ? await getUserDataById(authenticatedUser.uid) : null;
+    const authenticatedUserData = await getAuthenticatedUserData();
 
     return (
         <html lang="en">
             <body
                 className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}
             >
-                <AuthProvider initialUser={authenticatedUser} initialUserData={userData}>
-                    <Navbar />
-                    {children}
-                </AuthProvider>
+                <QueryClientProvider client={queryClient}>
+                    <AuthProvider initialUserData={authenticatedUserData}>
+                        <ConfirmModalProvider>
+                            <Navbar />
+                            {children}
+                        </ConfirmModalProvider>
+                    </AuthProvider>
+                </QueryClientProvider>
                 <Analytics />
                 <Toaster />
             </body>

@@ -1,6 +1,29 @@
 import "server-only";
 import mongoose, { Schema } from "mongoose";
-import type { IUserData } from "@/types/UserData";
+import type { IBankAccount, IUserData } from "@/types/UserData";
+import { Room } from "@/models/Room";
+
+export const bankAccountSchema = new Schema<IBankAccount>({
+    accountNumber: {
+        type: String,
+        required: true,
+        trim: true,
+        maxLength: [30, 'Account number can not be more than 30 characters']
+    },
+    accountName: {
+        type: String,
+        required: true,
+        trim: true,
+        maxLength: [100, 'Account name can not be more than 100 characters']
+    },
+    bankName: {
+        type: String,
+        required: true,
+        trim: true,
+        maxLength: [100, 'Bank name can not be more than 100 characters']
+    },
+})
+
 
 export const userDataSchema = new Schema<IUserData>({
     _id: {
@@ -10,40 +33,43 @@ export const userDataSchema = new Schema<IUserData>({
         unique: true
     },
 
-    bankAccounts: [{
-        accountNumber: {
-            type: String,
-            required: true,
-            trim: true
-        },
-        accountName: {
-            type: String,
-            required: true,
-            trim: true
-        },
-        bankName: {
-            type: String,
-            required: true,
-            trim: true
-        },
-    }],
+    displayName: {
+        type: String,
+        trim: true,
+        maxLength: [100, 'Display name can not be more than 100 characters'],
+        default: 'Noname'
+    },
 
-    roomsJoined: [{
-        room: {
+    email: {
+        type: String,
+        required: true,
+        trim: true,
+        maxLength: [100, 'Email can not be more than 100 characters'],
+    },
+
+    photoURL: {
+        type: String,
+        trim: true,
+    },
+
+    phoneNumber: {
+        type: String,
+        trim: true,
+        maxLength: [20, 'Phone number can not be more than 20 characters'],
+    },
+
+    bankAccounts: {
+        type: [bankAccountSchema],
+        maxLength: [5, 'Cannot have more than 5 bank accounts'],
+    },
+
+    roomsJoined: {
+        type: [{
             type: String,
-            ref: 'Room',
-            required: true
-        },
-        joinedAt: {
-            type: Date,
-            default: Date.now
-        },
-        role: {
-            type: String,
-            enum: ['admin', 'member', 'moderator'],
-            default: 'member'
-        }
-    }]
+            ref: 'Room'
+        }],
+        maxLength: [10, 'Cannot join more than 10 rooms'],
+    }
 }, {
     timestamps: true,
     _id: false

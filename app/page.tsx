@@ -8,16 +8,19 @@ import { useAuth } from "@/components/auth-context"
 
 export default function RoomManagementApp() {
   const router = useRouter();
-  const { userData } = useAuth()
-
-  const handleRoomClick = (roomId: string) => {
-    router.push(`/room/${roomId}`)
-  }
 
   return (
     <div className="min-h-screen bg-background">
       <SubNavbar />
-      <RoomList roomsJoined={userData?.roomsJoined || []} onRoomClick={handleRoomClick} />
+
+      <div className="p-6">
+        <div className="mb-6">
+          <h2 className="text-2xl font-semibold text-foreground mb-2">Danh sách phòng</h2>
+          <p className="text-muted-foreground">Quản lý và theo dõi các phòng của bạn</p>
+        </div>
+        <RoomList />
+      </div>
+      
     </div>
   )
 }

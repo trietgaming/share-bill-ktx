@@ -2,14 +2,13 @@ import "server-only";
 import mongoose, { Schema } from "mongoose";
 import { nanoid } from "nanoid";
 import type { IRoom } from "@/types/Room";
-
-const MAX_ROOM_ID_LENGTH = 8;
+import { ROOM_ID_LENGTH, ROOM_MAX_MEMBERS_LIMIT } from "@/lib/app-constants";
 
 export const roomSchema = new Schema<IRoom>({
     _id: {
         type: String,
         unique: true,
-        default: () => nanoid(MAX_ROOM_ID_LENGTH),
+        default: () => nanoid(ROOM_ID_LENGTH),
         required: true,
     },
 
@@ -24,32 +23,20 @@ export const roomSchema = new Schema<IRoom>({
         type: Number,
         required: [true, 'Max members is required'],
         min: [1, 'Room must allow at least 1 member'],
-        max: [100, 'Room cannot exceed 100 members'],
+        max: [ROOM_MAX_MEMBERS_LIMIT, 'Room cannot exceed 12 members'],
     },
 
     members: {
         type: [{
-            userData: {
-                type: String,
-                ref: 'UserData',
-                required: true
-            },
-            joinedAt: {
-                type: Date,
-                default: Date.now
-            },
-            role: {
-                type: String,
-                enum: ['admin', 'member'],
-                default: 'member'
-            }
+            type: String,
+            ref: 'UserData'
         }],
         validate: {
-            validator: function (value: any[]) {
-                return value.length <= (this as any).maxMembers
+            validator: function (this: IRoom, value: string[]) {
+                return value.length <= this.maxMembers
             },
             message: "Cannot exceed maximum member limit"
-        }
+        },
     }
 }, { timestamps: true, _id: false })
 

@@ -1,35 +1,33 @@
 "use client";
 
+import { getAuthenticatedUserData } from "@/lib/actions/user-data";
 import { firebaseClientAuth } from "@/lib/firebase/client";
 import { setAuthCookie } from "@/lib/firebase/server";
 import type { IUserData } from "@/types/UserData";
-import { User } from "firebase/auth";
 import { createContext, useContext, useEffect, useState } from "react";
 
 interface AuthContextType {
-    user: User | null;
     userData: IUserData | null;
 }
 
-interface AuthContextProps {
+interface AuthProviderProps {
     children: any;
-    initialUser: User | null;
     initialUserData: IUserData | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
-    user: null,
     userData: null
 });
 
-export const AuthProvider = ({ children, initialUser, initialUserData }: AuthContextProps) => {
-    const [user, setUser] = useState<User | null>(initialUser);
+export const AuthProvider = ({ children, initialUserData }: AuthProviderProps) => {
     const [userData, setUserData] = useState<IUserData | null>(initialUserData);
 
     useEffect(() => {
         const unsubscribeAuthStateChanged = firebaseClientAuth.onAuthStateChanged(
-            (authUser) => {
-                setUser(authUser);
+            async (authUser) => {
+                if (authUser?.uid !== userData?._id) {
+                    setUserData(await getAuthenticatedUserData());
+                }
             }
         );
 
@@ -48,7 +46,7 @@ export const AuthProvider = ({ children, initialUser, initialUserData }: AuthCon
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, userData }}>{children}</AuthContext.Provider>
+        <AuthContext.Provider value={{ userData }}>{children}</AuthContext.Provider>
     );
 };
 
