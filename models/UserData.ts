@@ -29,8 +29,7 @@ export const userDataSchema = new Schema<IUserData>({
     _id: {
         type: String,
         required: true,
-        trim: true,
-        unique: true
+        trim: true
     },
 
     displayName: {

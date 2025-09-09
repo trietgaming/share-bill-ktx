@@ -126,6 +126,40 @@ export async function deleteRoom(roomId: string): Promise<void> {
     });
 }
 
+export async function leaveRoom(roomId: string): Promise<void> {
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+        return redirectToLoginPage();
+    }
+
+    const membership = await Membership.findOne({ room: roomId, user: user.uid });
+
+    if (!membership) {
+        throw new Error("Phòng không tồn tại hoặc bạn không phải thành viên của phòng");
+    }
+
+    if (membership.role === 'admin') {
+        throw new Error("Quản trị viên không thể rời phòng. Vui lòng chuyển quyền quản trị hoặc xóa phòng.");
+    }
+
+    const session = await mongoose.startSession();
+    await session.withTransaction(async () => {
+        // Remove membership
+        await Membership.deleteOne({ room: roomId, user: user.uid });
+
+        // Remove the user from the room's members
+        await Room.findByIdAndUpdate(roomId, {
+            $pull: { members: user.uid }
+        });
+
+        // Remove the room from user's roomsJoined
+        await UserData.findByIdAndUpdate(user.uid, {
+            $pull: { roomsJoined: roomId }
+        });
+    });
+}
+
 /**
  * @param roomId The ID of the room to get roommates for
  * @returns Roommates in the room including the caller himself
@@ -134,6 +168,10 @@ export async function getRoommates(roomId: string): Promise<Roommate[]> {
     const userData = await getAuthenticatedUserData();
     if (!userData) {
         return redirectToLoginPage();
+    }
+
+    if (!userData.roomsJoined.includes(roomId)) {
+        throw new Error("Bạn không phải thành viên của phòng này");
     }
 
     const memberships = await Membership.find({ room: roomId }).populate<{ user: IUserData }>("user").lean();
@@ -158,3 +196,22 @@ export async function getUserRooms() {
 
     return serializeDocument<IRoom[]>(populatedUserData.roomsJoined);
 };
+
+export async function getRoomById(roomId: string): Promise<IRoom> {
+    const user = await getAuthenticatedUser();
+    if (!user) {
+        return redirectToLoginPage();
+    }
+
+    if (!roomId) {
+        throw new Error("Bạn cần cung cấp ID phòng");
+    }
+
+    const membership = await Membership.findOne({ room: roomId, user: user.uid }).populate<{ room: IRoom }>("room").lean();
+
+    if (!membership) {
+        throw new Error("Phòng không tồn tại hoặc bạn không phải thành viên của phòng");
+    }
+
+    return membership.room;
+}

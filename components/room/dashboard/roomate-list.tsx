@@ -1,8 +1,9 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useRoommates } from "@/components/room/room-context";
+import { useRoommatesQuery } from "@/components/room/room-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { useAuth } from "@/components/auth-context";
 
 function RoommateListSkeleton() {
     return (
@@ -26,10 +27,11 @@ function RoommateListSkeleton() {
 }
 
 export default function RoomateList() {
-    const { data: roommates, isLoading, error } = useRoommates();
+    const { userData } = useAuth()
+    const { data: roommates, isLoading, error } = useRoommatesQuery();
 
     if (isLoading) {
-        return <RoommateListSkeleton />
+        return <RoommateListSkeleton />;
     }
 
     if (error) {
@@ -53,6 +55,11 @@ export default function RoomateList() {
                     <div>
                         <p className="font-medium text-sm md:text-base">{roommate.displayName}</p>
                         <div className="flex items-center gap-2 flex-wrap">
+                            {roommate.userId === userData?._id && (
+                                <Badge variant="outline" className="text-xs">
+                                    Bạn
+                                </Badge>
+                            )}
                             {roommate.role === "admin" && (
                                 <Badge variant="default" className="text-xs">
                                     Quản trị viên

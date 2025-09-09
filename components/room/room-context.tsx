@@ -1,9 +1,11 @@
 "use client";
-import { getRoommates } from "@/lib/actions/room";
+import { getRoomById, getRoommates } from "@/lib/actions/room";
 import { IRoom } from "@/types/Room";
 import { Roommate } from "@/types/Roommate";
-import { createContext, useContext, useState } from "react";
-import { useQuery, UseQueryResult } from "@tanstack/react-query";
+import { createContext, useContext, useMemo } from "react";
+import { DefinedUseQueryResult, useQuery, UseQueryResult } from "@tanstack/react-query";
+import { useAuth } from "@/components/auth-context";
+import { IClientMembership } from "@/types/Membership";
 
 interface RoomProviderProps {
     children: any;
@@ -11,25 +13,44 @@ interface RoomProviderProps {
 }
 
 interface RoomContextType {
-    room: IRoom;
-    roommates: UseQueryResult<Roommate[], Error>
+    roomQuery: DefinedUseQueryResult<IRoom, Error>;
+    roommatesQuery: UseQueryResult<Roommate[], Error>;
+    membership?: IClientMembership
 }
 
 const RoomContext = createContext<RoomContextType>({} as RoomContextType);
 
 export const RoomProvider = ({ children, initialRoom }: RoomProviderProps) => {
-    const [room, setRoom] = useState<IRoom>(initialRoom);
-    
-    const roomatesQuery = useQuery<Roommate[]>({
-        queryKey: ["roomates", room._id],
-        queryFn: () => getRoommates(room._id)
-    })
+    const { userData } = useAuth();
+
+    const roomQuery = useQuery<IRoom>({
+        queryKey: ["room", initialRoom._id],
+        queryFn: () => getRoomById(initialRoom._id),
+        initialData: initialRoom,
+    });
+
+    const roommatesQuery = useQuery<Roommate[]>({
+        queryKey: ["roommates", initialRoom._id],
+        queryFn: () => getRoommates(initialRoom._id)
+    });
+
+    const membership = useMemo<IClientMembership | undefined>(() => {
+        const me = roommatesQuery.data?.find(r => r.userId === userData?._id);
+
+        if (!me) return void 0;
+
+        return {
+            joinedAt: me.joinedAt,
+            role: me.role
+        }
+    }, [roommatesQuery.data, userData]);
 
     return (
-        <RoomContext.Provider value={{ room, roommates: roomatesQuery }}>{children}</RoomContext.Provider>
+        <RoomContext.Provider value={{ roomQuery: roomQuery, roommatesQuery: roommatesQuery, membership }}>{children}</RoomContext.Provider>
     );
 };
 
 // For further optimization
-export const useRoom = () => useContext(RoomContext).room;
-export const useRoommates = () => useContext(RoomContext).roommates;
+export const useRoomQuery = () => useContext(RoomContext).roomQuery;
+export const useRoommatesQuery = () => useContext(RoomContext).roommatesQuery;
+export const useMembership = () => useContext(RoomContext).membership;

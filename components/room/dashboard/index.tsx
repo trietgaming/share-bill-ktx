@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Users, Zap, Receipt, Calendar, CheckCircle, XCircle, AlertCircle, DollarSign } from "lucide-react"
-import { useRoom, useRoommates } from "@/components/room/room-context"
+import { useRoomQuery, useRoommatesQuery } from "@/components/room/room-context"
 import RoomateList from "./roomate-list"
 
 // Mock data - trong thực tế sẽ fetch từ API
@@ -33,7 +33,7 @@ const mockData = {
 }
 
 export function HomeDashboard() {
-  const room = useRoom();
+  const { data: room } = useRoomQuery();
 
   const { electricBill, otherBills, attendanceStatus } = mockData
 

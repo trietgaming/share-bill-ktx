@@ -8,3 +8,8 @@ export interface IMembership {
     joinedAt: Date;
     role: 'admin' | 'member' | 'moderator';
 }
+
+export interface IClientMembership {
+    joinedAt: Date;
+    role: 'admin' | 'member' | 'moderator';
+}

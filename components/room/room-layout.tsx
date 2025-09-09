@@ -11,7 +11,7 @@ import { BillsManagement } from "@/components/room/bills"
 import { AttendanceCalendar } from "@/components/room/attendance"
 import { HistoryLog } from "@/components/room/history"
 import { Button } from "@/components/ui/button"
-import { useRoom } from "@/components/room/room-context"
+import { useRoomQuery } from "@/components/room/room-context"
 import { Badge } from "@/components/ui/badge"
 
 interface RoomLayoutProps {
@@ -22,7 +22,7 @@ export function RoomLayout({ children }: RoomLayoutProps) {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-  const room = useRoom();
+  const { data: room } = useRoomQuery();
 
   const renderTabContent = () => {
     switch (activeTab) {

@@ -2,15 +2,14 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { UserPlus, Settings, Shield, Users, DollarSign, Bell, Download, Upload, BarChart3, X } from "lucide-react"
+import { UserPlus, Settings, Shield, Users, DollarSign, Bell, Download, Upload, BarChart3, X, TriangleAlert } from "lucide-react"
 import { useConfirm } from "@/components/are-you-sure"
-import { useRoom } from "./room-context"
+import { useRoomQuery, useMembership } from "./room-context"
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { deleteRoom } from "@/lib/actions/room"
+import { deleteRoom, leaveRoom } from "@/lib/actions/room"
 import { useRouter } from "next/navigation"
 
 interface RoomSidebarProps {
@@ -18,7 +17,9 @@ interface RoomSidebarProps {
 }
 
 export function RoomSidebar({ onClose }: RoomSidebarProps) {
-  const room = useRoom();
+  const { data: room } = useRoomQuery();
+  const membership = useMembership();
+
   const router = useRouter();
 
   const { mutate: handleDeleteRoom, isPending: isDeletingRoom, error: deleteRoomError, isSuccess: isDeleteRoomSuccess } = useMutation({
@@ -32,12 +33,29 @@ export function RoomSidebar({ onClose }: RoomSidebarProps) {
     }
   })
 
+  const { mutate: handleLeaveRoom, isPending: isLeavingRoom, error: leaveRoomError, isSuccess: isLeaveRoomSuccess } = useMutation({
+    mutationFn: async () => {
+      await leaveRoom(room._id);
+      router.push('/');
+    },
+    onError: (error) => {
+      console.error("Error leaving room:", error);
+      toast.error("Đã có lỗi xảy ra khi rời phòng.");
+    }
+  })
+
   const confirmDeleteRoom = useConfirm(handleDeleteRoom, {
     title: "Bạn có chắc chắn muốn xóa phòng này?",
     description: "Hành động này không thể hoàn tác. Tất cả dữ liệu liên quan đến phòng sẽ bị xóa vĩnh viễn.",
     variant: "destructive",
     confirmText: "Xóa",
-    cancelText: "Hủy"
+  })
+
+  const confirmLeaveRoom = useConfirm(handleLeaveRoom, {
+    title: "Bạn có chắc chắn muốn rời phòng này?",
+    // Handle admin leaving the room text
+    description: "Bạn có thể tham gia lại phòng nếu có lời mời hoặc mã phòng, hoặc khi được cho phép.",
+    confirmText: "Rời phòng",
   })
 
   return (
@@ -152,29 +170,45 @@ export function RoomSidebar({ onClose }: RoomSidebarProps) {
           </CardContent>
         </Card> */}
 
-        {/* Admin Settings */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base lg:text-lg flex items-center gap-2">
-              <Shield className="h-4 lg:h-5 w-4 lg:w-5" />
-              Quản trị viên
+              <TriangleAlert className="h-4 lg:h-5 w-4 lg:w-5" />
+              Nguy hiểm
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 lg:space-y-3">
-            <Button variant="outline" className="w-full justify-start bg-transparent text-sm">
-              <Shield className="h-4 w-4 mr-2" />
-              Quản lý quyền
-            </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent text-sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Cài đặt hệ thống
-            </Button>
-            <Separator />
-            <Button disabled={isDeletingRoom || isDeleteRoomSuccess} onClick={() => confirmDeleteRoom()} variant="destructive" className="w-full justify-start text-sm">
-              Xóa phòng
+            <Button disabled={isLeavingRoom || isLeaveRoomSuccess} onClick={() => confirmLeaveRoom()} variant="destructive" className="w-full justify-start text-sm">
+              Rời phòng
             </Button>
           </CardContent>
         </Card>
+
+        {/* Admin Settings */}
+        {membership?.role === "admin" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base lg:text-lg flex items-center gap-2">
+                <Shield className="h-4 lg:h-5 w-4 lg:w-5" />
+                Quản trị viên
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 lg:space-y-3">
+              <Button variant="outline" className="w-full justify-start bg-transparent text-sm">
+                <Shield className="h-4 w-4 mr-2" />
+                Quản lý quyền
+              </Button>
+              <Button variant="outline" className="w-full justify-start bg-transparent text-sm">
+                <Settings className="h-4 w-4 mr-2" />
+                Cài đặt hệ thống
+              </Button>
+              <Separator />
+              <Button disabled={isDeletingRoom || isDeleteRoomSuccess} onClick={() => confirmDeleteRoom()} variant="destructive" className="w-full justify-start text-sm">
+                Xóa phòng
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )
