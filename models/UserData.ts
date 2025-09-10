@@ -1,7 +1,6 @@
 import "server-only";
 import mongoose, { Schema } from "mongoose";
 import type { IBankAccount, IUserData } from "@/types/UserData";
-import { Room } from "@/models/Room";
 
 export const bankAccountSchema = new Schema<IBankAccount>({
     accountNumber: {

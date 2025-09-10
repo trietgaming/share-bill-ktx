@@ -7,7 +7,7 @@ import { Hotel, Menu, Users, X } from "lucide-react"
 import { RoomNavbar } from "@/components/room/room-navbar"
 import { RoomSidebar } from "@/components/room/room-sidebar"
 import { HomeDashboard } from "@/components/room/dashboard"
-import { BillsManagement } from "@/components/room/bills"
+import { InvoicesManagement } from "@/components/room/invoices"
 import { AttendanceCalendar } from "@/components/room/attendance"
 import { HistoryLog } from "@/components/room/history"
 import { Button } from "@/components/ui/button"
@@ -28,8 +28,8 @@ export function RoomLayout({ children }: RoomLayoutProps) {
     switch (activeTab) {
       case "dashboard":
         return <HomeDashboard />
-      case "bills":
-        return <BillsManagement />
+      case "invoices":
+        return <InvoicesManagement />
       case "attendance":
         return <AttendanceCalendar />
       case "history":

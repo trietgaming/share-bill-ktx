@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 
 const createRoomFormSchema = z.object({
     name: z.string().min(1, "Tên phòng là bắt buộc!").max(100, "Tên phòng không được vượt quá 100 ký tự."),
-    maxMembers: z.number().min(1, "Số lượng thành viên tối thiểu là 1").max(100, "Số lượng thành viên tối đa là 100")
+    maxMembers: z.coerce.number<number>().min(1, "Số lượng thành viên tối thiểu là 1").max(100, "Số lượng thành viên tối đa là 100")
 })
 
 export default function CreateRoomForm() {

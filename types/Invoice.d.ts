@@ -4,10 +4,13 @@ export interface IPayInfo {
     amount: number;
 }
 
-export interface IIinvoice {
+export interface IInvoice {
     _id: string;
     roomId: string;
     amount: number;
+    /**
+     * Virtual
+     */
     remainingAmount: number;
     /**
      * walec - water and electricity bill

@@ -1,24 +1,18 @@
 "use server";
 
 import { Room } from "@/models/Room";
-import { getAuthenticatedUser } from "../firebase/server";
-import { redirectToLoginPage } from "../redirect-to-login";
 import mongoose, { HydratedDocument } from "mongoose";
 import { UserData } from "@/models/UserData";
 import { Roommate } from "@/types/Roommate";
 import { Membership } from "@/models/Membership";
-import { getAuthenticatedUserData } from "./user-data";
 import { IUserData } from "@/types/UserData";
 import { getUserData } from "@/lib/user-data";
 import { IRoom } from "@/types/Room";
 import { serializeDocument } from "@/lib/serializer";
+import { authenticate } from "../prechecks/auth";
 
 export async function createNewRoom(data: { name: string; maxMembers: number }) {
-    const user = await getAuthenticatedUser();
-
-    if (!user) {
-        return redirectToLoginPage();
-    }
+    const user = await authenticate();
 
     // Create the new room
     const session = await mongoose.startSession();
@@ -49,11 +43,7 @@ export async function createNewRoom(data: { name: string; maxMembers: number }) 
 }
 
 export async function joinRoom(roomId: string): Promise<boolean> {
-    const user = await getAuthenticatedUser();
-
-    if (!user) {
-        return redirectToLoginPage();
-    }
+    const user = await authenticate();
 
     // TODO: check permission to join the room
 
@@ -94,11 +84,7 @@ export async function joinRoom(roomId: string): Promise<boolean> {
 }
 
 export async function deleteRoom(roomId: string): Promise<void> {
-    const user = await getAuthenticatedUser();
-
-    if (!user) {
-        return redirectToLoginPage();
-    }
+    const user = await authenticate();
 
     const membership = await Membership.findOne({ room: roomId, user: user.uid });
 
@@ -127,11 +113,7 @@ export async function deleteRoom(roomId: string): Promise<void> {
 }
 
 export async function leaveRoom(roomId: string): Promise<void> {
-    const user = await getAuthenticatedUser();
-
-    if (!user) {
-        return redirectToLoginPage();
-    }
+    const user = await authenticate();
 
     const membership = await Membership.findOne({ room: roomId, user: user.uid });
 
@@ -165,10 +147,8 @@ export async function leaveRoom(roomId: string): Promise<void> {
  * @returns Roommates in the room including the caller himself
  */
 export async function getRoommates(roomId: string): Promise<Roommate[]> {
-    const userData = await getAuthenticatedUserData();
-    if (!userData) {
-        return redirectToLoginPage();
-    }
+    const user = await authenticate();
+    const userData = await getUserData(user);
 
     if (!userData.roomsJoined.includes(roomId)) {
         throw new Error("Bạn không phải thành viên của phòng này");
@@ -187,10 +167,8 @@ export async function getRoommates(roomId: string): Promise<Roommate[]> {
 }
 
 export async function getUserRooms() {
-    const user = await getAuthenticatedUser();
-    if (!user) {
-        return redirectToLoginPage();
-    }
+    const user = await authenticate();
+
     const userData = await getUserData(user);
     const populatedUserData = await userData.populate<{ roomsJoined: HydratedDocument<IRoom>[] }>("roomsJoined");
 
@@ -198,10 +176,7 @@ export async function getUserRooms() {
 };
 
 export async function getRoomById(roomId: string): Promise<IRoom> {
-    const user = await getAuthenticatedUser();
-    if (!user) {
-        return redirectToLoginPage();
-    }
+    const user = await authenticate();
 
     if (!roomId) {
         throw new Error("Bạn cần cung cấp ID phòng");

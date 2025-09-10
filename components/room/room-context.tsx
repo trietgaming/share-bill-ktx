@@ -6,6 +6,8 @@ import { createContext, useContext, useMemo } from "react";
 import { DefinedUseQueryResult, useQuery, UseQueryResult } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
 import { IClientMembership } from "@/types/Membership";
+import { IInvoice } from "@/types/Invoice";
+import { getInvoicesByRoom } from "@/lib/actions/invoice";
 
 interface RoomProviderProps {
     children: any;
@@ -15,6 +17,7 @@ interface RoomProviderProps {
 interface RoomContextType {
     roomQuery: DefinedUseQueryResult<IRoom, Error>;
     roommatesQuery: UseQueryResult<Roommate[], Error>;
+    invoicesQuery: UseQueryResult<IInvoice[], Error>;
     membership?: IClientMembership
 }
 
@@ -27,11 +30,19 @@ export const RoomProvider = ({ children, initialRoom }: RoomProviderProps) => {
         queryKey: ["room", initialRoom._id],
         queryFn: () => getRoomById(initialRoom._id),
         initialData: initialRoom,
+        staleTime: 1000 * 60 * 60, // 1 hour
     });
 
     const roommatesQuery = useQuery<Roommate[]>({
         queryKey: ["roommates", initialRoom._id],
-        queryFn: () => getRoommates(initialRoom._id)
+        queryFn: () => getRoommates(initialRoom._id),
+        staleTime: 1000 * 60 * 60, // 1 hour
+    });
+
+    const invoicesQuery = useQuery<IInvoice[]>({
+        queryKey: ["invoices", initialRoom._id],
+        queryFn: () => getInvoicesByRoom(initialRoom._id),
+        staleTime: 1000 * 60 * 60, // 1 hour
     });
 
     const membership = useMemo<IClientMembership | undefined>(() => {
@@ -46,11 +57,19 @@ export const RoomProvider = ({ children, initialRoom }: RoomProviderProps) => {
     }, [roommatesQuery.data, userData]);
 
     return (
-        <RoomContext.Provider value={{ roomQuery: roomQuery, roommatesQuery: roommatesQuery, membership }}>{children}</RoomContext.Provider>
+        <RoomContext.Provider value={{ 
+            roomQuery: roomQuery, 
+            roommatesQuery: roommatesQuery, 
+            invoicesQuery: invoicesQuery,
+            membership
+         }}>
+            {children}
+         </RoomContext.Provider>
     );
 };
 
 // For further optimization
 export const useRoomQuery = () => useContext(RoomContext).roomQuery;
 export const useRoommatesQuery = () => useContext(RoomContext).roommatesQuery;
+export const useInvoicesQuery = () => useContext(RoomContext).invoicesQuery;
 export const useMembership = () => useContext(RoomContext).membership;

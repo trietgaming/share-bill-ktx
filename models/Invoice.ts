@@ -1,4 +1,4 @@
-import { IIinvoice, IPayInfo } from "@/types/Invoice";
+import { IInvoice, IPayInfo } from "@/types/Invoice";
 import mongoose, { Schema } from "mongoose";
 
 export const payInfoSchema = new Schema<IPayInfo>({
@@ -19,7 +19,7 @@ export const payInfoSchema = new Schema<IPayInfo>({
     },
 });
 
-export const invoiceSchema = new Schema<IIinvoice>({
+export const invoiceSchema = new Schema<IInvoice>({
 
     advancePayer: {
         type: payInfoSchema
@@ -83,27 +83,12 @@ export const invoiceSchema = new Schema<IIinvoice>({
     timestamps: true
 })
 
-invoiceSchema.virtual('remainingAmount').get(function (this: IIinvoice) {
+invoiceSchema.virtual('remainingAmount').get(function (this: IInvoice) {
     const paidAmount = this.payInfo?.reduce((sum, pay) => sum + pay.amount, 0) || 0;
     return this.amount - paidAmount;
 });
 
-// TODO: These should not run on every find/findOne and save
-
-invoiceSchema.pre(['find', 'findOne'], async function (next) {
-    await this.updateMany({
-        status: 'pending',
-        dueDate: {
-            $lte: new Date()
-        }
-    }, {
-        $set: {
-            status: 'overdue'
-        }
-    });
-
-    return next();
-})
+// TODO: These should not run on every save
 
 invoiceSchema.pre('save', function (next) {
     const now = new Date();
@@ -127,4 +112,4 @@ invoiceSchema.pre('save', function (next) {
 invoiceSchema.index({ roomId: 1, status: 1 })
 invoiceSchema.index({ roomId: 1, status: 1, dueDate: 1 })
 
-export const Invoice: mongoose.Model<IIinvoice> = mongoose.models.Invoice || mongoose.model("Invoice", invoiceSchema);
+export const Invoice: mongoose.Model<IInvoice> = mongoose.models.Invoice || mongoose.model("Invoice", invoiceSchema);

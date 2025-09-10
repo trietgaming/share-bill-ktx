@@ -15,13 +15,13 @@ const mockData = {
     { id: 2, name: "Trần Thị B", avatar: "", isAdmin: false, status: "active" },
     { id: 3, name: "Lê Văn C", avatar: "", isAdmin: false, status: "inactive" },
   ],
-  electricBill: {
+  electricInvoice: {
     amount: 450000,
     status: "unpaid",
     dueDate: "2024-01-15",
     month: "Tháng 12/2023",
   },
-  otherBills: [
+  otherInvoices: [
     { id: 1, name: "Internet", amount: 200000, status: "unpaid" },
     { id: 2, name: "Vệ sinh chung", amount: 50000, status: "paid" },
   ],
@@ -35,9 +35,9 @@ const mockData = {
 export function HomeDashboard() {
   const { data: room } = useRoomQuery();
 
-  const { electricBill, otherBills, attendanceStatus } = mockData
+  const { electricInvoice, otherInvoices, attendanceStatus } = mockData
 
-  const unpaidBills = otherBills.filter((bill) => bill.status === "unpaid")
+  const unpaidInvoices = otherInvoices.filter((invoice) => invoice.status === "unpaid")
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -50,9 +50,9 @@ export function HomeDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-lg md:text-2xl font-bold text-destructive">
-              {electricBill.amount.toLocaleString("vi-VN")}đ
+              {electricInvoice.amount.toLocaleString("vi-VN")}đ
             </div>
-            <p className="text-xs text-muted-foreground">{electricBill.month} - Chưa thanh toán</p>
+            <p className="text-xs text-muted-foreground">{electricInvoice.month} - Chưa thanh toán</p>
           </CardContent>
         </Card>
 
@@ -63,9 +63,9 @@ export function HomeDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-lg md:text-2xl font-bold text-destructive">
-              {electricBill.amount.toLocaleString("vi-VN")}đ
+              {electricInvoice.amount.toLocaleString("vi-VN")}đ
             </div>
-            <p className="text-xs text-muted-foreground">{electricBill.month} - Chưa thanh toán</p>
+            <p className="text-xs text-muted-foreground">{electricInvoice.month} - Chưa thanh toán</p>
           </CardContent>
         </Card>
 
@@ -101,7 +101,7 @@ export function HomeDashboard() {
           </CardContent>
         </Card>
 
-        {/* Bills Status */}
+        {/* Invoices Status */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base md:text-lg flex items-center gap-2">
@@ -110,13 +110,13 @@ export function HomeDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 md:space-y-4">
-            {/* Electric Bill */}
+            {/* Electric Invoice */}
             <div className="p-3 md:p-4 border border-destructive/30 bg-destructive/15 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-destructive" />
                   <span className="font-medium text-sm md:text-base text-foreground">
-                    Điện nước {electricBill.month}
+                    Điện nước {electricInvoice.month}
                   </span>
                 </div>
                 <Badge variant="destructive" className="text-xs">
@@ -126,28 +126,28 @@ export function HomeDashboard() {
               </div>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <span className="text-base md:text-lg font-bold text-foreground">
-                  {electricBill.amount.toLocaleString("vi-VN")}đ
+                  {electricInvoice.amount.toLocaleString("vi-VN")}đ
                 </span>
                 <Button size="sm" variant="destructive" className="text-xs">
                   <DollarSign className="h-3 w-3 mr-1" />
                   Thanh toán
                 </Button>
               </div>
-              <p className="text-xs text-foreground/70 mt-1">Hạn thanh toán: {electricBill.dueDate}</p>
+              <p className="text-xs text-foreground/70 mt-1">Hạn thanh toán: {electricInvoice.dueDate}</p>
             </div>
 
-            {/* Other Bills */}
+            {/* Other Invoices */}
             <div className="space-y-2">
               <h4 className="text-sm font-medium text-muted-foreground">Hóa đơn khác</h4>
-              {otherBills.map((bill) => (
-                <div key={bill.id} className="flex items-center justify-between p-2 md:p-3 border rounded-lg">
+              {otherInvoices.map((invoice) => (
+                <div key={invoice.id} className="flex items-center justify-between p-2 md:p-3 border rounded-lg">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="font-medium text-sm truncate">{bill.name}</span>
+                    <span className="font-medium text-sm truncate">{invoice.name}</span>
                     <Badge
-                      variant={bill.status === "paid" ? "default" : "destructive"}
+                      variant={invoice.status === "paid" ? "default" : "destructive"}
                       className="text-xs flex-shrink-0"
                     >
-                      {bill.status === "paid" ? (
+                      {invoice.status === "paid" ? (
                         <>
                           <CheckCircle className="h-3 w-3 mr-1" />
                           Đã đóng
@@ -161,8 +161,8 @@ export function HomeDashboard() {
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="font-medium text-sm">{bill.amount.toLocaleString("vi-VN")}đ</span>
-                    {bill.status === "unpaid" && (
+                    <span className="font-medium text-sm">{invoice.amount.toLocaleString("vi-VN")}đ</span>
+                    {invoice.status === "unpaid" && (
                       <Button size="sm" variant="outline" className="text-xs bg-transparent">
                         Thanh toán
                       </Button>

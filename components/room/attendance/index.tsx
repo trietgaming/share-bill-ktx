@@ -33,7 +33,7 @@ const mockData = {
     "2024-01-14": [1, 2, 3],
     "2024-01-15": [1],
   },
-  electricBill: {
+  electricInvoice: {
     totalAmount: 1200000,
     perDayRate: 40000,
   },
@@ -43,7 +43,7 @@ export function AttendanceCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date(2024, 0, 1)) // January 2024
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
-  const { members, attendance, electricBill, currentUser } = mockData
+  const { members, attendance, electricInvoice, currentUser } = mockData
   const currentUserId = 1 // Assuming current user is Nguyễn Văn A
 
   // Get days in current month
@@ -59,7 +59,7 @@ export function AttendanceCalendar() {
     memberIds.includes(currentUserId),
   ).length
 
-  const userElectricCost = userAttendanceDays * electricBill.perDayRate
+  const userElectricCost = userAttendanceDays * electricInvoice.perDayRate
 
   // Generate calendar days
   const calendarDays = []
@@ -160,7 +160,7 @@ export function AttendanceCalendar() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{userElectricCost.toLocaleString("vi-VN")}đ</div>
-            <p className="text-xs text-muted-foreground">{electricBill.perDayRate.toLocaleString("vi-VN")}đ/ngày</p>
+            <p className="text-xs text-muted-foreground">{electricInvoice.perDayRate.toLocaleString("vi-VN")}đ/ngày</p>
           </CardContent>
         </Card>
 

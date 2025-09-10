@@ -41,7 +41,7 @@ export function SubNavbar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* View Bills Button */}
+        {/* View Invoices Button */}
         <Button variant="outline" className="gap-2 bg-transparent">
           <Receipt className="h-4 w-4" />
           <span className="hidden md:inline-block">Xem hóa đơn</span>

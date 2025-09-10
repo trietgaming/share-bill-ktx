@@ -13,11 +13,11 @@ import { useState } from "react"
 const mockHistoryData = [
   {
     id: 1,
-    action: "bill_payment",
+    action: "invoice_payment",
     description: "Thanh toán hóa đơn điện nước tháng 12/2023",
     user: "Nguyễn Văn A",
     timestamp: "2024-01-15 14:30:00",
-    details: { amount: 400000, billName: "Điện nước tháng 12/2023" },
+    details: { amount: 400000, invoiceName: "Điện nước tháng 12/2023" },
     type: "payment",
   },
   {
@@ -40,12 +40,12 @@ const mockHistoryData = [
   },
   {
     id: 4,
-    action: "bill_created",
+    action: "invoice_created",
     description: "Tạo hóa đơn mới: Internet tháng 1/2024",
     user: "Nguyễn Văn A",
     timestamp: "2024-01-12 16:20:00",
-    details: { amount: 300000, billName: "Internet tháng 1/2024" },
-    type: "bill",
+    details: { amount: 300000, invoiceName: "Internet tháng 1/2024" },
+    type: "invoice",
   },
   {
     id: 5,
@@ -58,12 +58,12 @@ const mockHistoryData = [
   },
   {
     id: 6,
-    action: "bill_edited",
+    action: "invoice_edited",
     description: "Chỉnh sửa hóa đơn vệ sinh chung",
     user: "Nguyễn Văn A",
     timestamp: "2024-01-10 13:30:00",
-    details: { billName: "Vệ sinh chung", oldAmount: 120000, newAmount: 150000 },
-    type: "bill",
+    details: { invoiceName: "Vệ sinh chung", oldAmount: 120000, newAmount: 150000 },
+    type: "invoice",
   },
   {
     id: 7,
@@ -93,7 +93,7 @@ export function HistoryLog() {
   const getActionIcon = (type: string) => {
     switch (type) {
       case "payment":
-      case "bill":
+      case "invoice":
         return <Receipt className="h-4 w-4" />
       case "member":
         return <User className="h-4 w-4" />
@@ -110,7 +110,7 @@ export function HistoryLog() {
     switch (type) {
       case "payment":
         return "bg-green-100 text-green-800"
-      case "bill":
+      case "invoice":
         return "bg-blue-100 text-blue-800"
       case "member":
         return "bg-purple-100 text-purple-800"
@@ -127,7 +127,7 @@ export function HistoryLog() {
     switch (type) {
       case "payment":
         return "Thanh toán"
-      case "bill":
+      case "invoice":
         return "Hóa đơn"
       case "member":
         return "Thành viên"
@@ -205,7 +205,7 @@ export function HistoryLog() {
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="payment">Thanh toán</SelectItem>
-                <SelectItem value="bill">Hóa đơn</SelectItem>
+                <SelectItem value="invoice">Hóa đơn</SelectItem>
                 <SelectItem value="member">Thành viên</SelectItem>
                 <SelectItem value="attendance">Ngày ở</SelectItem>
                 <SelectItem value="settings">Cài đặt</SelectItem>
@@ -255,7 +255,7 @@ export function HistoryLog() {
                               {item.type === "payment" && (
                                 <span>Số tiền: {item.details.amount?.toLocaleString("vi-VN")}đ</span>
                               )}
-                              {item.type === "bill" && item.details.oldAmount && (
+                              {item.type === "invoice" && item.details.oldAmount && (
                                 <span>
                                   Thay đổi từ {item.details.oldAmount?.toLocaleString("vi-VN")}đ →{" "}
                                   {item.details.newAmount?.toLocaleString("vi-VN")}đ
