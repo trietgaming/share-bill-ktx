@@ -1,28 +1,6 @@
 import "server-only";
 import mongoose, { Schema } from "mongoose";
-import type { IBankAccount, IUserData } from "@/types/UserData";
-
-export const bankAccountSchema = new Schema<IBankAccount>({
-    accountNumber: {
-        type: String,
-        required: true,
-        trim: true,
-        maxLength: [30, 'Account number can not be more than 30 characters']
-    },
-    accountName: {
-        type: String,
-        required: true,
-        trim: true,
-        maxLength: [100, 'Account name can not be more than 100 characters']
-    },
-    bankName: {
-        type: String,
-        required: true,
-        trim: true,
-        maxLength: [100, 'Bank name can not be more than 100 characters']
-    },
-})
-
+import type { IUserData } from "@/types/UserData";
 
 export const userDataSchema = new Schema<IUserData>({
     _id: {
@@ -57,8 +35,14 @@ export const userDataSchema = new Schema<IUserData>({
     },
 
     bankAccounts: {
-        type: [bankAccountSchema],
-        maxLength: [5, 'Cannot have more than 5 bank accounts'],
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'BankAccount', }],
+        validate: {
+            validator: function (v: mongoose.Types.ObjectId[]) {
+                console.log("SHOUD VALIDATE", v);
+                return v.length <= 5;
+            },
+            message: 'Cannot have more than 5 bank accounts'
+        },
     },
 
     roomsJoined: {
@@ -66,7 +50,12 @@ export const userDataSchema = new Schema<IUserData>({
             type: String,
             ref: 'Room'
         }],
-        maxLength: [10, 'Cannot join more than 10 rooms'],
+        validate: {
+            validator: function (v: string[]) {
+                return v.length <= 10;
+            },
+            message: 'Cannot join more than 10 rooms'
+        }
     }
 }, {
     timestamps: true,

@@ -3,25 +3,27 @@
 import { getAuthenticatedUserData } from "@/lib/actions/user-data";
 import { firebaseClientAuth } from "@/lib/firebase/client";
 import { setAuthCookie } from "@/lib/firebase/server";
-import type { IUserData } from "@/types/UserData";
+import type { IUserDataWithBankAccounts } from "@/types/UserData";
 import { createContext, useContext, useEffect, useState } from "react";
 
 interface AuthContextType {
-    userData: IUserData | null;
+    userData: IUserDataWithBankAccounts | null;
+    setUserData: React.Dispatch<React.SetStateAction<IUserDataWithBankAccounts | null>>
 }
 
 interface AuthProviderProps {
     children: any;
-    initialUserData: IUserData | null;
+    initialUserData: IUserDataWithBankAccounts | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
-    userData: null
+    userData: null,
+    setUserData: () => { },
 });
 
 export const AuthProvider = ({ children, initialUserData }: AuthProviderProps) => {
-    const [userData, setUserData] = useState<IUserData | null>(initialUserData);
-
+    const [userData, setUserData] = useState<IUserDataWithBankAccounts | null>(initialUserData);
+    
     useEffect(() => {
         const unsubscribeAuthStateChanged = firebaseClientAuth.onAuthStateChanged(
             async (authUser) => {
@@ -46,7 +48,7 @@ export const AuthProvider = ({ children, initialUserData }: AuthProviderProps) =
     }, []);
 
     return (
-        <AuthContext.Provider value={{ userData }}>{children}</AuthContext.Provider>
+        <AuthContext.Provider value={{ userData, setUserData }}>{children}</AuthContext.Provider>
     );
 };
 

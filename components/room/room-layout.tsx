@@ -13,31 +13,16 @@ import { HistoryLog } from "@/components/room/history"
 import { Button } from "@/components/ui/button"
 import { useRoomQuery } from "@/components/room/room-context"
 import { Badge } from "@/components/ui/badge"
+import { usePathname, useRouter } from "next/navigation"
 
 interface RoomLayoutProps {
   children?: React.ReactNode
 }
 
 export function RoomLayout({ children }: RoomLayoutProps) {
-  const [activeTab, setActiveTab] = useState("dashboard")
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const { data: room } = useRoomQuery();
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "dashboard":
-        return <HomeDashboard />
-      case "invoices":
-        return <InvoicesManagement />
-      case "attendance":
-        return <AttendanceCalendar />
-      case "history":
-        return <HistoryLog />
-      default:
-        return children
-    }
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -65,7 +50,7 @@ export function RoomLayout({ children }: RoomLayoutProps) {
       </header >
 
       {/* Navigation */}
-      < RoomNavbar activeTab={activeTab} onTabChange={setActiveTab} />
+      < RoomNavbar />
 
 
       {/* Main Content */}
@@ -79,7 +64,7 @@ export function RoomLayout({ children }: RoomLayoutProps) {
         >
           <RoomSidebar onClose={() => setIsSidebarOpen(false)} />
         </div>
-        <main className="flex-1 p-4 md:p-6">{renderTabContent()}</main>
+        <main className="flex-1 p-4 md:p-6">{children}</main>
 
         {/* Mobile overlay */}
         {

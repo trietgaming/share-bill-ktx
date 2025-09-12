@@ -1,11 +1,6 @@
 import { IRoom } from "@/types/Room";
-
-export interface IBankAccount {
-    accountNumber: string;
-    accountName: string;
-    bankName: string;
-    qrCodeUrl?: string;
-}
+import mongoose from "mongoose";
+import { IClientBankAccount } from "./BankAccount";
 
 export interface IUserData {
     _id: string;
@@ -16,6 +11,10 @@ export interface IUserData {
     /**
      * Main bank account is the first account in the list
      */
-    bankAccounts: IBankAccount[];
+    bankAccounts: mongoose.Types.ObjectId[];
     roomsJoined: string[];
+}
+
+export interface IUserDataWithBankAccounts extends Omit<IUserData, "bankAccounts"> {
+    bankAccounts: IClientBankAccount[];
 }

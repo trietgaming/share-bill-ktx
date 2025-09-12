@@ -18,12 +18,17 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, MoreHorizontal, Edit, Trash2, CreditCard, Receipt, DollarSign, Users, User } from "lucide-react"
-import { CreateInvoiceForm } from "@/components/room/invoices/create-invoice-form"
+import { Plus, MoreHorizontal, Edit, Trash2, CreditCard, Receipt, DollarSign, Users, User, ChevronDown, Zap, Home } from "lucide-react"
+import { CreateOtherInvoiceForm } from "@/components/room/invoices/create-other-invoice-form"
 import { useInvoicesQuery } from "../room-context"
 import { IInvoice } from "@/types/Invoice"
 import { useAuth } from "@/components/auth-context"
-import { formatDate } from "@/lib/utils"
+import { formatCurrency, formatDate } from "@/lib/utils"
+import { useMutation } from "@tanstack/react-query"
+import { deleteInvoice } from "@/lib/actions/invoice"
+import { queryClient } from "@/lib/query-client"
+import { InvoiceSkeleton } from "./skeleton"
+import { CreateMonthInvoiceForm } from "./create-month-invoice-form"
 
 interface PersonalInvoice extends IInvoice {
   personalAmount: number
@@ -31,50 +36,41 @@ interface PersonalInvoice extends IInvoice {
 
 
 export function InvoicesManagement() {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [editingInvoice, setEditingInvoice] = useState<any>(null)
 
   const { userData } = useAuth();
   const { data: invoices } = useInvoicesQuery();
 
-  if (!invoices || !userData) return <div>Loading...</div>
-
-  const sharedInvoices = invoices;
+  const [addInvoiceType, setAddInvoiceType] = useState<string | null>(null)
+  const [editingInvoice, setEditingInvoice] = useState<any>(null)
 
   const personalInvoices: PersonalInvoice[] = useMemo(() => {
-    return invoices
-      .filter((invoice) => invoice.applyTo.includes(userData!._id))
+    return invoices?.filter((invoice) => invoice.applyTo.includes(userData!._id))
       .map((invoice) => ({
         ...invoice,
-        personalAmount: Math.round(invoice.remainingAmount / invoice.applyTo.length),
-      }))
-  }, [invoices])
+        personalAmount: Math.round(invoice.amount / invoice.applyTo.length),
+      })) || []
+  }, [invoices, userData]);
+
+  const thisMonthInvoicesAmount = useMemo(() => {
+    const now = new Date();
+    return invoices?.filter(invoice => {
+      const createdAt = invoice.createdAt
+      return createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear();
+    }).reduce((sum, invoice) => (invoice.status === "pending" ? sum + invoice.amount : sum), 0) || 0;
+  }, [invoices]);
+
   // Calculate totals
-  const totalYourShare = personalInvoices.reduce((sum, invoice) => (invoice.status === "pending" ? sum + invoice.personalAmount : sum), 0)
-  const totalPersonalUnpaid = personalInvoices.reduce(
-    (sum, invoice) => (invoice.status === "pending" ? sum + invoice.amount : sum),
-    0,
-  )
-  const totalYouNeedToPay = totalYourShare + totalPersonalUnpaid
+  const totalYourShare = personalInvoices?.reduce((sum, invoice) => (invoice.status === "pending" ? sum + invoice.personalAmount : sum), 0) || 0
 
-  const totalRoomUnpaid = sharedInvoices.reduce((sum, invoice) => (invoice.status === "pending" ? sum + invoice.amount : sum), 0)
+  const totalRoomUnpaid = invoices?.reduce((sum, invoice) => (invoice.status === "pending" ? sum + invoice.amount : sum), 0) || 0
 
-  const getInvoiceTypeColor = (type: string) => {
-    switch (type) {
-      case "utility":
-        return "bg-blue-100 text-blue-800"
-      case "internet":
-        return "bg-purple-100 text-purple-800"
-      case "cleaning":
-        return "bg-green-100 text-green-800"
-      case "rent":
-        return "bg-orange-100 text-orange-800"
-      case "parking":
-        return "bg-gray-100 text-gray-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+  const deleteInvoiceMutation = useMutation({
+    mutationFn: async (invoice: IInvoice) => {
+      // Call delete API
+      await deleteInvoice(invoice._id);
+      queryClient.invalidateQueries({ queryKey: ['invoices', invoice.roomId] });
     }
-  }
+  })
 
   const InvoiceActions = ({ invoice, isShared }: { invoice: any; isShared: boolean }) => (
     <DropdownMenu>
@@ -94,13 +90,15 @@ export function InvoicesManagement() {
           <Edit className="mr-2 h-4 w-4" />
           Sửa hóa đơn
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleDeleteInvoice(invoice.id)} className="text-destructive">
+        <DropdownMenuItem disabled={deleteInvoiceMutation.isPending} onClick={() => deleteInvoiceMutation.mutate(invoice)} className="text-destructive">
           <Trash2 className="mr-2 h-4 w-4" />
           Xóa hóa đơn
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
+
+  if (!invoices || !userData) return <InvoiceSkeleton />
 
   return (
     <div className="space-y-6">
@@ -109,12 +107,11 @@ export function InvoicesManagement() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Bạn cần trả</CardTitle>
+              <CardTitle className="text-sm font-medium">Hóa đơn tháng này</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-destructive">{totalYouNeedToPay.toLocaleString("vi-VN")}đ</div>
-              <p className="text-xs text-muted-foreground">Tổng hóa đơn chưa thanh toán</p>
+              <div className="text-2xl font-bold text-destructive">{formatCurrency(thisMonthInvoicesAmount)}</div>
             </CardContent>
           </Card>
 
@@ -125,7 +122,7 @@ export function InvoicesManagement() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-primary">{totalYourShare.toLocaleString("vi-VN")}đ</div>
-              <p className="text-xs text-muted-foreground">Từ hóa đơn chung</p>
+              {/* <p className="text-xs text-muted-foreground">Từ hóa đơn chung</p> */}
             </CardContent>
           </Card>
 
@@ -135,25 +132,63 @@ export function InvoicesManagement() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalRoomUnpaid.toLocaleString("vi-VN")}đ</div>
-              <p className="text-xs text-muted-foreground">Hóa đơn chung chưa thanh toán</p>
+              <div className="text-2xl font-bold">{formatCurrency(totalRoomUnpaid)}</div>
+              {/* <p className="text-xs text-muted-foreground">Hóa đơn chung chưa thanh toán</p> */}
             </CardContent>
           </Card>
         </div>
 
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="lg:w-auto w-full">
-              <Plus className="mr-2 h-4 w-4" />
-              Thêm hóa đơn
+        {/* Add Invoice Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              <span className="hidden md:inline-block">Thêm hóa đơn</span>
+              <ChevronDown className="h-4 w-4" />
             </Button>
-          </DialogTrigger>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem asChild>
+
+              <Button onClick={() => setAddInvoiceType("walec")} variant="ghost" className="w-full justify-start">
+                <Zap className="mr-2 h-4 w-4" />
+                <span>Hóa đơn điện nước</span>
+              </Button>
+
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Button onClick={() => setAddInvoiceType("roomCost")} variant="ghost" className="w-full justify-start">
+                <Home className="mr-2 h-4 w-4" />
+                <span>Tiền phòng</span>
+              </Button>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem asChild>
+              <Button onClick={() => setAddInvoiceType("other")} variant="ghost" className="w-full justify-start">
+                <Receipt className="mr-2 h-4 w-4" />
+                <span>Hóa đơn khác</span>
+              </Button>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Dialog open={addInvoiceType === "other"} onOpenChange={() => setAddInvoiceType(null)}>
           <DialogContent className="max-w-lg overflow-y-auto max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>Thêm hóa đơn mới</DialogTitle>
-              <DialogDescription>Tạo hóa đơn mới cho phòng. Chọn loại hóa đơn phù hợp.</DialogDescription>
+              <DialogDescription>Tạo hóa đơn mới cho phòng.</DialogDescription>
             </DialogHeader>
-            <CreateInvoiceForm onSuccess={() => setIsAddDialogOpen(false)} />
+            <CreateOtherInvoiceForm onSuccess={() => setAddInvoiceType(null)} />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!addInvoiceType && addInvoiceType !== "other"} onOpenChange={() => setAddInvoiceType(null)}>
+          <DialogContent className="max-w-lg overflow-y-auto max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>Thêm hóa đơn mới</DialogTitle>
+              <DialogDescription>Tạo hóa đơn mới cho phòng.</DialogDescription>
+            </DialogHeader>
+            <CreateMonthInvoiceForm invoiceType={addInvoiceType as string} onSuccess={() => setAddInvoiceType(null)} />
           </DialogContent>
         </Dialog>
       </div>
@@ -172,6 +207,7 @@ export function InvoicesManagement() {
               <TableRow>
                 <TableHead>Tên hóa đơn</TableHead>
                 <TableHead>Số tiền</TableHead>
+                <TableHead>Phần của bạn</TableHead>
                 <TableHead>Hạn thanh toán</TableHead>
                 <TableHead>Trạng thái</TableHead>
                 <TableHead className="text-right">Hành động</TableHead>
@@ -186,7 +222,8 @@ export function InvoicesManagement() {
                       <div className="text-sm text-muted-foreground">{invoice.description}</div>
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium">{invoice.amount.toLocaleString("vi-VN")}đ</TableCell>
+                  <TableCell className="font-medium">{formatCurrency(invoice.amount)}</TableCell>
+                  <TableCell className="font-medium text-primary">{formatCurrency(invoice.personalAmount)}</TableCell>
                   <TableCell>{invoice.dueDate ? formatDate(invoice.dueDate) : "Không"}</TableCell>
                   <TableCell>
                     <Badge variant={invoice.status === "paid" ? "default" : "destructive"}>
@@ -223,7 +260,7 @@ export function InvoicesManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sharedInvoices.map((invoice) => (
+              {invoices.map((invoice) => (
                 <TableRow key={invoice._id}>
                   <TableCell>
                     <div>

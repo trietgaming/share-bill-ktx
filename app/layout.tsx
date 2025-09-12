@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
-import { getAuthenticatedUser } from "@/lib/firebase/server";
 import { AuthProvider } from "@/components/auth-context";
 import { Toaster } from "@/components/ui/sonner";
 import { Navbar } from "@/components/navbar";
@@ -26,7 +25,7 @@ export default async function RootLayout({
     const authenticatedUserData = await getAuthenticatedUserData();
 
     return (
-        <html lang="en">
+        <html lang="vi">
             <body
                 className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}
             >
@@ -39,7 +38,7 @@ export default async function RootLayout({
                     </AuthProvider>
                 </QueryClientProvider>
                 <Analytics />
-                <Toaster />
+                <Toaster richColors closeButton />
             </body>
         </html>
     );

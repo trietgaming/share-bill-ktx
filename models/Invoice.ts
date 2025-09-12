@@ -1,5 +1,6 @@
 import { IInvoice, IPayInfo } from "@/types/Invoice";
 import mongoose, { Schema } from "mongoose";
+import { BankAccount, bankAccountSchema } from "@/models/BankAccount";
 
 export const payInfoSchema = new Schema<IPayInfo>({
     paidBy: {
@@ -44,6 +45,21 @@ export const invoiceSchema = new Schema<IInvoice>({
         default: 'other'
     },
 
+    monthApplied: {
+        type: String,
+        match: [/^\d{4}-(0[1-9]|1[0-2])$/, 'Month applied must be in YYYY-MM format'],
+        // required if type is walec or roomCost
+        validate: {
+            validator: function (this: IInvoice, v: string) {
+                if (this.type === 'walec' || this.type === 'roomCost') {
+                    return !!v;
+                }
+                return true;
+            },
+            message: 'Month applied is required for walec and roomCost type invoice'
+        }
+    },
+
     name: {
         type: String,
         required: true,
@@ -75,6 +91,27 @@ export const invoiceSchema = new Schema<IInvoice>({
         type: [payInfoSchema]
     },
 
+    payTo: {
+        type: String,
+        trim: true,
+        // Could be user ID, or bank account info in stringified JSON format, or QR code URL
+        maxLength: [1024, 'Pay to info can not be more than 1024 characters'],
+        validate: {
+            validator: function (v: string) {
+                try {
+                    const obj = JSON.parse(v);
+                    const bankAccount = new BankAccount(obj);
+                    const error = bankAccount.validateSync();
+                    return !error;
+                } catch (e) {
+                    // Not a JSON, could be user ID or QR code URL
+                    return true;
+                }
+            },
+            message: 'Pay to info must be a valid bank account JSON, user ID or QR code URL'
+        }
+    },
+
     applyTo: {
         type: [String],
     }
@@ -87,8 +124,6 @@ invoiceSchema.virtual('remainingAmount').get(function (this: IInvoice) {
     const paidAmount = this.payInfo?.reduce((sum, pay) => sum + pay.amount, 0) || 0;
     return this.amount - paidAmount;
 });
-
-// TODO: These should not run on every save
 
 invoiceSchema.pre('save', function (next) {
     const now = new Date();

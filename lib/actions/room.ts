@@ -5,11 +5,13 @@ import mongoose, { HydratedDocument } from "mongoose";
 import { UserData } from "@/models/UserData";
 import { Roommate } from "@/types/Roommate";
 import { Membership } from "@/models/Membership";
-import { IUserData } from "@/types/UserData";
+import { IUserData, IUserDataWithBankAccounts } from "@/types/UserData";
 import { getUserData } from "@/lib/user-data";
 import { IRoom } from "@/types/Room";
 import { serializeDocument } from "@/lib/serializer";
 import { authenticate } from "../prechecks/auth";
+import { IBankAccount } from "@/types/BankAccount";
+import { IMembership } from "@/types/Membership";
 
 export async function createNewRoom(data: { name: string; maxMembers: number }) {
     const user = await authenticate();
@@ -17,24 +19,26 @@ export async function createNewRoom(data: { name: string; maxMembers: number }) 
     // Create the new room
     const session = await mongoose.startSession();
     const newRoom = await session.withTransaction(async () => {
-        const newRoom = await Room.create({
+        const newRoom = new Room({
             name: data.name,
             maxMembers: data.maxMembers,
             members: [user.uid],
-        })
+        });
 
-        await Membership.create({
+        await newRoom.save({ session });
+
+        await new Membership({
             user: user.uid,
             room: newRoom._id,
             joinedAt: new Date(),
             role: 'admin'
-        })
+        }).save({ session });
 
         await UserData.findByIdAndUpdate(user.uid, {
             $push: {
                 roomsJoined: newRoom._id
             }
-        })
+        }, { session, runValidators: true });
 
         return newRoom;
     })
@@ -66,18 +70,18 @@ export async function joinRoom(roomId: string): Promise<boolean> {
         targetRoom.members.push(user.uid);
         await targetRoom.save();
 
-        await Membership.create({
+        await new Membership([{
             user: user.uid,
             room: targetRoom._id,
             joinedAt: new Date(),
             role: 'member'
-        })
+        }]).save({ session });
 
         await UserData.findByIdAndUpdate(user.uid, {
             $push: {
                 roomsJoined: targetRoom._id
             }
-        })
+        }, { session, runValidators: true });
     })
 
     return true;
@@ -99,16 +103,16 @@ export async function deleteRoom(roomId: string): Promise<void> {
     const session = await mongoose.startSession();
     await session.withTransaction(async () => {
         // Delete all memberships related to the room
-        await Membership.deleteMany({ room: roomId });
+        await Membership.deleteMany({ room: roomId }, { session });
 
         // Remove the room from all users' roomsJoined
         await UserData.updateMany(
             { roomsJoined: roomId },
-            { $pull: { roomsJoined: roomId } }
+            { $pull: { roomsJoined: roomId } }, { session, runValidators: true }
         );
 
         // Finally, delete the room
-        await Room.findByIdAndDelete(roomId);
+        await Room.findByIdAndDelete(roomId, { session });
     });
 }
 
@@ -128,17 +132,17 @@ export async function leaveRoom(roomId: string): Promise<void> {
     const session = await mongoose.startSession();
     await session.withTransaction(async () => {
         // Remove membership
-        await Membership.deleteOne({ room: roomId, user: user.uid });
+        await Membership.deleteOne({ room: roomId, user: user.uid }, { session });
 
         // Remove the user from the room's members
         await Room.findByIdAndUpdate(roomId, {
             $pull: { members: user.uid }
-        });
+        }, { session, runValidators: true });
 
         // Remove the room from user's roomsJoined
         await UserData.findByIdAndUpdate(user.uid, {
             $pull: { roomsJoined: roomId }
-        });
+        }, { session, runValidators: true });
     });
 }
 
@@ -154,15 +158,23 @@ export async function getRoommates(roomId: string): Promise<Roommate[]> {
         throw new Error("Bạn không phải thành viên của phòng này");
     }
 
-    const memberships = await Membership.find({ room: roomId }).populate<{ user: IUserData }>("user").lean();
+    const memberships = await Membership.find({ room: roomId })
+        .populate("user")
+        .populate<{ user: Omit<IUserData, "bankAccounts"> & { bankAccounts: IBankAccount[] } }>({
+            path: "user.bankAccounts",
+            model: "BankAccount",
+        });
 
-    return memberships.map(m => ({
+    return memberships.map(serializeDocument<
+        Omit<IMembership, "user"> & { user: Omit<IUserData, "bankAccounts"> & { bankAccounts: IBankAccount[] } }
+    >).map(m => ({
         userId: m.user._id,
         displayName: m.user.displayName,
         photoUrl: m.user.photoURL,
         email: m.user.email,
         joinedAt: m.joinedAt,
-        role: m.role
+        role: m.role,
+        bankAccounts: m.user.bankAccounts,
     }));
 }
 

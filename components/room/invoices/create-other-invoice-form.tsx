@@ -24,6 +24,8 @@ import { useMutation } from "@tanstack/react-query"
 import { useEffect } from "react"
 import { IInvoice } from "@/types/Invoice";
 import { toast } from "sonner";
+import { queryClient } from "@/lib/query-client";
+import { RoommateItem } from "./roomate-item";
 
 const payInfoSchema = z.object({
     paidBy: z.string().min(1, "Người trả trước là bắt buộc"),
@@ -34,29 +36,18 @@ const payInfoSchema = z.object({
 const createInvoiceFormSchema = z.object({
     roomId: z.string().min(1, "ID phòng là bắt buộc"),
     amount: z.coerce.number<number>().positive("Số tiền phải lớn hơn 0"),
-    type: z.enum<CreateInvoiceFormData["type"][]>(["walec", "other", "roomCost"]),
+    type: z.enum<CreateInvoiceFormData["type"][]>(["other"]),
     name: z.string().min(1, "Tên là bắt buộc"),
     description: z.string(),
     dueDate: z.date().optional(),
     applyTo: z.array(z.string()).min(1, "Phải chọn ít nhất một người"),
+    payTo: z.string().optional(),
     advancePayer: payInfoSchema.optional(),
 })
 
 type CreateInvoiceFormValues = z.infer<typeof createInvoiceFormSchema>
 
-function RoommateItem({ roommate, myselfId }: { roommate: Roommate, myselfId?: string | undefined }) {
-    return (
-        <div className="flex items-center">
-            <Avatar className="w-5 h-5 mr-2">
-                <AvatarImage src={roommate.photoUrl || undefined} alt={roommate.displayName || "Avatar"} />
-                <AvatarFallback>{roommate.displayName?.[0] || "U"}</AvatarFallback>
-            </Avatar>
-            {roommate.displayName} {roommate.userId === myselfId && "(Bạn)"}
-        </div>
-    )
-}
-
-export function CreateInvoiceForm({ onSuccess }: { onSuccess?: (invoice: IInvoice) => void }) {
+export function CreateOtherInvoiceForm({ onSuccess }: { onSuccess?: (invoice: IInvoice) => void }) {
     const { data: room } = useRoomQuery();
     const { data: roommates } = useRoommatesQuery();
     const { userData } = useAuth();
@@ -77,34 +68,39 @@ export function CreateInvoiceForm({ onSuccess }: { onSuccess?: (invoice: IInvoic
             dueDate: undefined,
             applyTo: roommates.map(r => r.userId),
             advancePayer: undefined,
+            payTo: undefined,
         },
     })
 
 
-    useEffect(() => {
-        if (hasAdvancePayer) {
-            form.setValue("advancePayer", {
-                paidBy: userData?._id || "",
-                amount: isAdvancePayerPaysFullAmount ? form.getValues("amount") : 0,
-                paidAt: new Date(),
-            });
-        } else {
-            form.setValue("advancePayer", undefined);
-        }
-    }, [hasAdvancePayer])
+    // useEffect(() => {
+    //     if (hasAdvancePayer) {
+    //         form.setValue("advancePayer", {
+    //             paidBy: userData?._id || "",
+    //             amount: isAdvancePayerPaysFullAmount ? form.getValues("amount") : 0,
+    //             paidAt: new Date(),
+    //         });
+    //     } else {
+    //         form.setValue("advancePayer", undefined);
+    //     }
+    // }, [hasAdvancePayer])
 
-    useEffect(() => {
-        if (!hasAdvancePayer) return;
+    // useEffect(() => {
+    //     if (!hasAdvancePayer) return;
 
-        if (isAdvancePayerPaysFullAmount) {
-            form.setValue("advancePayer.amount", form.getValues("amount"));
-        } else {
-            form.setValue("advancePayer.amount", 0);
-        }
-    }, [form.watch("amount"), isAdvancePayerPaysFullAmount, hasAdvancePayer])
+    //     if (isAdvancePayerPaysFullAmount) {
+    //         form.setValue("advancePayer.amount", form.getValues("amount"));
+    //     } else {
+    //         form.setValue("advancePayer.amount", 0);
+    //     }
+    // }, [form.watch("amount"), isAdvancePayerPaysFullAmount, hasAdvancePayer])
 
     const { mutateAsync } = useMutation({
-        mutationFn: createNewInvoice,
+        mutationFn: async (values: CreateInvoiceFormData) => {
+            const invoice = await createNewInvoice(values);
+            queryClient.invalidateQueries({ queryKey: ['invoices', room._id] });
+            return invoice;
+        },
         onSuccess: (data) => {
             form.reset();
             setHasAdvancePayer(false);
@@ -139,29 +135,38 @@ export function CreateInvoiceForm({ onSuccess }: { onSuccess?: (invoice: IInvoic
                     )}
                 />
 
-                {/* Type */}
-                <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Loại hóa đơn*</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Chọn một loại" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="walec">Tiền điện nước</SelectItem>
-                                    <SelectItem value="roomCost">Tiền phòng</SelectItem>
-                                    <SelectItem value="other">Khác</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                <div className="flex items-center justify-between">
+                    {/* Due Date */}
+                    <FormField
+                        control={form.control}
+                        name="dueDate"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                <FormLabel>Ngày hết hạn?</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button variant={"outline"} className="justify-start text-left font-normal">
+                                                {field.value ? formatDate(field.value) : <span>Chọn ngày (không bắt buộc)</span>}
+                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent align="start" className="p-0">
+                                        <Calendar
+                                            mode="single"
+                                            captionLayout="dropdown"
+                                            selected={field.value}
+                                            onSelect={field.onChange}
+                                            autoFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
 
                 {/* Name */}
                 <FormField
@@ -171,7 +176,7 @@ export function CreateInvoiceForm({ onSuccess }: { onSuccess?: (invoice: IInvoic
                         <FormItem>
                             <FormLabel>Tên hóa đơn*</FormLabel>
                             <FormControl>
-                                <Input placeholder="Tiền điện nước tháng X" {...field} />
+                                <Input placeholder="Tiền bình nước,..." {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -193,36 +198,6 @@ export function CreateInvoiceForm({ onSuccess }: { onSuccess?: (invoice: IInvoic
                     )}
                 />
 
-                {/* Due Date */}
-                <FormField
-                    control={form.control}
-                    name="dueDate"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                            <FormLabel>Ngày hết hạn</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button variant={"outline"} className="justify-start text-left font-normal">
-                                            {field.value ? formatDate(field.value) : <span>Chọn ngày (không bắt buộc)</span>}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent align="start" className="p-0">
-                                    <Calendar
-                                        mode="single"
-                                        captionLayout="dropdown"
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        autoFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
 
                 {/* Apply To*/}
                 <FormField
@@ -273,13 +248,47 @@ export function CreateInvoiceForm({ onSuccess }: { onSuccess?: (invoice: IInvoic
                     )}
                 />
 
+                <FormField
+                    control={form.control}
+                    name="payTo"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Thanh toán cho</FormLabel>
+                            <FormControl>
+                                <Select disabled={hasAdvancePayer} onValueChange={(value) => {
+                                    // if (value === "bank_account") {
+                                    //     return;
+                                    // }
+                                    // if (value === "qr_code") {
+                                    //     return;
+                                    // }
+                                    field.onChange(value);
+                                }}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Chọn một" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {roommates.map(r => (
+                                            <SelectItem key={r.userId} value={r.userId}>
+                                                <RoommateItem roommate={r} myselfId={userData?._id} />
+                                            </SelectItem>
+                                        ))}
+                                        {/* <SelectItem value="bank_account">Tài khoản ngân hàng</SelectItem>
+                                        <SelectItem value="qr_code">Mã QR</SelectItem> */}
+                                    </SelectContent>
+                                </Select>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
-                <div className="flex items-center justify-between rounded-lg border p-3">
+                {/* <div className="flex items-center justify-between rounded-lg border p-3">
                     <FormLabel htmlFor="hasAdvancePayer" className="mb-0">Ứng trước?</FormLabel>
                     <Switch id="hasAdvancePayer" checked={hasAdvancePayer} onCheckedChange={setHasAdvancePayer} />
                 </div>
-
-
 
                 {hasAdvancePayer && (
                     <div className="space-y-4 border rounded-lg p-4">
@@ -315,6 +324,7 @@ export function CreateInvoiceForm({ onSuccess }: { onSuccess?: (invoice: IInvoic
                             <FormLabel htmlFor="isAdvancePayerPaysFullAmount">Trả toàn bộ?</FormLabel>
                             <Switch id="isAdvancePayerPaysFullAmount" checked={isAdvancePayerPaysFullAmount} onCheckedChange={setIsAdvancePayerPaysFullAmount} />
                         </div>
+
 
                         {!isAdvancePayerPaysFullAmount && (
                             <FormField
@@ -362,7 +372,7 @@ export function CreateInvoiceForm({ onSuccess }: { onSuccess?: (invoice: IInvoic
                             )}
                         />
                     </div>
-                )}
+                )} */}
 
                 <Button disabled={form.formState.isSubmitting} type="submit">Thêm hóa đơn</Button>
             </form>

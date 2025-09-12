@@ -1,11 +1,23 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, ChevronLeft, ChevronRight, Users, DollarSign, MapPin } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Calendar, ChevronLeft, ChevronRight, Users, DollarSign, MapPin, Loader } from "lucide-react"
+import { cn, toYYYYMM } from "@/lib/utils"
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { getRoomMonthAttendance, updateMyMonthAttendance, UpdateMyMonthAttendanceData } from "@/lib/actions/month-attendance"
+import { useRoommatesQuery, useRoomQuery } from "../room-context"
+import { Roommate } from "@/types/Roommate"
+import { IMonthAttendance } from "@/types/MonthAttendance"
+import { useAuth } from "@/components/auth-context"
+import { useDebouncedCallback } from "use-debounce"
+import { queryClient } from "@/lib/query-client"
+import { resolve } from "path"
+import { AttendanceSkeleton } from "./skeleton"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { UserAvatar } from "@/components/user-avatar"
 
 // Mock data
 const mockData = {
@@ -40,11 +52,11 @@ const mockData = {
 }
 
 export function AttendanceCalendar() {
-  const [currentDate, setCurrentDate] = useState(new Date(2024, 0, 1)) // January 2024
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const { data: room } = useRoomQuery();
+  const { data: roommates, isLoading: isRoommatesLoading } = useRoommatesQuery();
+  const { userData } = useAuth();
 
-  const { members, attendance, electricInvoice, currentUser } = mockData
-  const currentUserId = 1 // Assuming current user is Nguyễn Văn A
+  const [currentDate, setCurrentDate] = useState(new Date())
 
   // Get days in current month
   const year = currentDate.getFullYear()
@@ -54,10 +66,79 @@ export function AttendanceCalendar() {
   const daysInMonth = lastDay.getDate()
   const startingDayOfWeek = firstDay.getDay()
 
+
+  const { data: roomAttendance, isLoading: isRoomAttendanceLoading } = useQuery<IMonthAttendance[]>({
+    queryKey: ["attendance", room._id, toYYYYMM(currentDate)],
+    queryFn: () => getRoomMonthAttendance(room._id, toYYYYMM(currentDate)),
+    staleTime: 1000 * 60 * 60, // 1 hour
+  })
+
+  const roommatesMap = useMemo(() => {
+    if (!roommates) return {};
+    const map: Record<string, Roommate> = {};
+    roommates.forEach(r => {
+      map[r.userId] = r;
+    });
+    return map;
+  }, [roommates]);
+
+  console.log(roomAttendance);
+
+  const attendanceMap = useMemo<Roommate[][]>(() => {
+    const result = Array(daysInMonth).fill(null).map(() => []) as Roommate[][];
+    if (!roomAttendance) return result;
+
+    for (let day = 0; day < daysInMonth; day++) {
+      roomAttendance.forEach((ma) => {
+        if (ma.attendance[day] === "present") {
+          result[day].push(roommatesMap[ma.userId]);
+        }
+      });
+    }
+
+    return result;
+  }, [roomAttendance, roommatesMap]);
+
+  const userAttendanceMap = useMemo<IMonthAttendance["attendance"]>(() => {
+    if (!roomAttendance) return [];
+    const meAttendance = roomAttendance.find(ma => ma.userId === userData!._id);
+    return meAttendance ? meAttendance.attendance : Array(daysInMonth).fill("undetermined");
+  }, [roomAttendance, userData, daysInMonth]);
+
+  const meAsRoommate = roommates?.find(r => r.userId === userData!._id);
+
+  const updateAttendanceDebounced = useDebouncedCallback(async (resolve: () => void, reject: (error: any) => void) => {
+    try {
+      const updateData: UpdateMyMonthAttendanceData = {
+        roomId: room._id,
+        month: toYYYYMM(currentDate),
+        attendance: roomAttendance!.find(ma => ma.userId === userData!._id)?.attendance || Array(daysInMonth).fill("undetermined"),
+      }
+      await updateMyMonthAttendance(updateData);
+      queryClient.invalidateQueries({ queryKey: ["attendance", room._id, toYYYYMM(currentDate)] });
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  }, 2000);
+
+  const { mutate: handleUpdateMyMonthAttendance, isPending: isUpdatingMonthAttendance } = useMutation({
+    mutationFn: () => {
+      return new Promise<void>((resolve, reject) => {
+        updateAttendanceDebounced(resolve, reject);
+      });
+    }
+  });
+
+
+  const { members, attendance, electricInvoice, currentUser } = mockData
+  const currentUserId = 1 // Assuming current user is Nguyễn Văn A
+
+
   // Calculate user's attendance stats
-  const userAttendanceDays = Object.entries(attendance).filter(([date, memberIds]) =>
-    memberIds.includes(currentUserId),
-  ).length
+  const userAttendanceDays = Object.values(userAttendanceMap).reduce((count, status) =>
+    status === "present" ? count + 1 : count
+  , 0)
 
   const userElectricCost = userAttendanceDays * electricInvoice.perDayRate
 
@@ -70,40 +151,40 @@ export function AttendanceCalendar() {
   }
 
   // Add days of the month
-  for (let day = 1; day <= daysInMonth; day++) {
+  for (let day = 0; day < daysInMonth; day++) {
     calendarDays.push(day)
   }
 
-  const formatDateKey = (day: number) => {
-    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-  }
-
   const toggleUserAttendance = (day: number) => {
-    const dateKey = formatDateKey(day)
-    const currentAttendees = attendance[dateKey] || []
+    const currentAttendees = attendanceMap[day];
 
-    if (currentAttendees.includes(currentUserId)) {
-      // Remove user from attendance
-      attendance[dateKey] = currentAttendees.filter((id) => id !== currentUserId)
-    } else {
-      // Add user to attendance
-      attendance[dateKey] = [...currentAttendees, currentUserId]
-    }
+    const shouldAbsent = currentAttendees.includes(meAsRoommate!);
 
-    // Force re-render
-    setSelectedDate(dateKey)
-    setTimeout(() => setSelectedDate(null), 100)
+    // Optimistically update UI
+    queryClient.setQueryData<IMonthAttendance[]>(["attendance", room._id, toYYYYMM(currentDate)], (old) => {
+      if (!old) return old;
+
+      return old.map(ma => {
+        if (ma.userId === userData!._id) {
+          const newAttendance = [...ma.attendance];
+          newAttendance[day] = shouldAbsent ? "absent" : "present";
+          return { ...ma, attendance: newAttendance };
+        }
+        return ma;
+      });
+    });
+
+    handleUpdateMyMonthAttendance();
   }
+  console.log(attendanceMap);
 
   const getDayStatus = (day: number) => {
-    const dateKey = formatDateKey(day)
-    const attendees = attendance[dateKey] || []
-    const userAttended = attendees.includes(currentUserId)
+    const attendees = attendanceMap[day];
 
     return {
-      userAttended,
-      attendees: attendees.map((id) => members.find((m) => m.id === id)).filter(Boolean),
-      isToday: day === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear(),
+      availability: userAttendanceMap[day],
+      attendees: attendees.filter(m => m.userId !== userData!._id),
+      isToday: day + 1 === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear(),
     }
   }
 
@@ -135,6 +216,10 @@ export function AttendanceCalendar() {
   ]
 
   const dayNames = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
+
+  if (isRoommatesLoading || isRoomAttendanceLoading) {
+    return <AttendanceSkeleton />
+  }
 
   return (
     <div className="space-y-6">
@@ -183,6 +268,7 @@ export function AttendanceCalendar() {
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
               Lịch tích ngày ở
+              {isUpdatingMonthAttendance && <Loader className="h-4 w-4 animate-spin text-muted-foreground" />}
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")}>
@@ -209,21 +295,23 @@ export function AttendanceCalendar() {
               <span>Bạn không ở</span>
             </div>
             <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-muted rounded"></div>
+              <span>Chưa quyết định</span>
+            </div>
+            <div className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-primary rounded"></div>
               <span>Hôm nay</span>
             </div>
             <div className="flex items-center gap-1">
               <span>Thành viên:</span>
-              {members.map((member) => (
-                <Badge key={member.id} className={cn("text-white", member.color)}>
-                  {member.shortName}
-                </Badge>
+              {roommates?.map((roommate) => (
+                <UserAvatar key={roommate.userId} className="h-5 w-5" user={roommate} />
               ))}
             </div>
           </div>
 
           {/* Calendar Grid */}
-          <div className="overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+          <div className="overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent px-2">
             <div className="grid grid-cols-7 gap-1 min-w-[500px]">
               {/* Day headers */}
               {dayNames.map((day) => (
@@ -238,7 +326,7 @@ export function AttendanceCalendar() {
               {/* Calendar days */}
               {calendarDays.map((day, index) => {
                 if (day === null) {
-                  return <div key={index} className="p-2 h-20"></div>
+                  return <div key={-(index + 1)} className="p-2 h-20"></div>
                 }
 
                 const dayStatus = getDayStatus(day)
@@ -249,21 +337,23 @@ export function AttendanceCalendar() {
                     onClick={() => toggleUserAttendance(day)}
                     className={cn(
                       "p-2 h-20 border rounded-lg transition-colors hover:bg-muted/50 flex flex-col items-center justify-start gap-1",
-                      dayStatus.userAttended
+                      dayStatus.availability === "present"
                         ? "bg-primary/10 border-primary text-primary"
-                        : "bg-destructive/10 border-destructive text-destructive",
+                        : dayStatus.availability === "absent"
+                          ? "bg-destructive/10 border-destructive text-destructive"
+                          : "bg-muted/10 border-muted bg-muted text-muted-foreground",
                       dayStatus.isToday && "ring-2 ring-primary ring-offset-2",
                     )}
                   >
-                    <span className="text-sm font-medium">{day}</span>
+                    <span className="text-sm font-medium">{day + 1}</span>
                     <div className="flex flex-wrap gap-0.5 justify-center max-w-full overflow-hidden">
                       {dayStatus.attendees.slice(0, 3).map((member) => (
-                        <Badge
-                          key={member.id}
-                          className={cn("text-[10px] px-1 py-0 text-white h-4 min-w-0", member.color)}
+                        <div
+                          key={member.userId}
+                          className="flex items-center"
                         >
-                          {member.shortName}
-                        </Badge>
+                          <UserAvatar className="h-5 w-5" user={member} />
+                        </div>
                       ))}
                       {dayStatus.attendees.length > 3 && (
                         <Badge className="text-[10px] px-1 py-0 bg-gray-500 text-white h-4">

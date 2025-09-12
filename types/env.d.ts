@@ -9,5 +9,9 @@ declare namespace NodeJS {
         FIRESTORE_CONNECTION_URI: string;
         APP_DOMAIN: string;
         APP_ORIGIN: string;
+        CLOUDINARY_URL: string;
+        CLOUDINARY_API_SECRET: string;
+        CLOUDINARY_API_KEY: string;
+        CLOUDINARY_CLOUD_NAME: string;
     }
 }

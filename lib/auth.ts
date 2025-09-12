@@ -4,6 +4,7 @@ import { setAuthCookie, setAuthRefreshTokenCookie } from "@/lib/firebase/server"
 
 export async function logIn() {
     const googleProvider = new GoogleAuthProvider();
+    googleProvider.addScope('https://www.googleapis.com/auth/drive.file')
     const result = await signInWithPopup(firebaseClientAuth, googleProvider);
     await setAuthRefreshTokenCookie(result.user.refreshToken);
 }

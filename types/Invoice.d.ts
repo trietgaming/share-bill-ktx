@@ -1,3 +1,5 @@
+import { IBankAccount } from "./BankAccount";
+
 export interface IPayInfo {
     paidBy: string;
     paidAt: Date;
@@ -16,11 +18,19 @@ export interface IInvoice {
      * walec - water and electricity bill
      */
     type: 'walec' | 'roomCost' | 'other';
+    /**
+     * For walec and roomCost type invoice, format: YYYY-MM
+     */
+    monthApplied?: string;
     name: string;
     description: string;
     createdBy: string;
     dueDate?: Date;
     payInfo: IPayInfo[];
+    /**
+     * Maybe user ID, or bank account info in stringified JSON format, or QR code URL
+     */
+    payTo?: string;
     advancePayer?: IPayInfo;
     status: 'pending' | 'paid' | 'overdue';
     /**

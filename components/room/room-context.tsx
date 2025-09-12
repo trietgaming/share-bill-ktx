@@ -8,6 +8,8 @@ import { useAuth } from "@/components/auth-context";
 import { IClientMembership } from "@/types/Membership";
 import { IInvoice } from "@/types/Invoice";
 import { getInvoicesByRoom } from "@/lib/actions/invoice";
+import { getRoomMonthAttendance } from "@/lib/actions/month-attendance";
+import { IMonthAttendance } from "@/types/MonthAttendance";
 
 interface RoomProviderProps {
     children: any;
@@ -57,14 +59,14 @@ export const RoomProvider = ({ children, initialRoom }: RoomProviderProps) => {
     }, [roommatesQuery.data, userData]);
 
     return (
-        <RoomContext.Provider value={{ 
-            roomQuery: roomQuery, 
-            roommatesQuery: roommatesQuery, 
+        <RoomContext.Provider value={{
+            roomQuery: roomQuery,
+            roommatesQuery: roommatesQuery,
             invoicesQuery: invoicesQuery,
             membership
-         }}>
+        }}>
             {children}
-         </RoomContext.Provider>
+        </RoomContext.Provider>
     );
 };
 
