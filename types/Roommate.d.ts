@@ -1,4 +1,4 @@
-import { IBankAccount } from "./BankAccount";
+import { IClientBankAccount } from "./BankAccount";
 
 export interface Roommate {
     userId: string;
@@ -7,5 +7,5 @@ export interface Roommate {
     photoUrl?: string;
     joinedAt: Date;
     role: 'admin' | 'member' | 'moderator';
-    bankAccounts: IBankAccount[];
+    bankAccounts: IClientBankAccount[];
 }

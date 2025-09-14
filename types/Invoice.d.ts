@@ -40,3 +40,7 @@ export interface IInvoice {
     createdAt: Date;
     updatedAt: Date;
 }
+
+export interface PersonalInvoice extends IInvoice {
+    personalAmount: number;
+}

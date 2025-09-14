@@ -38,7 +38,6 @@ export const userDataSchema = new Schema<IUserData>({
         type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'BankAccount', }],
         validate: {
             validator: function (v: mongoose.Types.ObjectId[]) {
-                console.log("SHOUD VALIDATE", v);
                 return v.length <= 5;
             },
             message: 'Cannot have more than 5 bank accounts'

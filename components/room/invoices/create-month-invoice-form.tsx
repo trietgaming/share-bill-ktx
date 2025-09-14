@@ -58,10 +58,10 @@ type CreateOtherInvoiceFormProps = {
 const getInvoiceNamesByType = (type: string, monthYear: string) => {
     const [year, month] = monthYear.split("-");
     if (type === "walec") {
-        return `Tiền điện nước tháng ${month}/${year}`;
+        return `Tiền điện nước ${month}/${year}`;
     }
     if (type === "roomCost") {
-        return `Tiền phòng tháng ${month}/${year}`;
+        return `Tiền phòng ${month}/${year}`;
     }
     return "Tiền tháng " + month + "/" + year;
 }

@@ -23,22 +23,47 @@ export async function createNewInvoice(data: CreateInvoiceFormData) {
     const user = await authenticate();
     await verifyMembership(user.uid, data.roomId);
 
-    const invoice = await Invoice.create({
+    const invoice = await new Invoice({
         ...data,
         status: 'pending',
         createdBy: user.uid,
-    })
+    }).save();
 
     return serializeDocument<IInvoice>(invoice);
 }
 
-export async function getInvoicesByRoom(roomId: string): Promise<IInvoice[]> {
+export interface UpdateInvoiceFormData extends Partial<CreateInvoiceFormData> {
+    invoiceId: string;
+}
+
+export async function updateInvoice(data: UpdateInvoiceFormData) {
+    const user = await authenticate();
+    const invoice = await Invoice.findById(data.invoiceId);
+    if (!invoice) {
+        throw new Error("Invoice not found");
+    }
+
+    await verifyMembership(user.uid, invoice!.roomId);
+    
+    Object.assign(invoice, data);
+    await invoice.save();
+
+    return serializeDocument<IInvoice>(invoice);
+}
+
+interface GetRoomInvoicesQuery {
+    status?: IInvoice['status'];
+}
+export async function getInvoicesByRoom(
+    roomId: string,
+    query: GetRoomInvoicesQuery = { status: 'pending' }
+): Promise<IInvoice[]> {
     const user = await authenticate();
     await verifyMembership(user.uid, roomId);
 
-    const invoices = await Invoice.find({ roomId: roomId });
+    const invoices = await Invoice.find({ roomId: roomId, status: query.status }).sort({ monthApplied: -1 });
 
-    return invoices.map(serializeDocument<IInvoice>);
+    return serializeDocument<IInvoice[]>(invoices);
 }
 
 export async function deleteInvoice(invoiceId: string) {
@@ -53,4 +78,9 @@ export async function deleteInvoice(invoiceId: string) {
     verifyRoomPermission(membership, ['admin', "moderator"]);
 
     await Invoice.findByIdAndDelete(invoiceId);
+}
+
+export async function payInvoice(invoiceId: string) {
+    
+
 }

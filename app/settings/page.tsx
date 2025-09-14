@@ -40,7 +40,9 @@ export default function UserManagementPage() {
 
     const handleProfileSubmit = async (data: ProfileFormData) => {
         try {
-            setUserData(await updateUserData(data));
+            await updateUserData(data)
+            setUserData(prev => ({ ...prev, displayName: data.displayName }) as typeof prev);
+            form.reset(data);
             toast.success("Thành công", {
                 description: "Thông tin cá nhân đã được cập nhật",
             })
@@ -109,7 +111,7 @@ export default function UserManagementPage() {
                 </div>
 
                 <BankAccountList />
-                
+
             </div>
         </div>
     )

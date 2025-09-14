@@ -10,7 +10,7 @@ import { getUserData } from "@/lib/user-data";
 import { IRoom } from "@/types/Room";
 import { serializeDocument } from "@/lib/serializer";
 import { authenticate } from "../prechecks/auth";
-import { IBankAccount } from "@/types/BankAccount";
+import { IBankAccount, IClientBankAccount } from "@/types/BankAccount";
 import { IMembership } from "@/types/Membership";
 
 export async function createNewRoom(data: { name: string; maxMembers: number }) {
@@ -159,14 +159,13 @@ export async function getRoommates(roomId: string): Promise<Roommate[]> {
     }
 
     const memberships = await Membership.find({ room: roomId })
-        .populate("user")
-        .populate<{ user: Omit<IUserData, "bankAccounts"> & { bankAccounts: IBankAccount[] } }>({
-            path: "user.bankAccounts",
-            model: "BankAccount",
-        });
+        .populate<{ user: Omit<IUserData, "bankAccounts"> & { bankAccounts: IClientBankAccount[] } }>({ 
+            path: "user",
+            populate: { path: "bankAccounts" }
+        })
 
     return memberships.map(serializeDocument<
-        Omit<IMembership, "user"> & { user: Omit<IUserData, "bankAccounts"> & { bankAccounts: IBankAccount[] } }
+        Omit<IMembership, "user"> & { user: Omit<IUserData, "bankAccounts"> & { bankAccounts: IClientBankAccount[] } }
     >).map(m => ({
         userId: m.user._id,
         displayName: m.user.displayName,

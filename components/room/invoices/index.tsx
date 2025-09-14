@@ -19,8 +19,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, MoreHorizontal, Edit, Trash2, CreditCard, Receipt, DollarSign, Users, User, ChevronDown, Zap, Home } from "lucide-react"
-import { CreateOtherInvoiceForm } from "@/components/room/invoices/create-other-invoice-form"
-import { useInvoicesQuery } from "../room-context"
+import { InvoiceForm } from "@/components/room/invoices/invoice-form"
+import { useInvoices, useRoomQuery } from "../room-context"
 import { IInvoice } from "@/types/Invoice"
 import { useAuth } from "@/components/auth-context"
 import { formatCurrency, formatDate } from "@/lib/utils"
@@ -29,6 +29,9 @@ import { deleteInvoice } from "@/lib/actions/invoice"
 import { queryClient } from "@/lib/query-client"
 import { InvoiceSkeleton } from "./skeleton"
 import { CreateMonthInvoiceForm } from "./create-month-invoice-form"
+import { Skeleton } from "@/components/ui/skeleton"
+import { InvoiceCard } from "./invoice-card"
+import { toast } from "sonner"
 
 interface PersonalInvoice extends IInvoice {
   personalAmount: number
@@ -38,18 +41,11 @@ interface PersonalInvoice extends IInvoice {
 export function InvoicesManagement() {
 
   const { userData } = useAuth();
-  const { data: invoices } = useInvoicesQuery();
+  const { data: room } = useRoomQuery();
+  const { pendingInvoicesQuery: { data: invoices }, otherInvoices, monthlyInvoices } = useInvoices();
 
-  const [addInvoiceType, setAddInvoiceType] = useState<string | null>(null)
-  const [editingInvoice, setEditingInvoice] = useState<any>(null)
-
-  const personalInvoices: PersonalInvoice[] = useMemo(() => {
-    return invoices?.filter((invoice) => invoice.applyTo.includes(userData!._id))
-      .map((invoice) => ({
-        ...invoice,
-        personalAmount: Math.round(invoice.amount / invoice.applyTo.length),
-      })) || []
-  }, [invoices, userData]);
+  const [addInvoiceType, setAddInvoiceType] = useState<IInvoice["type"] | null>(null)
+  const [editingInvoice, setEditingInvoice] = useState<IInvoice | null>(null)
 
   const thisMonthInvoicesAmount = useMemo(() => {
     const now = new Date();
@@ -59,44 +55,26 @@ export function InvoicesManagement() {
     }).reduce((sum, invoice) => (invoice.status === "pending" ? sum + invoice.amount : sum), 0) || 0;
   }, [invoices]);
 
-  // Calculate totals
-  const totalYourShare = personalInvoices?.reduce((sum, invoice) => (invoice.status === "pending" ? sum + invoice.personalAmount : sum), 0) || 0
-
-  const totalRoomUnpaid = invoices?.reduce((sum, invoice) => (invoice.status === "pending" ? sum + invoice.amount : sum), 0) || 0
-
   const deleteInvoiceMutation = useMutation({
+    mutationKey: ['delete-invoice'],
     mutationFn: async (invoice: IInvoice) => {
       // Call delete API
       await deleteInvoice(invoice._id);
-      queryClient.invalidateQueries({ queryKey: ['invoices', invoice.roomId] });
+      queryClient.setQueriesData<IInvoice[]>(
+        { queryKey: ['invoices', invoice.roomId] },
+        old => old?.filter(inv => inv._id !== invoice._id) || []
+      );
+    },
+    onError: () => {
+      toast.error("Có lỗi xảy ra khi xoá hóa đơn.");
+      queryClient.invalidateQueries({ queryKey: ['invoices', room._id] });
     }
-  })
+  });
 
-  const InvoiceActions = ({ invoice, isShared }: { invoice: any; isShared: boolean }) => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {invoice.status === "pending" && (
-          <DropdownMenuItem onClick={() => handlePayInvoice(invoice.id)}>
-            <CreditCard className="mr-2 h-4 w-4" />
-            Thanh toán
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem onClick={() => handleEditInvoice(invoice)}>
-          <Edit className="mr-2 h-4 w-4" />
-          Sửa hóa đơn
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled={deleteInvoiceMutation.isPending} onClick={() => deleteInvoiceMutation.mutate(invoice)} className="text-destructive">
-          <Trash2 className="mr-2 h-4 w-4" />
-          Xóa hóa đơn
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
+  // Calculate totals
+  const totalYourShare = otherInvoices?.reduce((sum, invoice) => (sum + invoice.personalAmount), 0) || 0
+
+  const totalRoomUnpaid = invoices?.reduce((sum, invoice) => (invoice.remainingAmount), 0) || 0
 
   if (!invoices || !userData) return <InvoiceSkeleton />
 
@@ -121,7 +99,7 @@ export function InvoicesManagement() {
               <User className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-primary">{totalYourShare.toLocaleString("vi-VN")}đ</div>
+              <div className="text-2xl font-bold text-primary">{formatCurrency(totalYourShare)}</div>
               {/* <p className="text-xs text-muted-foreground">Từ hóa đơn chung</p> */}
             </CardContent>
           </Card>
@@ -150,21 +128,30 @@ export function InvoicesManagement() {
           <DropdownMenuContent>
             <DropdownMenuItem asChild>
 
-              <Button onClick={() => setAddInvoiceType("walec")} variant="ghost" className="w-full justify-start">
+              <Button onClick={() => {
+                setAddInvoiceType("walec");
+                setEditingInvoice(null);
+              }} variant="ghost" className="w-full justify-start">
                 <Zap className="mr-2 h-4 w-4" />
                 <span>Hóa đơn điện nước</span>
               </Button>
 
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Button onClick={() => setAddInvoiceType("roomCost")} variant="ghost" className="w-full justify-start">
+              <Button onClick={() => {
+                setAddInvoiceType("roomCost");
+                setEditingInvoice(null);
+              }} variant="ghost" className="w-full justify-start">
                 <Home className="mr-2 h-4 w-4" />
                 <span>Tiền phòng</span>
               </Button>
             </DropdownMenuItem>
 
             <DropdownMenuItem asChild>
-              <Button onClick={() => setAddInvoiceType("other")} variant="ghost" className="w-full justify-start">
+              <Button onClick={() => {
+                setAddInvoiceType("other");
+                setEditingInvoice(null);
+              }} variant="ghost" className="w-full justify-start">
                 <Receipt className="mr-2 h-4 w-4" />
                 <span>Hóa đơn khác</span>
               </Button>
@@ -172,118 +159,35 @@ export function InvoicesManagement() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Dialog open={addInvoiceType === "other"} onOpenChange={() => setAddInvoiceType(null)}>
+        <Dialog open={!!addInvoiceType} onOpenChange={() => { setAddInvoiceType(null); setEditingInvoice(null) }}>
           <DialogContent className="max-w-lg overflow-y-auto max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>Thêm hóa đơn mới</DialogTitle>
               <DialogDescription>Tạo hóa đơn mới cho phòng.</DialogDescription>
             </DialogHeader>
-            <CreateOtherInvoiceForm onSuccess={() => setAddInvoiceType(null)} />
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={!!addInvoiceType && addInvoiceType !== "other"} onOpenChange={() => setAddInvoiceType(null)}>
-          <DialogContent className="max-w-lg overflow-y-auto max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>Thêm hóa đơn mới</DialogTitle>
-              <DialogDescription>Tạo hóa đơn mới cho phòng.</DialogDescription>
-            </DialogHeader>
-            <CreateMonthInvoiceForm invoiceType={addInvoiceType as string} onSuccess={() => setAddInvoiceType(null)} />
+            <InvoiceForm invoice={editingInvoice} type={addInvoiceType!} onSuccess={() => { setEditingInvoice(null); setAddInvoiceType(null) }} />
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Personal Invoices */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5" />
-            Hóa đơn riêng
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tên hóa đơn</TableHead>
-                <TableHead>Số tiền</TableHead>
-                <TableHead>Phần của bạn</TableHead>
-                <TableHead>Hạn thanh toán</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead className="text-right">Hành động</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {personalInvoices.map((invoice) => (
-                <TableRow key={invoice._id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{invoice.name}</div>
-                      <div className="text-sm text-muted-foreground">{invoice.description}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{formatCurrency(invoice.amount)}</TableCell>
-                  <TableCell className="font-medium text-primary">{formatCurrency(invoice.personalAmount)}</TableCell>
-                  <TableCell>{invoice.dueDate ? formatDate(invoice.dueDate) : "Không"}</TableCell>
-                  <TableCell>
-                    <Badge variant={invoice.status === "paid" ? "default" : "destructive"}>
-                      {invoice.status === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <InvoiceActions invoice={invoice} isShared={false} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {monthlyInvoices.map((invoice) => (
+          <InvoiceCard key={invoice._id} invoice={invoice} onEdit={
+            (inv) => {
+              setAddInvoiceType(inv.type); setEditingInvoice(inv)
+            }
+          } onDelete={deleteInvoiceMutation.mutateAsync} />
+        ))}
 
-      {/* Shared Invoices */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Hóa đơn chung
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tên hóa đơn</TableHead>
-                <TableHead>Tổng tiền</TableHead>
-                <TableHead>Hạn thanh toán</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead className="text-right">Hành động</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices.map((invoice) => (
-                <TableRow key={invoice._id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{invoice.name}</div>
-                      <div className="text-sm text-muted-foreground">{invoice.description}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{invoice.amount.toLocaleString("vi-VN")}đ</TableCell>
-                  <TableCell>{invoice.dueDate ? formatDate(invoice.dueDate) : "Không"}</TableCell>
-                  <TableCell>
-                    <Badge variant={invoice.status === "paid" ? "default" : "destructive"}>
-                      {invoice.status === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <InvoiceActions invoice={invoice} isShared={true} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        {/* Other Invoices */}
+        {otherInvoices.map((invoice) => (
+          <InvoiceCard key={invoice._id} invoice={invoice} onEdit={
+            (inv) => {
+              setAddInvoiceType(inv.type); setEditingInvoice(inv)
+            }
+          } onDelete={deleteInvoiceMutation.mutateAsync} />
+        ))}
+      </div>
 
 
     </div>

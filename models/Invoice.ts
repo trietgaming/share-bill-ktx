@@ -63,7 +63,7 @@ export const invoiceSchema = new Schema<IInvoice>({
     name: {
         type: String,
         required: true,
-        default: "Tiền điện nước",
+        default: "Điện nước",
         maxLength: [50, 'Name can not be more than 50 characters'],
     },
 
@@ -145,6 +145,7 @@ invoiceSchema.pre('save', function (next) {
 });
 
 invoiceSchema.index({ roomId: 1, status: 1 })
+invoiceSchema.index({ roomId: 1, status: 1, monthApplied: 1 })
 invoiceSchema.index({ roomId: 1, status: 1, dueDate: 1 })
 
 export const Invoice: mongoose.Model<IInvoice> = mongoose.models.Invoice || mongoose.model("Invoice", invoiceSchema);

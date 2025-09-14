@@ -1,14 +1,14 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, ChevronLeft, ChevronRight, Users, DollarSign, MapPin, Loader } from "lucide-react"
-import { cn, toYYYYMM } from "@/lib/utils"
+import { cn, formatCurrency, toYYYYMM } from "@/lib/utils"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { getRoomMonthAttendance, updateMyMonthAttendance, UpdateMyMonthAttendanceData } from "@/lib/actions/month-attendance"
-import { useRoommatesQuery, useRoomQuery } from "../room-context"
+import { useInvoices, useMonthAttendanceQuery, useRoommatesQuery, useRoomQuery } from "../room-context"
 import { Roommate } from "@/types/Roommate"
 import { IMonthAttendance } from "@/types/MonthAttendance"
 import { useAuth } from "@/components/auth-context"
@@ -18,6 +18,7 @@ import { resolve } from "path"
 import { AttendanceSkeleton } from "./skeleton"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserAvatar } from "@/components/user-avatar"
+import { toast } from "sonner"
 
 // Mock data
 const mockData = {
@@ -54,6 +55,7 @@ const mockData = {
 export function AttendanceCalendar() {
   const { data: room } = useRoomQuery();
   const { data: roommates, isLoading: isRoommatesLoading } = useRoommatesQuery();
+  const { monthlyInvoices } = useInvoices();
   const { userData } = useAuth();
 
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -67,11 +69,7 @@ export function AttendanceCalendar() {
   const startingDayOfWeek = firstDay.getDay()
 
 
-  const { data: roomAttendance, isLoading: isRoomAttendanceLoading } = useQuery<IMonthAttendance[]>({
-    queryKey: ["attendance", room._id, toYYYYMM(currentDate)],
-    queryFn: () => getRoomMonthAttendance(room._id, toYYYYMM(currentDate)),
-    staleTime: 1000 * 60 * 60, // 1 hour
-  })
+  const { data: roomAttendance, isLoading: isRoomAttendanceLoading } = useMonthAttendanceQuery(currentDate);
 
   const roommatesMap = useMemo(() => {
     if (!roommates) return {};
@@ -81,8 +79,6 @@ export function AttendanceCalendar() {
     });
     return map;
   }, [roommates]);
-
-  console.log(roomAttendance);
 
   const attendanceMap = useMemo<Roommate[][]>(() => {
     const result = Array(daysInMonth).fill(null).map(() => []) as Roommate[][];
@@ -99,48 +95,84 @@ export function AttendanceCalendar() {
     return result;
   }, [roomAttendance, roommatesMap]);
 
+  const attendanceStatus = useMemo(() => {
+    if (!roomAttendance) return { processed: 0, unprocessed: 0, totalDays: 0 };
+
+    const currentDate = new Date();
+    const totalDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+
+    let processed = 0;
+    for (let day = 0; day < totalDays; day++) {
+      processed += roomAttendance.every(roommateAttendance => roommateAttendance.attendance[day] !== "undetermined") ? 1 : 0;
+    }
+
+    const unprocessed = totalDays - processed;
+    return { processed, unprocessed, totalDays };
+  }, [roomAttendance]);
+
+
   const userAttendanceMap = useMemo<IMonthAttendance["attendance"]>(() => {
     if (!roomAttendance) return [];
     const meAttendance = roomAttendance.find(ma => ma.userId === userData!._id);
     return meAttendance ? meAttendance.attendance : Array(daysInMonth).fill("undetermined");
   }, [roomAttendance, userData, daysInMonth]);
 
-  const meAsRoommate = roommates?.find(r => r.userId === userData!._id);
-
-  const updateAttendanceDebounced = useDebouncedCallback(async (resolve: () => void, reject: (error: any) => void) => {
+  const updateAttendanceDebounced = useDebouncedCallback(async (snapshot: IMonthAttendance, resolve: () => void, reject: (error: any) => void) => {
+    const roomId = snapshot.roomId;
+    const month = snapshot.month;
     try {
       const updateData: UpdateMyMonthAttendanceData = {
-        roomId: room._id,
-        month: toYYYYMM(currentDate),
-        attendance: roomAttendance!.find(ma => ma.userId === userData!._id)?.attendance || Array(daysInMonth).fill("undetermined"),
+        roomId: roomId,
+        month: month,
+        attendance: snapshot.attendance || Array(daysInMonth).fill("undetermined"),
       }
       await updateMyMonthAttendance(updateData);
-      queryClient.invalidateQueries({ queryKey: ["attendance", room._id, toYYYYMM(currentDate)] });
-      resolve();
+      if (!updateAttendanceDebounced.isPending()) resolve();
     } catch (error) {
       reject(error);
     }
-  }, 2000);
+  }, 1000);
 
-  const { mutate: handleUpdateMyMonthAttendance, isPending: isUpdatingMonthAttendance } = useMutation({
-    mutationFn: () => {
+  const { mutate: handleUpdateMyMonthAttendance } = useMutation({
+    mutationFn: (snapshot: IMonthAttendance) => {
       return new Promise<void>((resolve, reject) => {
-        updateAttendanceDebounced(resolve, reject);
+        updateAttendanceDebounced(snapshot, resolve, reject);
       });
+    },
+    onMutate: () => {
+      toast.loading("Đang cập nhật ngày ở...", { id: "update-attendance", closeButton: false });
+    },
+    onError: (error) => {
+      queryClient.invalidateQueries({ queryKey: ["attendance", room._id, month] });
+      console.error("Failed to update attendance:", error);
+      toast.error("Có lỗi xảy ra khi cập nhật ngày ở.");
+    },
+    onSettled: () => {
+      toast.dismiss("update-attendance");
     }
   });
 
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (updateAttendanceDebounced.isPending()) {
+        e.preventDefault();
+        // legacy method for some browsers
+        e.returnValue = true;
+      }
+    };
 
-  const { members, attendance, electricInvoice, currentUser } = mockData
-  const currentUserId = 1 // Assuming current user is Nguyễn Văn A
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [updateAttendanceDebounced]);
 
-  // Calculate user's attendance stats
-  const userAttendanceDays = Object.values(userAttendanceMap).reduce((count, status) =>
-    status === "present" ? count + 1 : count
-  , 0)
+  const electricInvoice = useMemo(() => {
+    return monthlyInvoices.find(inv => inv.type === "walec" && inv.monthApplied === toYYYYMM(currentDate))
+  }, [monthlyInvoices, currentDate])
 
-  const userElectricCost = userAttendanceDays * electricInvoice.perDayRate
+  const userElectricCostPerDay = Math.round((electricInvoice?.personalAmount || 0) / userAttendanceMap.filter(a => a !== "absent").length)
 
   // Generate calendar days
   const calendarDays = []
@@ -156,10 +188,12 @@ export function AttendanceCalendar() {
   }
 
   const toggleUserAttendance = (day: number) => {
-    const currentAttendees = attendanceMap[day];
+    const currentAvailability = userAttendanceMap[day];
 
-    const shouldAbsent = currentAttendees.includes(meAsRoommate!);
+    const shouldAbsent = currentAvailability === "present";
+    const shouldPresent = currentAvailability === "undetermined";
 
+    let snapshot: IMonthAttendance;
     // Optimistically update UI
     queryClient.setQueryData<IMonthAttendance[]>(["attendance", room._id, toYYYYMM(currentDate)], (old) => {
       if (!old) return old;
@@ -167,23 +201,31 @@ export function AttendanceCalendar() {
       return old.map(ma => {
         if (ma.userId === userData!._id) {
           const newAttendance = [...ma.attendance];
-          newAttendance[day] = shouldAbsent ? "absent" : "present";
-          return { ...ma, attendance: newAttendance };
+          newAttendance[day] = shouldAbsent ? "absent" : shouldPresent ? "present" : "undetermined";
+          return (snapshot = { ...ma, attendance: newAttendance });
         }
         return ma;
       });
     });
 
-    handleUpdateMyMonthAttendance();
+    queryClient.setQueryData<IMonthAttendance[]>(["attendance", room._id], (old) => {
+      return old?.map(ma => {
+        if (ma.userId === userData!._id && ma.month == snapshot.month) {
+          return snapshot!;
+        }
+        return ma;
+      }) || old;
+    });
+
+    handleUpdateMyMonthAttendance(snapshot!);
   }
-  console.log(attendanceMap);
 
   const getDayStatus = (day: number) => {
     const attendees = attendanceMap[day];
 
     return {
       availability: userAttendanceMap[day],
-      attendees: attendees.filter(m => m.userId !== userData!._id),
+      attendees: attendees,
       isToday: day + 1 === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear(),
     }
   }
@@ -191,12 +233,9 @@ export function AttendanceCalendar() {
   const navigateMonth = (direction: "prev" | "next") => {
     setCurrentDate((prev) => {
       const newDate = new Date(prev)
-      if (direction === "prev") {
-        newDate.setMonth(prev.getMonth() - 1)
-      } else {
-        newDate.setMonth(prev.getMonth() + 1)
-      }
-      return newDate
+      const newMonth = prev.getMonth() + (direction === "prev" ? -1 : 1);
+      newDate.setMonth(newMonth);
+      return newDate;
     })
   }
 
@@ -232,31 +271,35 @@ export function AttendanceCalendar() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {userAttendanceDays}/{daysInMonth}
+              {userAttendanceMap.filter((status) => status === "present").length}/{daysInMonth}
             </div>
-            <p className="text-xs text-muted-foreground">Ngày trong tháng {monthNames[month]}</p>
+            <p className="text-xs text-muted-foreground">Ngày trong {monthNames[month]}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tiền điện nước của bạn</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Tiền điện nước của bạn
+            </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{userElectricCost.toLocaleString("vi-VN")}đ</div>
-            <p className="text-xs text-muted-foreground">{electricInvoice.perDayRate.toLocaleString("vi-VN")}đ/ngày</p>
+            <div className="text-2xl font-bold text-primary">{formatCurrency(electricInvoice?.personalAmount || 0)}</div>
+            <p className="text-xs text-muted-foreground">{formatCurrency(userElectricCostPerDay)}/ngày</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Thành viên hoạt động</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs md:text-sm font-medium">Ngày ở đã xử lý</CardTitle>
+            <Calendar className="h-3 md:h-4 w-3 md:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{members.length}</div>
-            <p className="text-xs text-muted-foreground">Người trong phòng</p>
+            <div className="text-lg md:text-2xl font-bold text-primary">
+              {attendanceStatus.processed}/{attendanceStatus.totalDays}
+            </div>
+            <p className="text-xs text-muted-foreground">Là những ngày tất cả thành viên đã tích</p>
           </CardContent>
         </Card>
       </div>
@@ -268,7 +311,6 @@ export function AttendanceCalendar() {
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
               Lịch tích ngày ở
-              {isUpdatingMonthAttendance && <Loader className="h-4 w-4 animate-spin text-muted-foreground" />}
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")}>
@@ -347,7 +389,7 @@ export function AttendanceCalendar() {
                   >
                     <span className="text-sm font-medium">{day + 1}</span>
                     <div className="flex flex-wrap gap-0.5 justify-center max-w-full overflow-hidden">
-                      {dayStatus.attendees.slice(0, 3).map((member) => (
+                      {dayStatus.attendees.slice(0, 4).map((member) => (
                         <div
                           key={member.userId}
                           className="flex items-center"
@@ -370,8 +412,7 @@ export function AttendanceCalendar() {
           {/* Instructions */}
           <div className="mt-4 p-4 bg-muted/50 rounded-lg">
             <p className="text-sm text-muted-foreground">
-              <strong>Hướng dẫn:</strong> Click vào ngày để chuyển đổi trạng thái ở/không ở của bạn. Các badge hiển thị
-              thành viên khác đã ở trong ngày đó. Calendar có thể cuộn nếu nội dung quá dài.
+              <strong>Hướng dẫn:</strong> Click vào ngày để chuyển đổi trạng thái ở/không ở của bạn.
             </p>
           </div>
         </CardContent>

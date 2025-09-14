@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Camera, LoaderCircle, Upload } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { updateUserPhoto } from "@/lib/actions/user-data"
-import { IUserData } from "@/types/UserData"
+import { IUserData, IUserDataWithBankAccounts } from "@/types/UserData"
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { useAuth } from "@/components/auth-context"
@@ -43,7 +43,7 @@ export function ProfilePhotoUpload({ className }: ProfilePhotoUploadProps) {
 
       const photoURL = await updateUserPhoto(file);
 
-      setUserData((prev) => ({ ...prev, photoURL }) as IUserData)
+      setUserData((prev) => ({ ...prev, photoURL }) as IUserDataWithBankAccounts)
     },
     onError: (error: any) => {
       toast.error("Lỗi", {

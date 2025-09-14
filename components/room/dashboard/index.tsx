@@ -4,40 +4,45 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, Zap, Receipt, Calendar, CheckCircle, XCircle, AlertCircle, DollarSign } from "lucide-react"
-import { useRoomQuery, useRoommatesQuery } from "@/components/room/room-context"
+import { Users, Zap, Receipt, Calendar, CheckCircle, XCircle, AlertCircle, DollarSign, Home } from "lucide-react"
+import { useInvoices, useMonthAttendanceQuery, useRoomQuery, useRoommatesQuery } from "@/components/room/room-context"
 import RoomateList from "./roomate-list"
-
-// Mock data - trong thực tế sẽ fetch từ API
-const mockData = {
-  members: [
-    { id: 1, name: "Nguyễn Văn A", avatar: "", isAdmin: true, status: "active" },
-    { id: 2, name: "Trần Thị B", avatar: "", isAdmin: false, status: "active" },
-    { id: 3, name: "Lê Văn C", avatar: "", isAdmin: false, status: "inactive" },
-  ],
-  electricInvoice: {
-    amount: 450000,
-    status: "unpaid",
-    dueDate: "2024-01-15",
-    month: "Tháng 12/2023",
-  },
-  otherInvoices: [
-    { id: 1, name: "Internet", amount: 200000, status: "unpaid" },
-    { id: 2, name: "Vệ sinh chung", amount: 50000, status: "paid" },
-  ],
-  attendanceStatus: {
-    processed: 15,
-    unprocessed: 3,
-    totalDays: 31,
-  },
-}
+import { useMemo } from "react"
+import { cn, formatCurrency, toYYYYMM } from "@/lib/utils"
 
 export function HomeDashboard() {
   const { data: room } = useRoomQuery();
+  const {
+    monthlyInvoices,
+    otherInvoices
+  } = useInvoices();
 
-  const { electricInvoice, otherInvoices, attendanceStatus } = mockData
+  const thisMonthElectricInvoice = useMemo(() => {
+    return monthlyInvoices?.find(invoice => invoice.type === "walec" && invoice.monthApplied === toYYYYMM(new Date()));
+  }, [monthlyInvoices])
 
-  const unpaidInvoices = otherInvoices.filter((invoice) => invoice.status === "unpaid")
+
+  const thisMonthInvoices = useMemo(() => {
+    return monthlyInvoices?.filter(invoice => invoice.monthApplied === toYYYYMM(new Date()) && invoice.personalAmount);
+  }, [monthlyInvoices])
+
+
+  const { data: thisMonthAttendance } = useMonthAttendanceQuery();
+
+  const attendanceStatus = useMemo(() => {
+    if (!thisMonthAttendance) return { processed: 0, unprocessed: 0, totalDays: 0 };
+
+    const currentDate = new Date();
+    const totalDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+
+    let processed = 0;
+    for (let day = 0; day < totalDays; day++) {
+      processed += thisMonthAttendance.every(roommateAttendance => roommateAttendance.attendance[day] !== "undetermined") ? 1 : 0;
+    }
+
+    const unprocessed = totalDays - processed;
+    return { processed, unprocessed, totalDays };
+  }, [thisMonthAttendance]);
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -49,10 +54,17 @@ export function HomeDashboard() {
             <Zap className="h-3 md:h-4 w-3 md:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg md:text-2xl font-bold text-destructive">
-              {electricInvoice.amount.toLocaleString("vi-VN")}đ
-            </div>
-            <p className="text-xs text-muted-foreground">{electricInvoice.month} - Chưa thanh toán</p>
+            {thisMonthElectricInvoice
+              ? <>
+                <div className={cn("text-lg md:text-2xl font-bold", thisMonthElectricInvoice.status === "paid" ? "text-success" : "text-destructive")}>
+                  {formatCurrency(thisMonthElectricInvoice.amount)}
+                </div>
+                <p className="text-xs text-muted-foreground">{
+                  thisMonthElectricInvoice.status === "pending" ? `Đã thanh toán ${formatCurrency(thisMonthElectricInvoice.amount - thisMonthElectricInvoice.remainingAmount)}` :
+                    thisMonthElectricInvoice.status === "paid" ? "Đã thanh toán" : "Đã hết hạn"
+                }</p>
+              </>
+              : "Chưa có hóa đơn tháng này"}
           </CardContent>
         </Card>
 
@@ -63,9 +75,9 @@ export function HomeDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-lg md:text-2xl font-bold text-destructive">
-              {electricInvoice.amount.toLocaleString("vi-VN")}đ
+              {formatCurrency(otherInvoices.reduce((sum, inv) => sum + (inv.personalAmount || 0), 0))}
             </div>
-            <p className="text-xs text-muted-foreground">{electricInvoice.month} - Chưa thanh toán</p>
+            <p className="text-xs text-muted-foreground">Chưa thanh toán</p>
           </CardContent>
         </Card>
 
@@ -106,71 +118,64 @@ export function HomeDashboard() {
           <CardHeader>
             <CardTitle className="text-base md:text-lg flex items-center gap-2">
               <Receipt className="h-4 md:h-5 w-4 md:w-5" />
-              Tình trạng hóa đơn
+              Tình trạng hóa đơn của bạn
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 md:space-y-4">
-            {/* Electric Invoice */}
-            <div className="p-3 md:p-4 border border-destructive/30 bg-destructive/15 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-destructive" />
-                  <span className="font-medium text-sm md:text-base text-foreground">
-                    Điện nước {electricInvoice.month}
-                  </span>
+            {thisMonthInvoices.map((invoice) => (
+              <div key={invoice._id} className="p-3 md:p-4 border border-destructive/30 bg-destructive/15 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {invoice.type === "walec"
+                      ? <Zap className="h-4 w-4 text-foreground/70" />
+                      : <Home className="h-4 w-4 text-foreground/70" />}
+                    <span className="font-medium text-sm md:text-base text-foreground">
+                      {invoice.name}
+                    </span>
+                  </div>
+                  <Badge variant="destructive" className="text-xs">
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Chưa đóng
+                  </Badge>
                 </div>
-                <Badge variant="destructive" className="text-xs">
-                  <XCircle className="h-3 w-3 mr-1" />
-                  Chưa đóng
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="text-base md:text-lg font-bold text-foreground">
-                  {electricInvoice.amount.toLocaleString("vi-VN")}đ
-                </span>
-                <Button size="sm" variant="destructive" className="text-xs">
-                  <DollarSign className="h-3 w-3 mr-1" />
-                  Thanh toán
-                </Button>
-              </div>
-              <p className="text-xs text-foreground/70 mt-1">Hạn thanh toán: {electricInvoice.dueDate}</p>
-            </div>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-base md:text-lg font-bold text-foreground">
+                    {formatCurrency(invoice.personalAmount)}
+                  </span>
+                  <Button size="sm" variant="default" className="text-xs">
+                    <DollarSign className="h-3 w-3 mr-1" />
+                    Thanh toán
+                  </Button>
+                </div>
+                {invoice.dueDate &&
+                  <p className="text-xs text-foreground/70 mt-1">Hạn thanh toán: {invoice.dueDate.toLocaleDateString("vi-VN")}</p>
+                }
+              </div>))}
 
             {/* Other Invoices */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-muted-foreground">Hóa đơn khác</h4>
-              {otherInvoices.map((invoice) => (
-                <div key={invoice.id} className="flex items-center justify-between p-2 md:p-3 border rounded-lg">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="font-medium text-sm truncate">{invoice.name}</span>
-                    <Badge
-                      variant={invoice.status === "paid" ? "default" : "destructive"}
-                      className="text-xs flex-shrink-0"
-                    >
-                      {invoice.status === "paid" ? (
-                        <>
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Đã đóng
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          Chưa đóng
-                        </>
-                      )}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="font-medium text-sm">{invoice.amount.toLocaleString("vi-VN")}đ</span>
-                    {invoice.status === "unpaid" && (
+            {!!otherInvoices.length &&
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-muted-foreground">Hóa đơn khác</h4>
+                {otherInvoices.map((invoice) => (
+                  <div key={invoice._id} className="flex items-center justify-between p-2 md:p-3 border rounded-lg">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="font-medium text-sm truncate">{invoice.name}</span>
+                      <Badge
+                        className="text-xs flex-shrink-0"
+                      >
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Chưa đóng
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="font-medium text-sm">{invoice.amount.toLocaleString("vi-VN")}đ</span>
                       <Button size="sm" variant="outline" className="text-xs bg-transparent">
                         Thanh toán
                       </Button>
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>}
           </CardContent>
         </Card>
       </div>

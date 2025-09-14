@@ -1,0 +1,164 @@
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Zap, Home, Receipt, Calendar, User, Pencil, Trash } from "lucide-react"
+import { cn, formatCurrency, formatDate } from "@/lib/utils"
+import { IInvoice, PersonalInvoice } from "@/types/Invoice"
+import { UserAvatar } from "@/components/user-avatar"
+import { useInvoices, useRoommatesQuery } from "../room-context"
+import { deleteInvoice } from "@/lib/actions/invoice"
+import { queryClient } from "@/lib/query-client"
+import { useMutation } from "@tanstack/react-query"
+import { useConfirm } from "@/components/are-you-sure"
+import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
+import { useState } from "react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+
+const typeConfig = {
+    walec: {
+        icon: Zap,
+        color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400",
+    },
+    roomCost: {
+        icon: Home,
+        color: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
+    },
+    other: {
+        icon: Receipt,
+        color: "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400",
+    },
+}
+
+export function InvoiceCard({
+    invoice,
+    onEdit,
+    onDelete,
+    ...props
+}: React.ComponentProps<typeof Card> & {
+    invoice: PersonalInvoice,
+    onEdit: (invoice: IInvoice) => void,
+    onDelete: (invoice: IInvoice) => Promise<any>,
+}) {
+    const { data: roommates } = useRoommatesQuery();
+    const { openInvoiceCheckoutDialog } = useInvoices();
+    const config = typeConfig[invoice.type]
+    const Icon = config.icon
+    const isOverdue = invoice.dueDate && invoice.dueDate < new Date()
+    const isPaid = invoice.personalAmount <= 0 || invoice.status === "paid";
+    const creator = roommates?.find(rm => rm.userId === invoice.createdBy);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handlePayInvoice = () => {
+        openInvoiceCheckoutDialog(invoice);
+    }
+
+    const handleEditInvoice = () => {
+        onEdit(invoice);
+    }
+
+    const handleDeleteInvoice = useConfirm(async () => {
+        try {
+            setIsDeleting(true);
+            await onDelete(invoice);
+        } finally {
+            setIsDeleting(false);
+        }
+    }, {
+        title: "Xoá hóa đơn",
+        description: "Bạn có chắc chắn muốn xoá hóa đơn này? Hành động này không thể hoàn tác.",
+        confirmText: "Xoá",
+        variant: "destructive",
+    })
+
+    return (
+        <Card className={cn("w-full transition-all duration-200 hover:shadow-md", props.className)}>
+            <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className={cn("p-2 rounded-lg", config.color)}>
+                            <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm text-card-foreground truncate">{invoice.name}</h3>
+                            <p className="text-sm text-muted-foreground truncate">{invoice.description}</p>
+                        </div>
+                    </div>
+                </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+                {/* Amount Information */}
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Tổng thanh toán</span>
+                        <span className="font-semibold text-card-foreground">{formatCurrency(invoice.amount)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Phần của bạn</span>
+                        <span className={cn("font-semibold", isPaid ? "text-green-600 dark:text-green-400" : "text-destructive")}>
+                            {formatCurrency(invoice.personalAmount)}
+                        </span>
+                    </div>
+                    {!isPaid && (
+                        <div className="w-full bg-muted rounded-full h-2">
+                            <div
+                                className="bg-primary h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${((invoice.amount - invoice.remainingAmount) / invoice.amount) * 100}%` }}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Status and Due Date */}
+                <div className="flex items-center justify-between text-sm">
+                    {creator && (
+                        <div className="flex items-center gap-2">
+                            <UserAvatar className="w-4 h-4" user={creator} />
+                            <span className="text-muted-foreground text-xs">Tạo bởi {creator.displayName}</span>
+                        </div>
+                    )}
+                    {invoice.dueDate && (
+                        <div
+                            className={cn(
+                                "flex items-center gap-1 text-xs px-2 py-1 rounded-full",
+                                isOverdue && !isPaid
+                                    ? "bg-destructive/10 text-destructive"
+                                    : isPaid
+                                        ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                                        : "bg-muted text-muted-foreground",
+                            )}
+                        >
+                            <Calendar className="h-3 w-3" />
+                            <span>{formatDate(invoice.dueDate)}</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Action Buttons */}
+                {isDeleting
+                    ? <Skeleton className="h-8 w-full rounded-md" />
+                    : <div className={"flex gap-2 pt-2"}>
+                        {!isPaid && (
+
+                            <Button disabled={!invoice.payTo} onClick={handlePayInvoice} size="sm" className="flex-1 text-primary" variant="outline">
+                                {invoice.payTo ? "Thanh toán" : "Không có người nhận"}
+                            </Button>
+
+                        )}
+                        <Button onClick={handleEditInvoice} size="icon" variant="outline"><Pencil /></Button>
+                        <Button onClick={handleDeleteInvoice} size="icon" variant="outline" className="text-destructive">
+                            <Trash />
+                        </Button>
+                    </div>}
+
+                {/* Status Badge */}
+                {isPaid && (
+                    <div className="text-center">
+                        <Badge className="bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">✓ Paid</Badge>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    )
+}
