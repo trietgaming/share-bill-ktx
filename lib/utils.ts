@@ -12,7 +12,7 @@ export function formatCurrency(amount: number, locale: string = 'vi-VN', currenc
 }
 
 export function formatDate(date: Date, dateFormat: string = 'dd/MM/yyyy') {
-    return format(date, dateFormat, { locale: vi });
+    return format(new Date(date), dateFormat, { locale: vi });
 }
 
 export function isYYYYMM(dateStr: string): boolean {
@@ -44,4 +44,22 @@ export function parseYYYYMM(dateStr: string): { year: number, month: number } | 
     }
 
     return { year, month };
+}
+
+export function count<T>(arr: T[], predicate: (item: T) => boolean): number {
+    let result = 0;
+    for (let i = 0; i < arr.length; ++i) {
+        if (predicate(arr[i])) {
+            ++result;
+        }
+    }
+    return result;
+}
+
+export function sum(numbers: number[]): number {
+  let total = 0;
+  for (const num of numbers) {
+    total += num;
+  }
+  return total;
 }

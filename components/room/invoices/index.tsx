@@ -159,13 +159,14 @@ export function InvoicesManagement() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Dialog open={!!addInvoiceType} onOpenChange={() => { setAddInvoiceType(null); setEditingInvoice(null) }}>
-          <DialogContent className="max-w-lg overflow-y-auto max-h-[90vh]">
+        <Dialog open={!!addInvoiceType} onOpenChange={() => { setAddInvoiceType(null); }}>
+          {/* Use onCloseAutoFocus to smooth out the transition in closing edit mode */}
+          <DialogContent onCloseAutoFocus={() => { setEditingInvoice(null) }} className="max-w-lg overflow-y-auto max-h-[90vh]">
             <DialogHeader>
-              <DialogTitle>Thêm hóa đơn mới</DialogTitle>
-              <DialogDescription>Tạo hóa đơn mới cho phòng.</DialogDescription>
+              <DialogTitle>{editingInvoice ? "Chỉnh sửa hóa đơn" : "Thêm hóa đơn mới"}</DialogTitle>
+              <DialogDescription>{editingInvoice ? "Chỉnh sửa thông tin hóa đơn." : "Tạo hóa đơn mới cho phòng."}</DialogDescription>
             </DialogHeader>
-            <InvoiceForm invoice={editingInvoice} type={addInvoiceType!} onSuccess={() => { setEditingInvoice(null); setAddInvoiceType(null) }} />
+            <InvoiceForm invoice={editingInvoice} type={addInvoiceType!} onSuccess={() => { setAddInvoiceType(null) }} />
           </DialogContent>
         </Dialog>
       </div>

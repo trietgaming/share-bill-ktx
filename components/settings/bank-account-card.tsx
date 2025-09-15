@@ -12,6 +12,7 @@ import { deleteUserBankAccount } from "@/lib/actions/user-data"
 import { toast } from "sonner"
 import { useAuth } from "@/components/auth-context"
 import { IUserDataWithBankAccounts } from "@/types/UserData"
+import { useBanks } from "@/hooks/use-banks"
 
 interface BankAccountCardProps {
   account: IClientBankAccount
@@ -20,6 +21,7 @@ interface BankAccountCardProps {
 
 export function BankAccountCard({ account, onEdit }: BankAccountCardProps) {
   const { setUserData } = useAuth();
+  const { getBankLogoByShortName } = useBanks();
   const isQrAccount = !!account.qrCodeUrl
 
   const { mutate: handleDeleteAccount } = useMutation({
@@ -50,7 +52,7 @@ export function BankAccountCard({ account, onEdit }: BankAccountCardProps) {
 
   return (
     <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
+      <CardContent>
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div className="flex items-start space-x-3 flex-1 min-w-0">
             <div className="p-2 bg-secondary rounded-lg flex-shrink-0">
@@ -65,10 +67,12 @@ export function BankAccountCard({ account, onEdit }: BankAccountCardProps) {
               {isQrAccount ? (
                 <>
                   <div className="flex items-center gap-2 mb-2">
-                    <h3 className="font-medium text-sm">Mã QR thanh toán</h3>
                     <Badge variant="secondary" className="text-xs">
                       QR
                     </Badge>
+                    <h3 className="font-medium text-sm">
+                      {account.bankName}
+                    </h3>
                   </div>
                   <div className="mt-2">
                     <img
@@ -86,20 +90,27 @@ export function BankAccountCard({ account, onEdit }: BankAccountCardProps) {
                 </>
               ) : (
                 <>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-xs font-medium truncate">{account.bankName}</h3>
-                    <Badge variant="outline" className="text-xs flex-shrink-0">
-                      Ngân hàng
-                    </Badge>
-                  </div>
-                  <p className="text-sm md:text-base text-foreground font-mono break-all">{account.accountNumber}</p>
-                  <p className="text-sm text-muted-foreground truncate">{account.accountName}</p>
-                  <img
-                    src={`https://img.vietqr.io/image/${account.bankName}-${account.accountNumber}-qr_only.jpg}`}
-                    alt="Mã QR thanh toán"
-                    className="w-20 h-20 object-contain border rounded-lg bg-white"
+                  <Badge variant="outline" className="text-xs mb-2">
+                    Ngân hàng
+                  </Badge>
+                  <div className="space-y-2 flex flex-col md:flex-row justify-between md:items-center">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-xs font-medium truncate space-x-2">
+                          <img alt="Bank logo" className="w-8 h-8 inline-block object-contain" src={getBankLogoByShortName(account.bankName)} />
+                          {account.bankName}
+                        </h3>
+                      </div>
+                      <p className="text-sm md:text-base text-foreground font-mono break-all">{account.accountNumber}</p>
+                      <p className="text-sm text-muted-foreground truncate">{account.accountName}</p>
+                    </div>
+                    <img
+                      src={`https://img.vietqr.io/image/${account.bankName}-${account.accountNumber}-qr_only.jpg}`}
+                      alt="Mã QR thanh toán"
+                      className="w-20 h-20 object-contain border rounded-lg bg-white"
 
-                  />
+                    />
+                  </div>
                 </>
               )}
             </div>

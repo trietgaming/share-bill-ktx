@@ -11,6 +11,7 @@ import { UserData } from "@/models/UserData";
 import mongoose from "mongoose";
 import { IBankAccount, IClientBankAccount } from "@/types/BankAccount";
 import { uploadFileToCloudinary } from "../cloudinary";
+import { AppError } from "../errors";
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -35,10 +36,10 @@ export async function updateUserPhoto(photo: File) {
     const user = await authenticate();
     // only support jpg, jpeg, png, webp
     if (!SUPPORTED_IMAGE_TYPES.includes(photo.type)) {
-        throw new Error("Invalid file type");
+        throw new AppError("Invalid file type");
     }
     if (photo.size > MAX_FILE_SIZE) {
-        throw new Error("File size must be less than 5MB");
+        throw new AppError("File size must be less than 5MB");
     }
 
     const imageId = `user_photo_${user.uid}`;
@@ -54,7 +55,7 @@ export async function updateUserPhoto(photo: File) {
 
     const photoURL = uploadResult?.url;
     if (!photoURL) {
-        throw new Error("Failed to upload image");
+        throw new AppError("Failed to upload image");
     }
 
     const userData = await getUserData(user);
@@ -80,7 +81,7 @@ export interface CreateOrUpdateUserBankAccountFormData {
     id?: string;
     accountNumber?: string;
     accountName?: string;
-    bankName?: string;
+    bankName: string;
     qrCodeFile?: File;
 }
 
@@ -89,7 +90,7 @@ export async function createOrUpdateUserBankAccount(data: CreateOrUpdateUserBank
     const userData = await getUserData(user);
 
     if (data.id && userData.bankAccounts.every(bankId => !bankId.equals(data.id))) {
-        throw new Error("Bank account not found");
+        throw new AppError("Bank account not found");
     }
 
     const isUpdate = Boolean(data.id);
@@ -100,10 +101,10 @@ export async function createOrUpdateUserBankAccount(data: CreateOrUpdateUserBank
 
     if (data.qrCodeFile) {
         if (!SUPPORTED_IMAGE_TYPES.includes(data.qrCodeFile.type)) {
-            throw new Error("Invalid file type");
+            throw new AppError("Invalid file type");
         }
         if (data.qrCodeFile.size > MAX_FILE_SIZE) {
-            throw new Error("File size must be less than 1MB");
+            throw new AppError("File size must be less than 1MB");
         }
 
         const imageId = `bank_account_qr_${bankAccount._id}`;
@@ -121,8 +122,8 @@ export async function createOrUpdateUserBankAccount(data: CreateOrUpdateUserBank
     } else {
         bankAccount.accountName = data.accountName;
         bankAccount.accountNumber = data.accountNumber;
-        bankAccount.bankName = data.bankName;
     }
+    bankAccount.bankName = data.bankName;
 
     const session = await mongoose.startSession();
 
@@ -145,7 +146,7 @@ export async function deleteUserBankAccount(bankAccountId: string) {
     const userData = await getUserData(user);
 
     if (!userData.bankAccounts.some(bankId => bankId.equals(bankAccountId))) {
-        throw new Error("Bank account not found");
+        throw new AppError("Bank account not found");
     }
 
     const session = await mongoose.startSession();

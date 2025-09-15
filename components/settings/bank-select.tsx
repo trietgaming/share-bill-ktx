@@ -4,32 +4,10 @@ import React from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { SelectValue } from "@radix-ui/react-select";
 import Image from "next/image";
-
-interface BankInfo {
-    id: string;
-    name: string;
-    code: string;
-    bin: string;
-    shortName: string;
-    logo: string;
-}
+import { useBanks } from "@/hooks/use-banks";
 
 export function BankSelect({ ...props }: React.ComponentProps<typeof Select>) {
-    const { data: banks, isLoading } = useQuery({
-        queryKey: ['banks'],
-        queryFn: async () => {
-            const res = await fetch('https://api.vietqr.io/v2/banks', {
-                "priority": "low"
-            });
-            const data = (await res.json()).data as BankInfo[];
-            return data;
-        },
-        staleTime: Infinity,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: false,
-        refetchOnMount: false,
-        retry: false,
-    })
+    const { data: banks, isLoading } = useBanks().query;
 
 
     if (isLoading) {

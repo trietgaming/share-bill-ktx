@@ -3,6 +3,7 @@ import { getAuth, User } from "firebase/auth";
 import { initializeApp, initializeServerApp } from "firebase/app";
 import { firebaseConfig } from "./config";
 import { cookies } from "next/headers";
+import { AppError } from "../errors";
 
 async function getAuthUserFromIdToken(idToken?: string | null) {
     if (!idToken) return null;
@@ -55,7 +56,7 @@ interface RefreshTokenResponse {
 
 async function exchangeRefreshTokenForIdToken(refreshToken: string) {
     const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-    if (!apiKey) throw new Error("FIREBASE_API_KEY is not set");
+    if (!apiKey) throw new AppError("FIREBASE_API_KEY is not set");
 
     const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${apiKey}`, {
         method: "POST",
@@ -68,7 +69,7 @@ async function exchangeRefreshTokenForIdToken(refreshToken: string) {
         }).toString(),
     });
 
-    if (!response.ok) throw new Error("Failed to exchange refresh token");
+    if (!response.ok) throw new AppError("Failed to exchange refresh token");
 
     const data = await response.json() as RefreshTokenResponse;
 

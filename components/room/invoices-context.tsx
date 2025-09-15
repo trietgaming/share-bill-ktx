@@ -15,7 +15,7 @@ interface InvoicesContextType {
     /** Personal amount must be calculated using attendance info */
     monthlyInvoices: PersonalInvoice[],
     otherInvoices: PersonalInvoice[],
-    openInvoiceCheckoutDialog: (invoice: IInvoice) => void,
+    openInvoiceCheckoutDialog: (invoice: PersonalInvoice) => void,
 }
 
 const InvoicesContext = createContext<InvoicesContextType>({} as InvoicesContextType);
@@ -58,10 +58,16 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
 
         return pendingInvoicesQuery.data.filter(
             inv => inv.type === "other" && inv.applyTo.includes(userData!._id)
-        ).map(inv => ({
-            ...inv,
-            personalAmount: Math.round((inv.amount || 0) / (inv.applyTo.length || 1))
-        }));
+        ).map(inv => {
+            const userPaidAmount = inv.payInfo?.filter(p => p.paidBy === userData!._id).reduce((sum, p) => sum + p.amount, 0) || 0;
+            const personalAmount = Math.round((inv.amount || 0) / (inv.applyTo.length || 1) - userPaidAmount)
+            return {
+                ...inv,
+                personalAmount,
+                isPaidByMe: personalAmount <= 0,
+                myPayInfo: inv.payInfo?.find(p => p.paidBy === userData!._id)
+            }
+        });
 
     }, [pendingInvoicesQuery.data]);
 
@@ -92,13 +98,18 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
         });
 
         return monthlyInvoices.map(inv => {
+            const userPaidAmount = inv.payInfo?.filter(p => p.paidBy === userData!._id).reduce((sum, p) => sum + p.amount, 0) || 0;
             const roomAttendance = roomAttendanceMap[inv.monthApplied!];
             const myAttendance = roomAttendance?.find(a => a.userId === userData!._id);
 
             if (!roomAttendance || !myAttendance) {
+                const personalAmount = Math.round((inv.amount || 0) / (inv.applyTo.length || 1) - userPaidAmount);
+
                 return {
                     ...inv,
-                    personalAmount: Math.round((inv.amount || 0) / (inv.applyTo.length || 1))
+                    personalAmount,
+                    isPaidByMe: inv.payInfo?.some(p => p.paidBy === userData!._id && Math.round(p.amount) >= personalAmount),
+                    myPayInfo: inv.payInfo?.find(p => p.paidBy === userData!._id)
                 };
             }
 
@@ -116,19 +127,21 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
 
             const myPresentDays = calculatePresentDays(myAttendance.attendance);
 
-            const personalAmount = Math.round(costPerDay * myPresentDays);
+            const personalAmount = Math.round(costPerDay * myPresentDays - userPaidAmount);
 
             return {
                 ...inv,
-                personalAmount
+                personalAmount,
+                isPaidByMe: personalAmount <= 0,
+                myPayInfo: inv.payInfo?.find(p => p.paidBy === userData!._id)
             }
         });
     }, [pendingInvoicesQuery.data, monthsAttendanceQuery.data, roommates]);
 
     const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
-    const [selectedInvoiceToPay, setSelectedInvoiceToPay] = useState<IInvoice | null>(null);
+    const [selectedInvoiceToPay, setSelectedInvoiceToPay] = useState<PersonalInvoice | null>(null);
 
-    const openInvoiceCheckoutDialog = (invoice: IInvoice) => {
+    const openInvoiceCheckoutDialog = (invoice: PersonalInvoice) => {
         console.log("Opening checkout dialog for invoice", invoice);
         setSelectedInvoiceToPay(invoice);
         setIsCheckoutDialogOpen(true);

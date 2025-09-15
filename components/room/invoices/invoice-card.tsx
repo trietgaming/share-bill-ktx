@@ -5,7 +5,7 @@ import { Zap, Home, Receipt, Calendar, User, Pencil, Trash } from "lucide-react"
 import { cn, formatCurrency, formatDate } from "@/lib/utils"
 import { IInvoice, PersonalInvoice } from "@/types/Invoice"
 import { UserAvatar } from "@/components/user-avatar"
-import { useInvoices, useRoommatesQuery } from "../room-context"
+import { useInvoices, useMembership, useRoommatesQuery } from "../room-context"
 import { deleteInvoice } from "@/lib/actions/invoice"
 import { queryClient } from "@/lib/query-client"
 import { useMutation } from "@tanstack/react-query"
@@ -14,6 +14,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { useState } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { hasPermission } from "@/lib/permission"
+import { useAuth } from "@/components/auth-context"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Separator } from "@/components/ui/separator"
 
 const typeConfig = {
     walec: {
@@ -42,10 +46,15 @@ export function InvoiceCard({
 }) {
     const { data: roommates } = useRoommatesQuery();
     const { openInvoiceCheckoutDialog } = useInvoices();
+    const { userData } = useAuth();
+    const membership = useMembership();
+
+    console.log(invoice);
+
     const config = typeConfig[invoice.type]
     const Icon = config.icon
     const isOverdue = invoice.dueDate && invoice.dueDate < new Date()
-    const isPaid = invoice.personalAmount <= 0 || invoice.status === "paid";
+    const isPaid = invoice.isPaidByMe;
     const creator = roommates?.find(rm => rm.userId === invoice.createdBy);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -73,7 +82,7 @@ export function InvoiceCard({
 
     return (
         <Card className={cn("w-full transition-all duration-200 hover:shadow-md", props.className)}>
-            <CardHeader className="pb-3">
+            <CardHeader>
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                         <div className={cn("p-2 rounded-lg", config.color)}>
@@ -86,7 +95,6 @@ export function InvoiceCard({
                     </div>
                 </div>
             </CardHeader>
-
             <CardContent className="space-y-4">
                 {/* Amount Information */}
                 <div className="space-y-2">
@@ -100,24 +108,55 @@ export function InvoiceCard({
                             {formatCurrency(invoice.personalAmount)}
                         </span>
                     </div>
-                    {!isPaid && (
-                        <div className="w-full bg-muted rounded-full h-2">
-                            <div
-                                className="bg-primary h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${((invoice.amount - invoice.remainingAmount) / invoice.amount) * 100}%` }}
-                            />
-                        </div>
-                    )}
+                    <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                            className="bg-primary h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${((invoice.amount - invoice.remainingAmount) / invoice.amount) * 100}%` }}
+                        />
+                    </div>
                 </div>
+
+                <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="details">
+                        <AccordionTrigger className="py-0">
+                            Thông tin chi tiết
+                        </AccordionTrigger>
+                        <AccordionContent className="space-y-2 mt-4">
+                            {creator && (
+                                <div className="flex items-center gap-2">
+                                    <UserAvatar className="w-4 h-4" user={creator} />
+                                    <span className="text-muted-foreground text-xs">Tạo bởi <b>{creator.displayName}</b> vào {formatDate(invoice.createdAt)}</span>
+                                </div>
+                            )}
+                            <Separator />
+                            {invoice.payInfo.map(payInfo => {
+                                const roommate = roommates?.find(rm => rm.userId === payInfo.paidBy);
+                                if (!roommate) return null;
+                                return (
+                                    <div key={roommate.userId} className="flex items-center gap-2 justify-between text-muted-foreground text-xs">
+                                        <div className="flex items-center gap-2">
+                                            <UserAvatar className="w-4 h-4" user={roommate} />
+                                            <span>
+                                                <b>{roommate.displayName}</b> đã thanh toán
+                                            </span>
+                                        </div>
+                                        <b>{formatCurrency(payInfo.amount)}</b>
+                                    </div>
+                                )
+                            })}
+                            <div className="text-muted-foreground text-xs flex justify-between">
+                                Tổng đã trả:
+                                <b>
+                                    {formatCurrency(Math.round(invoice.amount - invoice.remainingAmount))}/{formatCurrency(invoice.amount)}
+                                </b>
+                            </div>
+                        </AccordionContent>
+
+                    </AccordionItem>
+                </Accordion>
 
                 {/* Status and Due Date */}
                 <div className="flex items-center justify-between text-sm">
-                    {creator && (
-                        <div className="flex items-center gap-2">
-                            <UserAvatar className="w-4 h-4" user={creator} />
-                            <span className="text-muted-foreground text-xs">Tạo bởi {creator.displayName}</span>
-                        </div>
-                    )}
                     {invoice.dueDate && (
                         <div
                             className={cn(
@@ -139,25 +178,25 @@ export function InvoiceCard({
                 {isDeleting
                     ? <Skeleton className="h-8 w-full rounded-md" />
                     : <div className={"flex gap-2 pt-2"}>
-                        {!isPaid && (
-
-                            <Button disabled={!invoice.payTo} onClick={handlePayInvoice} size="sm" className="flex-1 text-primary" variant="outline">
-                                {invoice.payTo ? "Thanh toán" : "Không có người nhận"}
-                            </Button>
-
-                        )}
+                        {isPaid ?
+                            (
+                                <div className="text-center">
+                                    <Button disabled className="bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                                        ✓ Bạn đã thanh toán
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Button disabled={!invoice.payTo} onClick={handlePayInvoice} size="sm" className="flex-1 text-primary" variant="outline">
+                                    {invoice.payTo ? "Thanh toán" : "Không có người nhận"}
+                                </Button>
+                            )}
                         <Button onClick={handleEditInvoice} size="icon" variant="outline"><Pencil /></Button>
-                        <Button onClick={handleDeleteInvoice} size="icon" variant="outline" className="text-destructive">
-                            <Trash />
-                        </Button>
-                    </div>}
-
-                {/* Status Badge */}
-                {isPaid && (
-                    <div className="text-center">
-                        <Badge className="bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">✓ Paid</Badge>
+                        {(invoice.createdBy === userData!._id || hasPermission("room.invoice.delete", membership?.role)) &&
+                            <Button onClick={handleDeleteInvoice} size="icon" variant="outline" className="text-destructive">
+                                <Trash />
+                            </Button>}
                     </div>
-                )}
+                }
             </CardContent>
         </Card>
     )

@@ -480,7 +480,7 @@ export function InvoiceForm({ onSuccess, invoice, type }: { onSuccess?: (invoice
                     </div>
                 )} */}
 
-                <Button disabled={form.formState.isSubmitting} type="submit">Thêm hóa đơn</Button>
+                <Button disabled={form.formState.isSubmitting} type="submit">{isEditMode ? "Sửa" : "Thêm"} hóa đơn</Button>
             </form>
         </Form >
     )

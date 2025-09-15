@@ -29,14 +29,14 @@ const bankAccountSchema = z
     id: z.string().optional(),
     accountNumber: z.string().optional(),
     accountName: z.string().optional(),
-    bankName: z.string().optional(),
+    bankName: z.string().min(1, "Tên ngân hàng hoặc mã QR là bắt buộc"),
     qrCodeUrl: z.string().optional(),
   })
   .refine(
     (data) => {
       // Either all bank details are provided OR qrCodeUrl is provided
       const hasBankDetails = data.accountNumber && data.accountName && data.bankName
-      const hasQrCode = data.qrCodeUrl && data.qrCodeUrl.length > 0
+      const hasQrCode = data.bankName && data.qrCodeUrl && data.qrCodeUrl.length > 0
       return hasBankDetails || hasQrCode
     },
     {
@@ -121,7 +121,16 @@ export function BankAccountDialog({ open, onOpenChange, account }: BankAccountDi
 
   const onSubmit = async (data: BankAccountFormData) => {
     try {
-      const updatedBankAccount = await createOrUpdateUserBankAccount(isQrMode ? { id: account?._id, qrCodeFile: qrFile! } : data);
+      console.log(data)
+      const updatedBankAccount = await createOrUpdateUserBankAccount(
+        isQrMode
+          ? {
+            id: account?._id,
+            qrCodeFile: qrFile!,
+            bankName: data.bankName
+          }
+          : data
+      );
       setUserData((prev) => {
         if (!prev) return prev;
         let found = false;
@@ -234,67 +243,82 @@ export function BankAccountDialog({ open, onOpenChange, account }: BankAccountDi
                 />
               </>
             ) : (
-              <FormField
-                control={form.control}
-                name="qrCodeUrl"
-                render={() => (
-                  <FormItem>
-                    <FormLabel>Mã QR thanh toán *</FormLabel>
-                    <FormControl>
-                      <div className="space-y-4">
-                        {!qrPreview ? (
-                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleFileUpload}
-                              className="hidden"
-                              id="qr-upload"
-                            />
-                            <label htmlFor="qr-upload" className="cursor-pointer">
-                              <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                              <p className="text-sm text-gray-600 mb-2">Nhấp để tải lên ảnh mã QR</p>
-                              <p className="text-xs text-gray-500">PNG, JPG, GIF tối đa 10MB</p>
-                            </label>
-                          </div>
-                        ) : (
-                          <div className="relative">
-                            <div className="border rounded-lg p-4 bg-gray-50">
-                              <div className="flex items-center gap-3">
-                                <div className="relative w-20 h-20 bg-white rounded border">
-                                  <img
-                                    src={qrPreview || "/placeholder.svg"}
-                                    alt="QR Code Preview"
-                                    className="w-full h-full object-cover"
-                                  />
+              <>
+                <FormField
+                  control={form.control}
+                  name="bankName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tên mã QR*</FormLabel>
+                      <FormControl>
+                        <Input placeholder="MOMO, ZaloPay..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="qrCodeUrl"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel>Mã QR thanh toán *</FormLabel>
+                      <FormControl>
+                        <div className="space-y-4">
+                          {!qrPreview ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                id="qr-upload"
+                              />
+                              <label htmlFor="qr-upload" className="cursor-pointer">
+                                <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                                <p className="text-sm text-gray-600 mb-2">Nhấp để tải lên ảnh mã QR</p>
+                                <p className="text-xs text-gray-500">PNG, JPG, GIF tối đa 10MB</p>
+                              </label>
+                            </div>
+                          ) : (
+                            <div className="relative">
+                              <div className="border rounded-lg p-4 bg-gray-50">
+                                <div className="flex items-center gap-3">
+                                  <div className="relative w-20 h-20 bg-white rounded border">
+                                    <img
+                                      src={qrPreview || "/placeholder.svg"}
+                                      alt="QR Code Preview"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <div className="flex-1 w-full">
+                                    <p className="truncate max-w-[150px] text-sm font-medium text-gray-900">
+                                      {qrFile?.name || "Mã QR đã tải lên"}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {qrFile ? `${(qrFile.size / 1024).toFixed(1)} KB` : "Ảnh mã QR"}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={removeQrFile}
+                                    className="text-red-500 hover:text-red-700"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
                                 </div>
-                                <div className="flex-1 w-full">
-                                  <p className="truncate max-w-[150px] text-sm font-medium text-gray-900">
-                                    {qrFile?.name || "Mã QR đã tải lên"}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    {qrFile ? `${(qrFile.size / 1024).toFixed(1)} KB` : "Ảnh mã QR"}
-                                  </p>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={removeQrFile}
-                                  className="text-red-500 hover:text-red-700"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
             )}
 
             <DialogFooter>

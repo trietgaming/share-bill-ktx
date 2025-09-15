@@ -4,7 +4,7 @@ export interface IBankAccount {
     _id: mongoose.Types.ObjectId;
     accountNumber?: string;
     accountName?: string;
-    bankName?: string;
+    bankName: string;
     qrCodeUrl?: string;
 }
 

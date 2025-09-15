@@ -31,10 +31,7 @@ export const bankAccountSchema = new mongoose.Schema<IBankAccount>({
         type: String,
         trim: true,
         maxLength: [100, 'Bank name can not be more than 100 characters'],
-        validate: {
-            validator: requiredIfNoQRCode,
-            message: 'Bank name is required if QR code URL is not provided'
-        }
+        required: [true, 'Bank name is required']
     },
     qrCodeUrl: {
         type: String,

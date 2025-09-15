@@ -6,10 +6,11 @@ import { MonthAttendance } from "@/models/MonthAttendance";
 import { isYYYYMM, parseYYYYMM } from "@/lib/utils";
 import { serializeDocument } from "@/lib/serializer";
 import { IMonthAttendance } from "@/types/MonthAttendance";
+import { AppError } from "../errors";
 
 export async function getRoomMonthAttendance(roomId: string, month: string) {
     if (!isYYYYMM(month)) {
-        throw new Error("Invalid month format. Expected YYYY-MM");
+        throw new AppError("Invalid month format. Expected YYYY-MM");
     }
     const user = await authenticate();
     await verifyMembership(user.uid, roomId);
@@ -33,10 +34,10 @@ export async function getRoomMonthAttendance(roomId: string, month: string) {
 
 export async function getRoomMonthsAttendance(roomId: string, months: string[]) {
     if (months.length >= 12) {
-        throw new Error("Too many months requested. Maximum is 12.");
+        throw new AppError("Too many months requested. Maximum is 12.");
     }
     if (!months.every(isYYYYMM)) {
-        throw new Error("Invalid month format. Expected YYYY-MM");
+        throw new AppError("Invalid month format. Expected YYYY-MM");
     }
     const user = await authenticate();
     await verifyMembership(user.uid, roomId);

@@ -43,4 +43,6 @@ export interface IInvoice {
 
 export interface PersonalInvoice extends IInvoice {
     personalAmount: number;
+    isPaidByMe: boolean;
+    myPayInfo?: IPayInfo;
 }

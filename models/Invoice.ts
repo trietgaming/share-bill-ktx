@@ -1,6 +1,9 @@
 import { IInvoice, IPayInfo } from "@/types/Invoice";
 import mongoose, { Schema } from "mongoose";
 import { BankAccount, bankAccountSchema } from "@/models/BankAccount";
+import { MonthAttendance } from "./MonthAttendance";
+import { count, sum } from "@/lib/utils";
+import { AppError } from "@/lib/errors";
 
 export const payInfoSchema = new Schema<IPayInfo>({
     paidBy: {
@@ -117,7 +120,10 @@ export const invoiceSchema = new Schema<IInvoice>({
     }
 
 }, {
-    timestamps: true
+    timestamps: true,
+    methods: {
+        calculateShare
+    }
 })
 
 invoiceSchema.virtual('remainingAmount').get(function (this: IInvoice) {
@@ -149,3 +155,36 @@ invoiceSchema.index({ roomId: 1, status: 1, monthApplied: 1 })
 invoiceSchema.index({ roomId: 1, status: 1, dueDate: 1 })
 
 export const Invoice: mongoose.Model<IInvoice> = mongoose.models.Invoice || mongoose.model("Invoice", invoiceSchema);
+
+export async function calculateShare(invoice: IInvoice, userId: string) {
+    if (invoice.type === "other") {
+        return invoice.amount / invoice.applyTo.length;
+    } else {
+        const attendances = await MonthAttendance.find({ roomId: invoice.roomId, month: invoice.monthApplied });
+
+        if (attendances.length < invoice.applyTo.length) {
+            throw new AppError("Chưa có đủ dữ liệu điểm danh cho tháng này, không thể tính toán được số tiền phải trả của bạn.")
+        }
+
+        let totalPresentDays = 0;
+        let userPresentDays = 0;
+
+        for (let i = 0; i < attendances.length; ++i) {
+            const att = attendances[i];
+            const presentDays = count(att.attendance, availability => {
+                if (availability === 'undetermined') {
+                    throw new AppError("Các thành viên chưa hoàn thành điểm danh, không thể tính toán được số tiền phải trả của bạn.");
+                }
+                return availability === 'present';
+            });
+
+            totalPresentDays += presentDays;
+
+            if (att.userId === userId) {
+                userPresentDays = presentDays;
+            }
+        }
+
+        return userPresentDays * (invoice.amount / totalPresentDays);
+    }
+}

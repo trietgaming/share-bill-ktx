@@ -12,6 +12,7 @@ import { serializeDocument } from "@/lib/serializer";
 import { authenticate } from "../prechecks/auth";
 import { IBankAccount, IClientBankAccount } from "@/types/BankAccount";
 import { IMembership } from "@/types/Membership";
+import { AppError } from "../errors";
 
 export async function createNewRoom(data: { name: string; maxMembers: number }) {
     const user = await authenticate();
@@ -54,11 +55,11 @@ export async function joinRoom(roomId: string): Promise<boolean> {
     const targetRoom = await Room.findById(roomId);
 
     if (!targetRoom) {
-        throw new Error("Phòng không tồn tại");
+        throw new AppError("Phòng không tồn tại");
     }
 
     if (targetRoom.members.length >= targetRoom.maxMembers) {
-        throw new Error("Phòng đã đầy");
+        throw new AppError("Phòng đã đầy");
     }
 
     if (targetRoom.members.includes(user.uid)) {
@@ -93,11 +94,11 @@ export async function deleteRoom(roomId: string): Promise<void> {
     const membership = await Membership.findOne({ room: roomId, user: user.uid });
 
     if (!membership) {
-        throw new Error("Phòng không tồn tại hoặc bạn không phải thành viên của phòng");
+        throw new AppError("Phòng không tồn tại hoặc bạn không phải thành viên của phòng");
     }
 
     if (membership.role !== 'admin') {
-        throw new Error("Bạn không có quyền xóa phòng này");
+        throw new AppError("Bạn không có quyền xóa phòng này");
     }
 
     const session = await mongoose.startSession();
@@ -122,11 +123,11 @@ export async function leaveRoom(roomId: string): Promise<void> {
     const membership = await Membership.findOne({ room: roomId, user: user.uid });
 
     if (!membership) {
-        throw new Error("Phòng không tồn tại hoặc bạn không phải thành viên của phòng");
+        throw new AppError("Phòng không tồn tại hoặc bạn không phải thành viên của phòng");
     }
 
     if (membership.role === 'admin') {
-        throw new Error("Quản trị viên không thể rời phòng. Vui lòng chuyển quyền quản trị hoặc xóa phòng.");
+        throw new AppError("Quản trị viên không thể rời phòng. Vui lòng chuyển quyền quản trị hoặc xóa phòng.");
     }
 
     const session = await mongoose.startSession();
@@ -155,7 +156,7 @@ export async function getRoommates(roomId: string): Promise<Roommate[]> {
     const userData = await getUserData(user);
 
     if (!userData.roomsJoined.includes(roomId)) {
-        throw new Error("Bạn không phải thành viên của phòng này");
+        throw new AppError("Bạn không phải thành viên của phòng này");
     }
 
     const memberships = await Membership.find({ room: roomId })
@@ -190,13 +191,13 @@ export async function getRoomById(roomId: string): Promise<IRoom> {
     const user = await authenticate();
 
     if (!roomId) {
-        throw new Error("Bạn cần cung cấp ID phòng");
+        throw new AppError("Bạn cần cung cấp ID phòng");
     }
 
     const membership = await Membership.findOne({ room: roomId, user: user.uid }).populate<{ room: IRoom }>("room").lean();
 
     if (!membership) {
-        throw new Error("Phòng không tồn tại hoặc bạn không phải thành viên của phòng");
+        throw new AppError("Phòng không tồn tại hoặc bạn không phải thành viên của phòng");
     }
 
     return membership.room;
