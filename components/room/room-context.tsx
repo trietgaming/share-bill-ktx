@@ -6,8 +6,8 @@ import { createContext, useCallback, useContext, useMemo } from "react";
 import { DefinedUseQueryResult, useQuery, UseQueryResult } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
 import { IClientMembership } from "@/types/membership";
-import { getRoomMonthAttendance } from "@/lib/actions/month-attendance";
-import { IMonthAttendance } from "@/types/month-attendance";
+import { getRoomMonthPresence } from "@/lib/actions/month-presence";
+import { IMonthPresence } from "@/types/month-presence";
 import { toYYYYMM } from "@/lib/utils";
 import { InvoicesProvider } from "./invoices-context";
 
@@ -20,8 +20,8 @@ interface RoomContextType {
     roomQuery: DefinedUseQueryResult<IRoom, Error>;
     roommatesQuery: UseQueryResult<Roommate[], Error>;
     membership?: IClientMembership,
-    useMonthAttendanceQuery: (month?: string | undefined | Date) => UseQueryResult<IMonthAttendance[], Error>,
-    /** Personal amount must be calculated using attendance info */
+    useMonthPresenceQuery: (month?: string | undefined | Date) => UseQueryResult<IMonthPresence[], Error>,
+    /** Personal amount must be calculated using presence info */
 }
 
 const RoomContext = createContext<RoomContextType>({} as RoomContextType);
@@ -42,13 +42,13 @@ export const RoomProvider = ({ children, initialRoom }: RoomProviderProps) => {
         staleTime: 1000 * 60 * 60, // 1 hour
     });
 
-    const useMonthAttendanceQuery = useCallback((month?: string | Date) => {
+    const useMonthPresenceQuery = useCallback((month?: string | Date) => {
         if (!month) month = toYYYYMM(new Date());
         if (month instanceof Date) month = toYYYYMM(month);
 
-        return useQuery<IMonthAttendance[]>({
-            queryKey: ["attendance", initialRoom._id, month],
-            queryFn: () => getRoomMonthAttendance(initialRoom._id, month),
+        return useQuery<IMonthPresence[]>({
+            queryKey: ["presence", initialRoom._id, month],
+            queryFn: () => getRoomMonthPresence(initialRoom._id, month),
             staleTime: 1000 * 60 * 60, // 1 hour
         });
     }, [initialRoom]);
@@ -70,7 +70,7 @@ export const RoomProvider = ({ children, initialRoom }: RoomProviderProps) => {
             roomQuery: roomQuery,
             roommatesQuery: roommatesQuery,
             membership,
-            useMonthAttendanceQuery,
+            useMonthPresenceQuery,
         }}>
             <InvoicesProvider>
                 {children}
@@ -84,4 +84,4 @@ export const useRoomQuery = () => useContext(RoomContext).roomQuery;
 export const useRoommatesQuery = () => useContext(RoomContext).roommatesQuery;
 export { useInvoices } from "./invoices-context";
 export const useMembership = () => useContext(RoomContext).membership;
-export const useMonthAttendanceQuery = (month?: string | Date) => useContext(RoomContext).useMonthAttendanceQuery(month);
+export const useMonthPresenceQuery = (month?: string | Date) => useContext(RoomContext).useMonthPresenceQuery(month);

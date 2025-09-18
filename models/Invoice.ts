@@ -1,7 +1,7 @@
 import { IInvoice, IPayInfo } from "@/types/invoice";
 import mongoose, { Schema } from "mongoose";
 import { BankAccount, bankAccountSchema } from "@/models/BankAccount";
-import { MonthAttendance } from "./MonthAttendance";
+import { MonthPresence } from "./MonthPresence";
 import { count, sum } from "@/lib/utils";
 import { AppError } from "@/lib/errors";
 
@@ -161,18 +161,18 @@ export async function calculateShare(invoice: IInvoice, userId: string) {
     if (invoice.type === "other") {
         return invoice.amount / invoice.applyTo.length;
     } else {
-        const attendances = await MonthAttendance.find({ roomId: invoice.roomId, month: invoice.monthApplied });
+        const presences = await MonthPresence.find({ roomId: invoice.roomId, month: invoice.monthApplied });
 
-        if (attendances.length < invoice.applyTo.length) {
+        if (presences.length < invoice.applyTo.length) {
             throw new AppError("Chưa có đủ dữ liệu điểm danh cho tháng này, không thể tính toán được số tiền phải trả của bạn.")
         }
 
         let totalPresentDays = 0;
         let userPresentDays = 0;
 
-        for (let i = 0; i < attendances.length; ++i) {
-            const att = attendances[i];
-            const presentDays = count(att.attendance, availability => {
+        for (let i = 0; i < presences.length; ++i) {
+            const att = presences[i];
+            const presentDays = count(att.presence, availability => {
                 if (availability === 'undetermined') {
                     throw new AppError("Các thành viên chưa hoàn thành điểm danh, không thể tính toán được số tiền phải trả của bạn.");
                 }

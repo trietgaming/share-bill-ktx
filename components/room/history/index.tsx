@@ -31,12 +31,12 @@ const mockHistoryData = [
   },
   {
     id: 3,
-    action: "attendance_update",
+    action: "presence_update",
     description: "Cập nhật ngày ở cho ngày 13/01/2024",
     user: "Trần Thị B",
     timestamp: "2024-01-13 20:45:00",
     details: { date: "2024-01-13", status: "present" },
-    type: "attendance",
+    type: "presence",
   },
   {
     id: 4,
@@ -76,12 +76,12 @@ const mockHistoryData = [
   },
   {
     id: 8,
-    action: "attendance_bulk_update",
+    action: "presence_bulk_update",
     description: "Cập nhật hàng loạt ngày ở cho tuần đầu tháng 1",
     user: "Nguyễn Văn A",
     timestamp: "2024-01-08 18:00:00",
     details: { dateRange: "01/01 - 07/01", membersCount: 3 },
-    type: "attendance",
+    type: "presence",
   },
 ]
 
@@ -97,7 +97,7 @@ export function HistoryLog() {
         return <Receipt className="h-4 w-4" />
       case "member":
         return <User className="h-4 w-4" />
-      case "attendance":
+      case "presence":
         return <Calendar className="h-4 w-4" />
       case "settings":
         return <Settings className="h-4 w-4" />
@@ -114,7 +114,7 @@ export function HistoryLog() {
         return "bg-blue-100 text-blue-800"
       case "member":
         return "bg-purple-100 text-purple-800"
-      case "attendance":
+      case "presence":
         return "bg-orange-100 text-orange-800"
       case "settings":
         return "bg-gray-100 text-gray-800"
@@ -131,7 +131,7 @@ export function HistoryLog() {
         return "Hóa đơn"
       case "member":
         return "Thành viên"
-      case "attendance":
+      case "presence":
         return "Ngày ở"
       case "settings":
         return "Cài đặt"
@@ -207,7 +207,7 @@ export function HistoryLog() {
                 <SelectItem value="payment">Thanh toán</SelectItem>
                 <SelectItem value="invoice">Hóa đơn</SelectItem>
                 <SelectItem value="member">Thành viên</SelectItem>
-                <SelectItem value="attendance">Ngày ở</SelectItem>
+                <SelectItem value="presence">Ngày ở</SelectItem>
                 <SelectItem value="settings">Cài đặt</SelectItem>
               </SelectContent>
             </Select>
@@ -262,7 +262,7 @@ export function HistoryLog() {
                                 </span>
                               )}
                               {item.type === "member" && <span>Thành viên: {item.details.memberName}</span>}
-                              {item.type === "attendance" && item.details.dateRange && (
+                              {item.type === "presence" && item.details.dateRange && (
                                 <span>Khoảng thời gian: {item.details.dateRange}</span>
                               )}
                               {item.type === "settings" && item.details.oldRate && (

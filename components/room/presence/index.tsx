@@ -4,19 +4,17 @@ import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, ChevronLeft, ChevronRight, Users, DollarSign, MapPin, Loader } from "lucide-react"
+import { Calendar, ChevronLeft, ChevronRight, DollarSign, MapPin } from "lucide-react"
 import { cn, formatCurrency, toYYYYMM } from "@/lib/utils"
-import { useMutation, useQuery } from "@tanstack/react-query"
-import { getRoomMonthAttendance, updateMyMonthAttendance, UpdateMyMonthAttendanceData } from "@/lib/actions/month-attendance"
-import { useInvoices, useMonthAttendanceQuery, useRoommatesQuery, useRoomQuery } from "../room-context"
+import { useMutation } from "@tanstack/react-query"
+import { updateMyMonthPresence, UpdateMyMonthPresenceData } from "@/lib/actions/month-presence"
+import { useInvoices, useMonthPresenceQuery, useRoommatesQuery, useRoomQuery } from "../room-context"
 import { Roommate } from "@/types/roommate"
-import { IMonthAttendance } from "@/types/month-attendance"
+import { IMonthPresence } from "@/types/month-presence"
 import { useAuth } from "@/components/auth-context"
 import { useDebouncedCallback } from "use-debounce"
 import { queryClient } from "@/lib/query-client"
-import { resolve } from "path"
-import { AttendanceSkeleton } from "./skeleton"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { PresenceSkeleton } from "./skeleton"
 import { UserAvatar } from "@/components/user-avatar"
 import { toast } from "sonner"
 
@@ -28,8 +26,8 @@ const mockData = {
     { id: 2, name: "Trần Thị B", shortName: "B", color: "bg-green-500" },
     { id: 3, name: "Lê Văn C", shortName: "C", color: "bg-purple-500" },
   ],
-  // Mock attendance data - key is date string, value is array of member IDs who stayed
-  attendance: {
+  // Mock presence data - key is date string, value is array of member IDs who stayed
+  presence: {
     "2024-01-01": [1, 2],
     "2024-01-02": [1, 2, 3],
     "2024-01-03": [1],
@@ -52,7 +50,7 @@ const mockData = {
   },
 }
 
-export function AttendanceCalendar() {
+export function PresenceCalendar() {
   const { data: room } = useRoomQuery();
   const { data: roommates, isLoading: isRoommatesLoading } = useRoommatesQuery();
   const { monthlyInvoices } = useInvoices();
@@ -69,7 +67,7 @@ export function AttendanceCalendar() {
   const startingDayOfWeek = firstDay.getDay()
 
 
-  const { data: roomAttendance, isLoading: isRoomAttendanceLoading } = useMonthAttendanceQuery(currentDate);
+  const { data: roomPresence, isLoading: isRoomPresenceLoading } = useMonthPresenceQuery(currentDate);
 
   const roommatesMap = useMemo(() => {
     if (!roommates) return {};
@@ -80,81 +78,81 @@ export function AttendanceCalendar() {
     return map;
   }, [roommates]);
 
-  const attendanceMap = useMemo<Roommate[][]>(() => {
+  const presenceMap = useMemo<Roommate[][]>(() => {
     const result = Array(daysInMonth).fill(null).map(() => []) as Roommate[][];
-    if (!roomAttendance) return result;
+    if (!roomPresence) return result;
 
     for (let day = 0; day < daysInMonth; day++) {
-      roomAttendance.forEach((ma) => {
-        if (ma.attendance[day] === "present") {
+      roomPresence.forEach((ma) => {
+        if (ma.presence[day] === "present") {
           result[day].push(roommatesMap[ma.userId]);
         }
       });
     }
 
     return result;
-  }, [roomAttendance, roommatesMap]);
+  }, [roomPresence, roommatesMap]);
 
-  const attendanceStatus = useMemo(() => {
-    if (!roomAttendance) return { processed: 0, unprocessed: 0, totalDays: 0 };
+  const presenceStatus = useMemo(() => {
+    if (!roomPresence) return { processed: 0, unprocessed: 0, totalDays: 0 };
 
     const currentDate = new Date();
     const totalDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
 
     let processed = 0;
     for (let day = 0; day < totalDays; day++) {
-      processed += roomAttendance.every(roommateAttendance => roommateAttendance.attendance[day] !== "undetermined") ? 1 : 0;
+      processed += roomPresence.every(roommatePresence => roommatePresence.presence[day] !== "undetermined") ? 1 : 0;
     }
 
     const unprocessed = totalDays - processed;
     return { processed, unprocessed, totalDays };
-  }, [roomAttendance]);
+  }, [roomPresence]);
 
 
-  const userAttendanceMap = useMemo<IMonthAttendance["attendance"]>(() => {
-    if (!roomAttendance) return [];
-    const meAttendance = roomAttendance.find(ma => ma.userId === userData!._id);
-    return meAttendance ? meAttendance.attendance : Array(daysInMonth).fill("undetermined");
-  }, [roomAttendance, userData, daysInMonth]);
+  const userPresenceMap = useMemo<IMonthPresence["presence"]>(() => {
+    if (!roomPresence) return [];
+    const mePresence = roomPresence.find(ma => ma.userId === userData!._id);
+    return mePresence ? mePresence.presence : Array(daysInMonth).fill("undetermined");
+  }, [roomPresence, userData, daysInMonth]);
 
-  const updateAttendanceDebounced = useDebouncedCallback(async (snapshot: IMonthAttendance, resolve: () => void, reject: (error: any) => void) => {
+  const updatePresenceDebounced = useDebouncedCallback(async (snapshot: IMonthPresence, resolve: () => void, reject: (error: any) => void) => {
     const roomId = snapshot.roomId;
     const month = snapshot.month;
     try {
-      const updateData: UpdateMyMonthAttendanceData = {
+      const updateData: UpdateMyMonthPresenceData = {
         roomId: roomId,
         month: month,
-        attendance: snapshot.attendance || Array(daysInMonth).fill("undetermined"),
+        presence: snapshot.presence || Array(daysInMonth).fill("undetermined"),
       }
-      await updateMyMonthAttendance(updateData);
-      if (!updateAttendanceDebounced.isPending()) resolve();
+      await updateMyMonthPresence(updateData);
+      if (!updatePresenceDebounced.isPending()) resolve();
     } catch (error) {
       reject(error);
     }
   }, 1000);
 
-  const { mutate: handleUpdateMyMonthAttendance } = useMutation({
-    mutationFn: (snapshot: IMonthAttendance) => {
+  const { mutate: handleUpdateMyMonthPresence } = useMutation({
+    mutationFn: (snapshot: IMonthPresence) => {
       return new Promise<void>((resolve, reject) => {
-        updateAttendanceDebounced(snapshot, resolve, reject);
+        updatePresenceDebounced(snapshot, resolve, reject);
       });
     },
     onMutate: () => {
-      toast.loading("Đang cập nhật ngày ở...", { id: "update-attendance", closeButton: false });
+      toast.loading("Đang cập nhật ngày ở...", { id: "update-presence", closeButton: false });
     },
     onError: (error) => {
-      queryClient.invalidateQueries({ queryKey: ["attendance", room._id, month] });
-      console.error("Failed to update attendance:", error);
+      queryClient.invalidateQueries({ queryKey: ["presence", room._id, month] });
+      console.error("Failed to update presence:", error);
       toast.error("Có lỗi xảy ra khi cập nhật ngày ở.");
     },
     onSettled: () => {
-      toast.dismiss("update-attendance");
+      toast.dismiss("update-presence");
     }
   });
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (updateAttendanceDebounced.isPending()) {
+      if (updatePresenceDebounced.isPending()) {
         e.preventDefault();
         // legacy method for some browsers
         e.returnValue = true;
@@ -166,13 +164,13 @@ export function AttendanceCalendar() {
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [updateAttendanceDebounced]);
+  }, [updatePresenceDebounced]);
 
   const electricInvoice = useMemo(() => {
     return monthlyInvoices.find(inv => inv.type === "walec" && inv.monthApplied === toYYYYMM(currentDate))
   }, [monthlyInvoices, currentDate])
 
-  const userElectricCostPerDay = Math.round((electricInvoice?.personalAmount || 0) / (userAttendanceMap.filter(a => a !== "absent").length || 1))
+  const userElectricCostPerDay = Math.round((electricInvoice?.personalAmount || 0) / (userPresenceMap.filter(a => a !== "absent").length || 1))
 
   // Generate calendar days
   const calendarDays = []
@@ -187,28 +185,28 @@ export function AttendanceCalendar() {
     calendarDays.push(day)
   }
 
-  const toggleUserAttendance = (day: number) => {
-    const currentAvailability = userAttendanceMap[day];
+  const toggleUserPresence = (day: number) => {
+    const currentAvailability = userPresenceMap[day];
 
     const shouldAbsent = currentAvailability === "present";
     const shouldPresent = currentAvailability === "undetermined";
 
-    let snapshot: IMonthAttendance;
+    let snapshot: IMonthPresence;
     // Optimistically update UI
-    queryClient.setQueryData<IMonthAttendance[]>(["attendance", room._id, toYYYYMM(currentDate)], (old) => {
+    queryClient.setQueryData<IMonthPresence[]>(["presence", room._id, toYYYYMM(currentDate)], (old) => {
       if (!old) return old;
 
       return old.map(ma => {
         if (ma.userId === userData!._id) {
-          const newAttendance = [...ma.attendance];
-          newAttendance[day] = shouldAbsent ? "absent" : shouldPresent ? "present" : "undetermined";
-          return (snapshot = { ...ma, attendance: newAttendance });
+          const newPresence = [...ma.presence];
+          newPresence[day] = shouldAbsent ? "absent" : shouldPresent ? "present" : "undetermined";
+          return (snapshot = { ...ma, presence: newPresence });
         }
         return ma;
       });
     });
 
-    queryClient.setQueryData<IMonthAttendance[]>(["attendance", room._id], (old) => {
+    queryClient.setQueryData<IMonthPresence[]>(["presence", room._id], (old) => {
       return old?.map(ma => {
         if (ma.userId === userData!._id && ma.month == snapshot.month) {
           return snapshot!;
@@ -217,14 +215,14 @@ export function AttendanceCalendar() {
       }) || old;
     });
 
-    handleUpdateMyMonthAttendance(snapshot!);
+    handleUpdateMyMonthPresence(snapshot!);
   }
 
   const getDayStatus = (day: number) => {
-    const attendees = attendanceMap[day];
+    const attendees = presenceMap[day];
 
     return {
-      availability: userAttendanceMap[day],
+      availability: userPresenceMap[day],
       attendees: attendees,
       isToday: day + 1 === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear(),
     }
@@ -256,8 +254,8 @@ export function AttendanceCalendar() {
 
   const dayNames = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
 
-  if (isRoommatesLoading || isRoomAttendanceLoading) {
-    return <AttendanceSkeleton />
+  if (isRoommatesLoading || isRoomPresenceLoading) {
+    return <PresenceSkeleton />
   }
 
   return (
@@ -271,7 +269,7 @@ export function AttendanceCalendar() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {userAttendanceMap.filter((status) => status === "present").length}/{daysInMonth}
+              {userPresenceMap.filter((status) => status === "present").length}/{daysInMonth}
             </div>
             <p className="text-xs text-muted-foreground">Ngày trong {monthNames[month]}</p>
           </CardContent>
@@ -297,7 +295,7 @@ export function AttendanceCalendar() {
           </CardHeader>
           <CardContent>
             <div className="text-lg md:text-2xl font-bold text-primary">
-              {attendanceStatus.processed}/{attendanceStatus.totalDays}
+              {presenceStatus.processed}/{presenceStatus.totalDays}
             </div>
             <p className="text-xs text-muted-foreground">Là những ngày tất cả thành viên đã tích</p>
           </CardContent>
@@ -376,7 +374,7 @@ export function AttendanceCalendar() {
                 return (
                   <button
                     key={day}
-                    onClick={() => toggleUserAttendance(day)}
+                    onClick={() => toggleUserPresence(day)}
                     className={cn(
                       "p-2 h-20 border rounded-lg transition-colors hover:bg-muted/50 flex flex-col items-center justify-start gap-1",
                       dayStatus.availability === "present"

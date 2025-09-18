@@ -13,7 +13,7 @@ interface RoomNavbarProps {
 const tabs = [
   { id: "dashboard", label: "Bảng điều khiển", icon: Home },
   { id: "invoices", label: "Hóa đơn", icon: Receipt },
-  { id: "attendance", label: "Tích ngày ở", icon: Calendar },
+  { id: "presence", label: "Tích ngày ở", icon: Calendar },
   { id: "history", label: "Lịch sử thay đổi", icon: History },
 ]
 

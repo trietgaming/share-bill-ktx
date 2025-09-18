@@ -2,37 +2,37 @@
 
 import { authenticate } from "@/lib/prechecks/auth";
 import { verifyMembership } from "../prechecks/room";
-import { MonthAttendance } from "@/models/MonthAttendance";
+import { MonthPresence } from "@/models/MonthPresence";
 import { isYYYYMM, parseYYYYMM } from "@/lib/utils";
 import { serializeDocument } from "@/lib/serializer";
-import { IMonthAttendance } from "@/types/month-attendance";
+import { IMonthPresence } from "@/types/month-presence";
 import { AppError } from "../errors";
 
-export async function getRoomMonthAttendance(roomId: string, month: string) {
+export async function getRoomMonthPresence(roomId: string, month: string) {
     if (!isYYYYMM(month)) {
         throw new AppError("Invalid month format. Expected YYYY-MM");
     }
     const user = await authenticate();
     await verifyMembership(user.uid, roomId);
 
-    const roomMonthAttendances = await MonthAttendance.find({ roomId, month });
-    if (roomMonthAttendances.length === 0) {
+    const roomMonthPresences = await MonthPresence.find({ roomId, month });
+    if (roomMonthPresences.length === 0) {
         const { year, month: m } = parseYYYYMM(month)!;
         // Create default for caller
-        const newAttendance = await new MonthAttendance({
+        const newPresence = await new MonthPresence({
             month,
             roomId,
             userId: user.uid,
-            attendance: Array(new Date(year, m, 0).getDate()).fill("undetermined"),
+            presence: Array(new Date(year, m, 0).getDate()).fill("undetermined"),
         }).save();
 
-        return [serializeDocument<IMonthAttendance>(newAttendance)];
+        return [serializeDocument<IMonthPresence>(newPresence)];
     }
 
-    return serializeDocument<IMonthAttendance[]>(roomMonthAttendances);
+    return serializeDocument<IMonthPresence[]>(roomMonthPresences);
 }
 
-export async function getRoomMonthsAttendance(roomId: string, months: string[]) {
+export async function getRoomMonthsPresence(roomId: string, months: string[]) {
     if (months.length >= 12) {
         throw new AppError("Too many months requested. Maximum is 12.");
     }
@@ -42,29 +42,29 @@ export async function getRoomMonthsAttendance(roomId: string, months: string[]) 
     const user = await authenticate();
     await verifyMembership(user.uid, roomId);
 
-    const roomMonthAttendances = await MonthAttendance.find({ roomId, month: { $in: months } });
+    const roomMonthPresences = await MonthPresence.find({ roomId, month: { $in: months } });
 
-    return serializeDocument<IMonthAttendance[]>(roomMonthAttendances);
+    return serializeDocument<IMonthPresence[]>(roomMonthPresences);
 }
 
-export interface UpdateMyMonthAttendanceData {
+export interface UpdateMyMonthPresenceData {
     roomId: string;
     month: string; // Format: YYYY-MM
-    attendance: ("present" | "absent" | "undetermined")[];
+    presence: ("present" | "absent" | "undetermined")[];
 }
-export async function updateMyMonthAttendance(data: UpdateMyMonthAttendanceData) {
+export async function updateMyMonthPresence(data: UpdateMyMonthPresenceData) {
     const user = await authenticate();
     await verifyMembership(user.uid, data.roomId);
 
-    const updateData: IMonthAttendance = {
-        "attendance": data.attendance,
+    const updateData: IMonthPresence = {
+        "presence": data.presence,
         "month": data.month,
         "roomId": data.roomId,
         "userId": user.uid
     }
-    await MonthAttendance.validate(updateData);
+    await MonthPresence.validate(updateData);
 
-    await MonthAttendance.findOneAndUpdate(
+    await MonthPresence.findOneAndUpdate(
         { roomId: data.roomId, userId: user.uid, month: data.month },
         updateData,
         { upsert: true, new: true, setDefaultsOnInsert: true });

@@ -1,6 +1,6 @@
 export const enum NotificationType {
-    ATTENDANCE_REMINDER = 'attendance_reminder',
-    MONTH_ATTENDANCE_FULFILLED = 'month_attendance_fulfilled',
+    PRESENCE_REMINDER = 'presence_reminder',
+    MONTH_PRESENCE_FULFILLED = 'month_presence_fulfilled',
     NEW_BILL = 'new_bill',
     BILL_UPDATE = 'bill_update',
     PAYMENT_REMINDER = 'payment_reminder',

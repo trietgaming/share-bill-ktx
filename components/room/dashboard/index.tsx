@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Users, Zap, Receipt, Calendar, CheckCircle, XCircle, AlertCircle, DollarSign, Home } from "lucide-react"
-import { useInvoices, useMonthAttendanceQuery, useRoomQuery, useRoommatesQuery } from "@/components/room/room-context"
+import { useInvoices, useMonthPresenceQuery, useRoomQuery, useRoommatesQuery } from "@/components/room/room-context"
 import RoomateList from "./roomate-list"
 import { useMemo } from "react"
 import { cn, formatCurrency, toYYYYMM } from "@/lib/utils"
@@ -28,22 +28,22 @@ export function HomeDashboard() {
   }, [monthlyInvoices])
 
 
-  const { data: thisMonthAttendance } = useMonthAttendanceQuery();
+  const { data: thisMonthPresence } = useMonthPresenceQuery();
 
-  const attendanceStatus = useMemo(() => {
-    if (!thisMonthAttendance) return { processed: 0, unprocessed: 0, totalDays: 0 };
+  const presenceStatus = useMemo(() => {
+    if (!thisMonthPresence) return { processed: 0, unprocessed: 0, totalDays: 0 };
 
     const currentDate = new Date();
     const totalDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
 
     let processed = 0;
     for (let day = 0; day < totalDays; day++) {
-      processed += thisMonthAttendance.every(roommateAttendance => roommateAttendance.attendance[day] !== "undetermined") ? 1 : 0;
+      processed += thisMonthPresence.every(roommatePresence => roommatePresence.presence[day] !== "undetermined") ? 1 : 0;
     }
 
     const unprocessed = totalDays - processed;
     return { processed, unprocessed, totalDays };
-  }, [thisMonthAttendance]);
+  }, [thisMonthPresence]);
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -89,7 +89,7 @@ export function HomeDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-lg md:text-2xl font-bold text-primary">
-              {attendanceStatus.processed}/{attendanceStatus.totalDays}
+              {presenceStatus.processed}/{presenceStatus.totalDays}
             </div>
             <p className="text-xs text-muted-foreground">Đã xử lý</p>
           </CardContent>
@@ -175,7 +175,7 @@ export function HomeDashboard() {
         </Card>
       </div>
 
-      {/* Attendance Status */}
+      {/* Presence Status */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base md:text-lg flex items-center gap-2">
@@ -186,15 +186,15 @@ export function HomeDashboard() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
             <div className="text-center p-3 md:p-4 bg-muted rounded-lg border-l-4 border-primary">
-              <div className="text-xl md:text-2xl font-bold text-foreground">{attendanceStatus.processed}</div>
+              <div className="text-xl md:text-2xl font-bold text-foreground">{presenceStatus.processed}</div>
               <p className="text-xs md:text-sm text-muted-foreground">Ngày đã xử lý</p>
             </div>
             <div className="text-center p-3 md:p-4 bg-muted rounded-lg border-l-4 border-destructive">
-              <div className="text-xl md:text-2xl font-bold text-foreground">{attendanceStatus.unprocessed}</div>
+              <div className="text-xl md:text-2xl font-bold text-foreground">{presenceStatus.unprocessed}</div>
               <p className="text-xs md:text-sm text-muted-foreground">Ngày chưa xử lý</p>
             </div>
             <div className="text-center p-3 md:p-4 bg-muted rounded-lg">
-              <div className="text-xl md:text-2xl font-bold text-foreground">{attendanceStatus.totalDays}</div>
+              <div className="text-xl md:text-2xl font-bold text-foreground">{presenceStatus.totalDays}</div>
               <p className="text-xs md:text-sm text-muted-foreground">Tổng số ngày</p>
             </div>
           </div>

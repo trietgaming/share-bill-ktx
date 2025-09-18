@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function AttendanceSkeleton() {
+export function PresenceSkeleton() {
     return (
         <div className="space-y-6">
           {/* Header Stats Skeleton */}

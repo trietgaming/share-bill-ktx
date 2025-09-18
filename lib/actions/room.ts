@@ -14,7 +14,7 @@ import { IBankAccount, IClientBankAccount } from "@/types/bank-account";
 import { IMembership } from "@/types/membership";
 import { AppError } from "../errors";
 import { Invoice } from "@/models/Invoice";
-import { MonthAttendance } from "@/models/MonthAttendance";
+import { MonthPresence } from "@/models/MonthPresence";
 
 export async function createNewRoom(data: { name: string; maxMembers: number }) {
     const user = await authenticate();
@@ -111,8 +111,8 @@ export async function deleteRoom(roomId: string): Promise<void> {
         // Delete all invoices related to the room
         await Invoice.deleteMany({ roomId: roomId }, { session });
 
-        // Delete all month attendances related to the room
-        await MonthAttendance.deleteMany({ roomId: roomId }, { session });
+        // Delete all month presences related to the room
+        await MonthPresence.deleteMany({ roomId: roomId }, { session });
 
         // Remove the room from all users' roomsJoined
         await UserData.updateMany(
@@ -149,8 +149,8 @@ export async function leaveRoom(roomId: string): Promise<void> {
         // Remove membership
         await Membership.deleteOne({ room: roomId, user: user.uid }, { session });
 
-        // Remove user's attendance records in the room
-        await MonthAttendance.deleteMany({ roomId: roomId, userId: user.uid }, { session });
+        // Remove user's presence records in the room
+        await MonthPresence.deleteMany({ roomId: roomId, userId: user.uid }, { session });
 
         // Remove the user from the room's members
         await Room.findByIdAndUpdate(roomId, {
