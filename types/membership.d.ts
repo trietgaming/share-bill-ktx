@@ -1,4 +1,4 @@
-import { IRoom, IRoomDocument } from "@/types/Room";
+import { IRoom, IRoomDocument } from "@/types/room";
 import { Document, ObjectId } from "mongoose";
 
 export interface IMembership {

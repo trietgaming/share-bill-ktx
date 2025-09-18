@@ -1,4 +1,4 @@
-import { IMembership } from "@/types/Membership";
+import { IMembership } from "@/types/membership";
 import mongoose, { Schema } from "mongoose";
 import { UserData } from "@/models/UserData";
 import { Room } from "@/models/Room";

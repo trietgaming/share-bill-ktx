@@ -1,7 +1,7 @@
 import "server-only";
 import mongoose, { Schema } from "mongoose";
 import { nanoid } from "nanoid";
-import type { IRoom } from "@/types/Room";
+import type { IRoom } from "@/types/room";
 import { ROOM_ID_LENGTH, ROOM_MAX_MEMBERS_LIMIT } from "@/lib/app-constants";
 
 export const roomSchema = new Schema<IRoom>({

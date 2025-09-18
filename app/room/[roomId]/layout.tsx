@@ -3,7 +3,7 @@ import { RoomLayout } from '@/components/room/room-layout';
 import { getAuthenticatedUser } from '@/lib/firebase/server';
 import { serializeDocument } from '@/lib/serializer';
 import { Membership } from '@/models/Membership';
-import { IRoomDocument, IRoom } from '@/types/Room';
+import { IRoomDocument, IRoom } from '@/types/room';
 import mongoose, { Document } from 'mongoose';
 import { notFound } from 'next/navigation';
 import 'server-only';

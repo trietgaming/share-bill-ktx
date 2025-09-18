@@ -3,11 +3,11 @@ import { createContext, useContext, useMemo, useState } from "react";
 import { UseQueryResult, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
 import { useRoomQuery, useRoommatesQuery } from "./room-context";
-import { IInvoice, PersonalInvoice } from "@/types/Invoice";
+import { IInvoice, PersonalInvoice } from "@/types/invoice";
 import { queryClient } from "@/lib/query-client";
 import { getInvoicesByRoom } from "@/lib/actions/invoice";
 import { getRoomMonthsAttendance } from "@/lib/actions/month-attendance";
-import { IMonthAttendance } from "@/types/MonthAttendance";
+import { IMonthAttendance } from "@/types/month-attendance";
 import { InvoiceCheckoutDialog } from "./invoice-checkout-dialog";
 
 interface InvoicesContextType {

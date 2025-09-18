@@ -55,15 +55,8 @@ export function RoomLayout({ children }: RoomLayoutProps) {
 
       {/* Main Content */}
       <div className="flex relative">
-        <div
-          className={`
-          fixed lg:relative top-0 left-0 h-full z-50 
-          transform transition-transform duration-300 ease-in-out
-          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        `}
-        >
-          <RoomSidebar onClose={() => setIsSidebarOpen(false)} />
-        </div>
+        <RoomSidebar isSidebarOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+
         <main className="flex-1 p-4 md:p-6">{children}</main>
 
         {/* Mobile overlay */}

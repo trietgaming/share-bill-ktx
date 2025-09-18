@@ -5,7 +5,7 @@ import { verifyMembership } from "../prechecks/room";
 import { MonthAttendance } from "@/models/MonthAttendance";
 import { isYYYYMM, parseYYYYMM } from "@/lib/utils";
 import { serializeDocument } from "@/lib/serializer";
-import { IMonthAttendance } from "@/types/MonthAttendance";
+import { IMonthAttendance } from "@/types/month-attendance";
 import { AppError } from "../errors";
 
 export async function getRoomMonthAttendance(roomId: string, month: string) {

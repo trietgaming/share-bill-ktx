@@ -1,6 +1,6 @@
 "use server";
 
-import { IInvoice, IPayInfo } from "@/types/Invoice";
+import { IInvoice, IPayInfo } from "@/types/invoice";
 import { authenticate } from "@/lib/prechecks/auth";
 import { calculateShare, Invoice } from "@/models/Invoice";
 import { serializeDocument } from "@/lib/serializer";

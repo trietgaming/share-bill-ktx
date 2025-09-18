@@ -14,7 +14,8 @@ export function HomeDashboard() {
   const { data: room } = useRoomQuery();
   const {
     monthlyInvoices,
-    otherInvoices
+    otherInvoices,
+    openInvoiceCheckoutDialog
   } = useInvoices();
 
   const thisMonthElectricInvoice = useMemo(() => {
@@ -160,16 +161,10 @@ export function HomeDashboard() {
                   <div key={invoice._id} className="flex items-center justify-between p-2 md:p-3 border rounded-lg">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span className="font-medium text-sm truncate">{invoice.name}</span>
-                      <Badge
-                        className="text-xs flex-shrink-0"
-                      >
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Chưa đóng
-                      </Badge>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="font-medium text-sm">{invoice.amount.toLocaleString("vi-VN")}đ</span>
-                      <Button size="sm" variant="outline" className="text-xs bg-transparent">
+                      <span className="font-medium text-sm">{formatCurrency(invoice.personalAmount)}</span>
+                      <Button onClick={() => openInvoiceCheckoutDialog(invoice)} size="sm" variant="outline" className="text-xs bg-transparent">
                         Thanh toán
                       </Button>
                     </div>

@@ -1,4 +1,4 @@
-import { IInvoice, PersonalInvoice } from "@/types/Invoice";
+import { IInvoice, PersonalInvoice } from "@/types/invoice";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useRoommatesQuery } from "./room-context";
 import { useMutation } from "@tanstack/react-query";
-import { IClientBankAccount } from "@/types/BankAccount";
+import { IClientBankAccount } from "@/types/bank-account";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "../ui/label";
 import { payInvoice } from "@/lib/actions/invoice";

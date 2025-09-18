@@ -1,4 +1,4 @@
-import { IClientBankAccount } from "./BankAccount";
+import { IClientBankAccount } from "./bank-account";
 
 export interface Roommate {
     userId: string;

@@ -13,6 +13,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { ConfirmModalProvider } from "@/components/are-you-sure";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { NotificationProvider } from "@/components/notification-context";
 
 export const metadata: Metadata = {
     title: "Share bill KTX",
@@ -47,17 +48,19 @@ export default async function RootLayout({
                     fontBody.variable
                 )}
             >
-            <QueryClientProvider client={queryClient}>
-                <AuthProvider initialUserData={authenticatedUserData}>
-                    <ConfirmModalProvider>
-                        <Navbar />
-                        {children}
-                    </ConfirmModalProvider>
-                </AuthProvider>
-            </QueryClientProvider>
-            <Analytics />
-            <Toaster richColors closeButton />
-        </body>
+                <QueryClientProvider client={queryClient}>
+                    <AuthProvider initialUserData={authenticatedUserData}>
+                        <NotificationProvider>
+                            <ConfirmModalProvider>
+                                <Navbar />
+                                {children}
+                            </ConfirmModalProvider>
+                        </NotificationProvider>
+                    </AuthProvider>
+                </QueryClientProvider>
+                <Analytics />
+                <Toaster richColors closeButton theme="light" />
+            </body>
         </html >
     );
 }

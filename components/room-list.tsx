@@ -1,7 +1,7 @@
 "use client"
 
 import { RoomCard } from "./room-card"
-import { IRoom } from "@/types/Room";
+import { IRoom } from "@/types/room";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";

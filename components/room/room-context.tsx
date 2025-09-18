@@ -1,13 +1,13 @@
 "use client";
 import { getRoomById, getRoommates } from "@/lib/actions/room";
-import { IRoom } from "@/types/Room";
-import { Roommate } from "@/types/Roommate";
+import { IRoom } from "@/types/room";
+import { Roommate } from "@/types/roommate";
 import { createContext, useCallback, useContext, useMemo } from "react";
 import { DefinedUseQueryResult, useQuery, UseQueryResult } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
-import { IClientMembership } from "@/types/Membership";
+import { IClientMembership } from "@/types/membership";
 import { getRoomMonthAttendance } from "@/lib/actions/month-attendance";
-import { IMonthAttendance } from "@/types/MonthAttendance";
+import { IMonthAttendance } from "@/types/month-attendance";
 import { toYYYYMM } from "@/lib/utils";
 import { InvoicesProvider } from "./invoices-context";
 

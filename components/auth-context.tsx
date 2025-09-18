@@ -3,7 +3,7 @@
 import { getAuthenticatedUserData } from "@/lib/actions/user-data";
 import { firebaseClientAuth } from "@/lib/firebase/client";
 import { setAuthCookie } from "@/lib/firebase/server";
-import type { IUserDataWithBankAccounts } from "@/types/UserData";
+import type { IUserDataWithBankAccounts } from "@/types/user-data";
 import { createContext, useContext, useEffect, useState } from "react";
 
 interface AuthContextType {

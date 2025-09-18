@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Plus, MoreHorizontal, Edit, Trash2, CreditCard, Receipt, DollarSign, Users, User, ChevronDown, Zap, Home } from "lucide-react"
 import { InvoiceForm } from "@/components/room/invoices/invoice-form"
 import { useInvoices, useRoomQuery } from "../room-context"
-import { IInvoice } from "@/types/Invoice"
+import { IInvoice } from "@/types/invoice"
 import { useAuth } from "@/components/auth-context"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { useMutation } from "@tanstack/react-query"
@@ -72,9 +72,9 @@ export function InvoicesManagement() {
   });
 
   // Calculate totals
-  const totalYourShare = otherInvoices?.reduce((sum, invoice) => (sum + invoice.personalAmount), 0) || 0
+  const totalYourShare = otherInvoices.concat(monthlyInvoices)?.reduce((sum, invoice) => (sum + invoice.personalAmount), 0) || 0
 
-  const totalRoomUnpaid = invoices?.reduce((sum, invoice) => (invoice.remainingAmount), 0) || 0
+  const totalRoomUnpaid = invoices?.reduce((sum, invoice) => sum + (invoice.remainingAmount), 0) || 0
 
   if (!invoices || !userData) return <InvoiceSkeleton />
 

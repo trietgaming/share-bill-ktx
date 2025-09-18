@@ -1,5 +1,5 @@
 import { Membership } from "@/models/Membership";
-import { IMembership } from "@/types/Membership";
+import { IMembership } from "@/types/membership";
 import { AppError } from "@/lib/errors";
 
 export async function verifyMembership(userId: string, roomId: string) {

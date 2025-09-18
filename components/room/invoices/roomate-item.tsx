@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Roommate } from "@/types/Roommate";
+import { Roommate } from "@/types/roommate";
 
 export function RoommateItem({ roommate, myselfId }: { roommate: Roommate, myselfId?: string | undefined }) {
     return (

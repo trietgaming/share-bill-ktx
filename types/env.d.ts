@@ -6,9 +6,10 @@ declare namespace NodeJS {
         NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: string;
         NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: string;
         NEXT_PUBLIC_FIREBASE_APP_ID: string;
+        NEXT_PUBLIC_APP_DOMAIN: string;
+        NEXT_PUBLIC_APP_ORIGIN: string;
         FIRESTORE_CONNECTION_URI: string;
-        APP_DOMAIN: string;
-        APP_ORIGIN: string;
+        FIREBASE_ADMIN_CREDENTIAL: string;
         CLOUDINARY_URL: string;
         CLOUDINARY_API_SECRET: string;
         CLOUDINARY_API_KEY: string;

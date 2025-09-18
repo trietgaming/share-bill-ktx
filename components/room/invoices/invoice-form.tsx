@@ -18,11 +18,11 @@ import { CurrencyInput } from "@/components/currency-input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/components/auth-context"
 import { useState } from "react"
-import { Roommate } from "@/types/Roommate"
+import { Roommate } from "@/types/roommate"
 import { formatDate, toYYYYMM } from "@/lib/utils"
 import { useMutation } from "@tanstack/react-query"
 import { useEffect, useLayoutEffect } from "react"
-import { IInvoice } from "@/types/Invoice";
+import { IInvoice } from "@/types/invoice";
 import { toast } from "sonner";
 import { queryClient } from "@/lib/query-client";
 import { RoommateItem } from "./roomate-item";

@@ -1,6 +1,6 @@
-import { IRoom } from "@/types/Room";
+import { IRoom } from "@/types/room";
 import mongoose from "mongoose";
-import { IClientBankAccount } from "./BankAccount";
+import { IClientBankAccount } from "./bank-account";
 
 export interface IUserData {
     _id: string;
@@ -13,6 +13,7 @@ export interface IUserData {
      */
     bankAccounts: mongoose.Types.ObjectId[];
     roomsJoined: string[];
+    fcmTokens: string[];
 }
 
 export interface IUserDataWithBankAccounts extends Omit<IUserData, "bankAccounts"> {

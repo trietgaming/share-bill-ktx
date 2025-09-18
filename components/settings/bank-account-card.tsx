@@ -4,14 +4,14 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Edit, Trash2, CreditCard, QrCode } from "lucide-react"
-import type { IClientBankAccount } from "@/types/BankAccount"
+import type { IClientBankAccount } from "@/types/bank-account"
 import Image from "next/image"
 import { useConfirm } from "../are-you-sure"
 import { useMutation } from "@tanstack/react-query"
 import { deleteUserBankAccount } from "@/lib/actions/user-data"
 import { toast } from "sonner"
 import { useAuth } from "@/components/auth-context"
-import { IUserDataWithBankAccounts } from "@/types/UserData"
+import { IUserDataWithBankAccounts } from "@/types/user-data"
 import { useBanks } from "@/hooks/use-banks"
 
 interface BankAccountCardProps {
@@ -93,7 +93,7 @@ export function BankAccountCard({ account, onEdit }: BankAccountCardProps) {
                   <Badge variant="outline" className="text-xs mb-2">
                     Ngân hàng
                   </Badge>
-                  <div className="space-y-2 flex flex-col md:flex-row justify-between md:items-center">
+                  <div className="flex flex-col md:flex-row md:justify-between md:items-center">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-xs font-medium truncate space-x-2">
@@ -107,7 +107,7 @@ export function BankAccountCard({ account, onEdit }: BankAccountCardProps) {
                     <img
                       src={`https://img.vietqr.io/image/${account.bankName}-${account.accountNumber}-qr_only.jpg}`}
                       alt="Mã QR thanh toán"
-                      className="w-20 h-20 object-contain border rounded-lg bg-white"
+                      className="w-20 h-20 object-contain border rounded-lg bg-white md:ml-8"
 
                     />
                   </div>

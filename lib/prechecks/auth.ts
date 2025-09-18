@@ -11,6 +11,6 @@ export async function authenticate() {
     if (!user) {
         return redirectToLoginPage();
     }
-    
+
     return user;
 }

@@ -1,6 +1,6 @@
 import "server-only";
 import mongoose, { Schema } from "mongoose";
-import type { IUserData } from "@/types/UserData";
+import type { IUserData } from "@/types/user-data";
 
 export const userDataSchema = new Schema<IUserData>({
     _id: {
@@ -54,6 +54,15 @@ export const userDataSchema = new Schema<IUserData>({
                 return v.length <= 10;
             },
             message: 'Cannot join more than 10 rooms'
+        }
+    },
+    fcmTokens: {
+        type: [String],
+        validate: {
+            validator: function (v: string[]) {
+                return v.length <= 5;
+            },
+            message: 'Cannot have more than 5 FCM tokens'
         }
     }
 }, {

@@ -9,8 +9,8 @@ import { cn, formatCurrency, toYYYYMM } from "@/lib/utils"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { getRoomMonthAttendance, updateMyMonthAttendance, UpdateMyMonthAttendanceData } from "@/lib/actions/month-attendance"
 import { useInvoices, useMonthAttendanceQuery, useRoommatesQuery, useRoomQuery } from "../room-context"
-import { Roommate } from "@/types/Roommate"
-import { IMonthAttendance } from "@/types/MonthAttendance"
+import { Roommate } from "@/types/roommate"
+import { IMonthAttendance } from "@/types/month-attendance"
 import { useAuth } from "@/components/auth-context"
 import { useDebouncedCallback } from "use-debounce"
 import { queryClient } from "@/lib/query-client"
@@ -172,7 +172,7 @@ export function AttendanceCalendar() {
     return monthlyInvoices.find(inv => inv.type === "walec" && inv.monthApplied === toYYYYMM(currentDate))
   }, [monthlyInvoices, currentDate])
 
-  const userElectricCostPerDay = Math.round((electricInvoice?.personalAmount || 0) / userAttendanceMap.filter(a => a !== "absent").length)
+  const userElectricCostPerDay = Math.round((electricInvoice?.personalAmount || 0) / (userAttendanceMap.filter(a => a !== "absent").length || 1))
 
   // Generate calendar days
   const calendarDays = []

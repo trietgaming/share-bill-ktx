@@ -1,4 +1,4 @@
-import { IBankAccount } from "@/types/BankAccount";
+import { IBankAccount } from "@/types/bank-account";
 import mongoose from "mongoose";
 
 function requiredIfNoQRCode(this: IBankAccount, v: string) {

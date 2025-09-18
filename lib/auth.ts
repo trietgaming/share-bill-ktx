@@ -1,3 +1,4 @@
+"use client";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { firebaseClientAuth } from "@/lib/firebase/client";
 import { setAuthCookie, setAuthRefreshTokenCookie } from "@/lib/firebase/server";

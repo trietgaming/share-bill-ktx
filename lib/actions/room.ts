@@ -3,16 +3,18 @@
 import { Room } from "@/models/Room";
 import mongoose, { HydratedDocument } from "mongoose";
 import { UserData } from "@/models/UserData";
-import { Roommate } from "@/types/Roommate";
+import { Roommate } from "@/types/roommate";
 import { Membership } from "@/models/Membership";
-import { IUserData, IUserDataWithBankAccounts } from "@/types/UserData";
+import { IUserData, IUserDataWithBankAccounts } from "@/types/user-data";
 import { getUserData } from "@/lib/user-data";
-import { IRoom } from "@/types/Room";
+import { IRoom } from "@/types/room";
 import { serializeDocument } from "@/lib/serializer";
 import { authenticate } from "../prechecks/auth";
-import { IBankAccount, IClientBankAccount } from "@/types/BankAccount";
-import { IMembership } from "@/types/Membership";
+import { IBankAccount, IClientBankAccount } from "@/types/bank-account";
+import { IMembership } from "@/types/membership";
 import { AppError } from "../errors";
+import { Invoice } from "@/models/Invoice";
+import { MonthAttendance } from "@/models/MonthAttendance";
 
 export async function createNewRoom(data: { name: string; maxMembers: number }) {
     const user = await authenticate();
@@ -69,14 +71,14 @@ export async function joinRoom(roomId: string): Promise<boolean> {
     const session = await mongoose.startSession();
     await session.withTransaction(async () => {
         targetRoom.members.push(user.uid);
-        await targetRoom.save();
+        await targetRoom.save({ session });
 
-        await new Membership([{
+        await new Membership({
             user: user.uid,
             room: targetRoom._id,
             joinedAt: new Date(),
             role: 'member'
-        }]).save({ session });
+        }).save({ session });
 
         await UserData.findByIdAndUpdate(user.uid, {
             $push: {
@@ -106,6 +108,12 @@ export async function deleteRoom(roomId: string): Promise<void> {
         // Delete all memberships related to the room
         await Membership.deleteMany({ room: roomId }, { session });
 
+        // Delete all invoices related to the room
+        await Invoice.deleteMany({ roomId: roomId }, { session });
+
+        // Delete all month attendances related to the room
+        await MonthAttendance.deleteMany({ roomId: roomId }, { session });
+
         // Remove the room from all users' roomsJoined
         await UserData.updateMany(
             { roomsJoined: roomId },
@@ -130,10 +138,19 @@ export async function leaveRoom(roomId: string): Promise<void> {
         throw new AppError("Quản trị viên không thể rời phòng. Vui lòng chuyển quyền quản trị hoặc xóa phòng.");
     }
 
+    const pendingInvoice = await Invoice.findOne({ roomId: roomId, applyTo: user.uid, status: 'pending' });
+
+    if (pendingInvoice) {
+        throw new AppError("Bạn có hóa đơn chưa thanh toán trong phòng này. Vui lòng giải quyết trước khi rời phòng.");
+    }
+
     const session = await mongoose.startSession();
     await session.withTransaction(async () => {
         // Remove membership
         await Membership.deleteOne({ room: roomId, user: user.uid }, { session });
+
+        // Remove user's attendance records in the room
+        await MonthAttendance.deleteMany({ roomId: roomId, userId: user.uid }, { session });
 
         // Remove the user from the room's members
         await Room.findByIdAndUpdate(roomId, {
@@ -160,7 +177,7 @@ export async function getRoommates(roomId: string): Promise<Roommate[]> {
     }
 
     const memberships = await Membership.find({ room: roomId })
-        .populate<{ user: Omit<IUserData, "bankAccounts"> & { bankAccounts: IClientBankAccount[] } }>({ 
+        .populate<{ user: Omit<IUserData, "bankAccounts"> & { bankAccounts: IClientBankAccount[] } }>({
             path: "user",
             populate: { path: "bankAccounts" }
         })
@@ -201,4 +218,8 @@ export async function getRoomById(roomId: string): Promise<IRoom> {
     }
 
     return membership.room;
+}
+
+export async function updateRoomData() {
+    
 }

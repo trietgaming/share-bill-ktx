@@ -6,7 +6,7 @@ import { BankAccountCard } from "./bank-account-card";
 import { BankAccountDialog } from "./bank-account-dialog";
 import { useState } from "react";
 import { useAuth } from "@/components/auth-context";
-import { IClientBankAccount } from "@/types/BankAccount";
+import { IClientBankAccount } from "@/types/bank-account";
 import { MAX_BANK_ACCOUNTS_PER_USER } from "@/lib/app-constants";
 
 export function BankAccountList() {

@@ -1,4 +1,4 @@
-import { IBankAccount } from "./BankAccount";
+import { IBankAccount } from "./bank-account";
 
 export interface IPayInfo {
     paidBy: string;

@@ -1,4 +1,4 @@
-import { IMonthAttendance } from "@/types/MonthAttendance";
+import { IMonthAttendance } from "@/types/month-attendance";
 import mongoose from "mongoose";
 
 const monthAttendanceSchema = new mongoose.Schema<IMonthAttendance>({

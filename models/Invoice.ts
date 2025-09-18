@@ -1,4 +1,4 @@
-import { IInvoice, IPayInfo } from "@/types/Invoice";
+import { IInvoice, IPayInfo } from "@/types/invoice";
 import mongoose, { Schema } from "mongoose";
 import { BankAccount, bankAccountSchema } from "@/models/BankAccount";
 import { MonthAttendance } from "./MonthAttendance";
@@ -151,6 +151,7 @@ invoiceSchema.pre('save', function (next) {
 });
 
 invoiceSchema.index({ roomId: 1, status: 1 })
+invoiceSchema.index({ roomId: 1, applyTo: 1, monthApplied: 1 })
 invoiceSchema.index({ roomId: 1, status: 1, monthApplied: 1 })
 invoiceSchema.index({ roomId: 1, status: 1, dueDate: 1 })
 

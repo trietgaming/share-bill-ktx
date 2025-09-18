@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users } from "lucide-react"
-import { IRoom } from "@/types/Room"
+import { IRoom } from "@/types/room"
 
 interface RoomCardProps {
   room: IRoom

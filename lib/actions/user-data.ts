@@ -3,13 +3,13 @@
 import { getAuthenticatedUser } from "@/lib/firebase/server";
 import { getUserData } from "@/lib/user-data";
 import { serializeDocument } from "../serializer";
-import { IUserData, IUserDataWithBankAccounts } from "@/types/UserData";
+import { IUserData, IUserDataWithBankAccounts } from "@/types/user-data";
 import { authenticate } from "../prechecks/auth";
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { BankAccount } from "@/models/BankAccount";
 import { UserData } from "@/models/UserData";
 import mongoose from "mongoose";
-import { IBankAccount, IClientBankAccount } from "@/types/BankAccount";
+import { IBankAccount, IClientBankAccount } from "@/types/bank-account";
 import { uploadFileToCloudinary } from "../cloudinary";
 import { AppError } from "../errors";
 

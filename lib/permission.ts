@@ -1,4 +1,4 @@
-import { IMembership } from "@/types/Membership";
+import { IMembership } from "@/types/membership";
 
 export const permissionMap = {
     "room.invoice.delete": ["admin", "moderator"],
