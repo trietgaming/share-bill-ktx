@@ -16,7 +16,7 @@ export async function getRoomMonthPresence(roomId: string, month: string) {
     await verifyMembership(user.uid, roomId);
 
     const roomMonthPresences = await MonthPresence.find({ roomId, month });
-    if (roomMonthPresences.length === 0) {
+    if (!roomMonthPresences.some(rmp => rmp.userId === user.uid)) {
         const { year, month: m } = parseYYYYMM(month)!;
         // Create default for caller
         const newPresence = await new MonthPresence({

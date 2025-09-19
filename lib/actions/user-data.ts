@@ -19,8 +19,8 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-export async function getAuthenticatedUserData() {
-    const user = await getAuthenticatedUser();
+export async function getAuthenticatedUserData(_idToken?: string | null) {
+    const user = await getAuthenticatedUser(_idToken);
     if (!user) return null;
 
     const userData = await (await getUserData(user)).populate<{ bankAccounts: IBankAccount[] }>("bankAccounts");

@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 import { FirebaseError } from "firebase/app";
 import { logIn } from "@/lib/auth";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const GoogleLogo = (props: ComponentProps<"svg">) => (
     <svg
@@ -47,6 +47,7 @@ const GoogleLogo = (props: ComponentProps<"svg">) => (
 
 export default function LoginPage() {
     const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const router = useRouter();
 
     const searchParams = useSearchParams();
 
@@ -59,10 +60,10 @@ export default function LoginPage() {
             const searchCb = searchParams.get("cb");
             
             if (searchCb && searchCb.startsWith("/") && !searchCb.startsWith("//")) {
-                window.location.replace(searchCb);
+                router.replace(searchCb);
             }
             else {
-                window.location.replace("/")
+                router.replace("/")
             }
 
         } catch (error) {

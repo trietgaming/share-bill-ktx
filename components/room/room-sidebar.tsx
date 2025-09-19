@@ -213,7 +213,7 @@ export function RoomSidebar({ onClose, isSidebarOpen }: RoomSidebarProps) {
                     Thống kê tháng
                   </Button>
                 </CardContent>
-              </Card>
+              </Card> */}
 
               <Card>
                 <CardHeader>
@@ -227,7 +227,7 @@ export function RoomSidebar({ onClose, isSidebarOpen }: RoomSidebarProps) {
                     Rời phòng
                   </Button>
                 </CardContent>
-              </Card> */}
+              </Card>
 
               {(membership?.role == "admin" || membership?.role == "moderator") && (
                 <Card>

@@ -1,3 +1,5 @@
+"use client";
+
 import { IInvoice, PersonalInvoice } from "@/types/invoice";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
@@ -56,7 +58,6 @@ export function InvoiceCheckoutDialog({ invoice, ...props }: React.ComponentProp
     const { data: roommates, isLoading: isRoommatesLoading } = useRoommatesQuery();
 
     const receiver = roommates?.find(rm => rm.userId === invoice?.payTo);
-    console.log("Receiver:", receiver);
 
     const [isPaidCheck, setIsPaidCheck] = useState(false);
     const [isPaidAll, setIsPaidAll] = useState(true);

@@ -8,7 +8,7 @@ import { getMessaging, onBackgroundMessage } from "firebase/messaging/sw";
 import { initializeApp } from "firebase/app";
 import { firebaseConfig } from "@/lib/firebase/config";
 import { handleBackgroundMessage } from "@/sw/handle-background-message";
-import { handleNotificationClick } from "./sw/handle-notification-click";
+import { handleNotificationClick } from "@/sw/handle-notification-click";
 
 const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);

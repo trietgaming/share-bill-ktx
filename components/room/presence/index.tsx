@@ -18,38 +18,6 @@ import { PresenceSkeleton } from "./skeleton"
 import { UserAvatar } from "@/components/user-avatar"
 import { toast } from "sonner"
 
-// Mock data
-const mockData = {
-  currentUser: "Nguyễn Văn A",
-  members: [
-    { id: 1, name: "Nguyễn Văn A", shortName: "A", color: "bg-blue-500" },
-    { id: 2, name: "Trần Thị B", shortName: "B", color: "bg-green-500" },
-    { id: 3, name: "Lê Văn C", shortName: "C", color: "bg-purple-500" },
-  ],
-  // Mock presence data - key is date string, value is array of member IDs who stayed
-  presence: {
-    "2024-01-01": [1, 2],
-    "2024-01-02": [1, 2, 3],
-    "2024-01-03": [1],
-    "2024-01-04": [1, 2],
-    "2024-01-05": [2, 3],
-    "2024-01-06": [1, 2, 3],
-    "2024-01-07": [1, 3],
-    "2024-01-08": [1, 2],
-    "2024-01-09": [1],
-    "2024-01-10": [1, 2, 3],
-    "2024-01-11": [2, 3],
-    "2024-01-12": [1, 2],
-    "2024-01-13": [1, 3],
-    "2024-01-14": [1, 2, 3],
-    "2024-01-15": [1],
-  },
-  electricInvoice: {
-    totalAmount: 1200000,
-    perDayRate: 40000,
-  },
-}
-
 export function PresenceCalendar() {
   const { data: room } = useRoomQuery();
   const { data: roommates, isLoading: isRoommatesLoading } = useRoommatesQuery();
@@ -83,9 +51,9 @@ export function PresenceCalendar() {
     if (!roomPresence) return result;
 
     for (let day = 0; day < daysInMonth; day++) {
-      roomPresence.forEach((ma) => {
-        if (ma.presence[day] === "present") {
-          result[day].push(roommatesMap[ma.userId]);
+      roomPresence.forEach((mp) => {
+        if (mp.presence[day] === "present") {
+          result[day].push(roommatesMap[mp.userId]);
         }
       });
     }
@@ -111,7 +79,7 @@ export function PresenceCalendar() {
 
   const userPresenceMap = useMemo<IMonthPresence["presence"]>(() => {
     if (!roomPresence) return [];
-    const mePresence = roomPresence.find(ma => ma.userId === userData!._id);
+    const mePresence = roomPresence.find(mp => mp.userId === userData!._id);
     return mePresence ? mePresence.presence : Array(daysInMonth).fill("undetermined");
   }, [roomPresence, userData, daysInMonth]);
 
@@ -196,22 +164,22 @@ export function PresenceCalendar() {
     queryClient.setQueryData<IMonthPresence[]>(["presence", room._id, toYYYYMM(currentDate)], (old) => {
       if (!old) return old;
 
-      return old.map(ma => {
-        if (ma.userId === userData!._id) {
-          const newPresence = [...ma.presence];
+      return old.map(mp => {
+        if (mp.userId === userData!._id) {
+          const newPresence = [...mp.presence];
           newPresence[day] = shouldAbsent ? "absent" : shouldPresent ? "present" : "undetermined";
-          return (snapshot = { ...ma, presence: newPresence });
+          return (snapshot = { ...mp, presence: newPresence });
         }
-        return ma;
+        return mp;
       });
     });
 
     queryClient.setQueryData<IMonthPresence[]>(["presence", room._id], (old) => {
-      return old?.map(ma => {
-        if (ma.userId === userData!._id && ma.month == snapshot.month) {
+      return old?.map(mp => {
+        if (mp.userId === userData!._id && mp.month == snapshot.month) {
           return snapshot!;
         }
-        return ma;
+        return mp;
       }) || old;
     });
 

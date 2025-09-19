@@ -6,6 +6,7 @@ import { calculateShare, Invoice } from "@/models/Invoice";
 import { serializeDocument } from "@/lib/serializer";
 import { verifyMembership, verifyRoomPermission } from "@/lib/prechecks/room";
 import { AppError } from "../errors";
+import { sendDeleteInvoiceNotification, sendNewInvoiceNotification } from "@/lib/messages/room";
 
 export interface CreateInvoiceFormData {
     roomId: string;
@@ -29,6 +30,8 @@ export async function createNewInvoice(data: CreateInvoiceFormData) {
         status: 'pending',
         createdBy: user.uid,
     }).save();
+
+    sendNewInvoiceNotification(invoice);
 
     return serializeDocument<IInvoice>(invoice);
 }
@@ -81,6 +84,7 @@ export async function deleteInvoice(invoiceId: string) {
     }
 
     await Invoice.findByIdAndDelete(invoiceId);
+    sendDeleteInvoiceNotification(invoice, user.uid);
 }
 
 export async function payInvoice(invoiceId: string, amount: number) {

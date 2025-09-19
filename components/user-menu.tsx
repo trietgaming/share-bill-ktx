@@ -11,14 +11,17 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/components/auth-context";
 import { logOut } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { LOGIN_PATH } from "@/lib/app-constants";
 
 export function UserMenu() {
     const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
     const { userData } = useAuth();
+    const router = useRouter();
 
     const handleLogout = async () => {
         await logOut();
-        window.location.reload();
+        router.replace(LOGIN_PATH);
     };
 
     if (!userData) return null;

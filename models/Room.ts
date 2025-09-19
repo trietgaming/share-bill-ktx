@@ -7,7 +7,6 @@ import { ROOM_ID_LENGTH, ROOM_MAX_MEMBERS_LIMIT } from "@/lib/app-constants";
 export const roomSchema = new Schema<IRoom>({
     _id: {
         type: String,
-        unique: true,
         default: () => nanoid(ROOM_ID_LENGTH),
         required: true,
     },

@@ -1,8 +1,8 @@
 "use client";
 
 import { getToken } from "firebase/messaging";
-import { firebaseMessaging } from "./firebase/client";
-import { subscribeToNotification } from "./actions/notification";
+import { firebaseMessaging } from "../firebase/client";
+import { subscribeToNotification } from "../actions/notification";
 
 export async function requestPermission() {
 

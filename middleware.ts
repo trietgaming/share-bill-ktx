@@ -1,17 +1,15 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getAuthenticatedUser } from "./lib/firebase/server";
 
-// const protectedRoutes = ["/"];
-const publicRoutes = ["/login"];
-const authRoutes = ["/login"];
+import { getAuthenticatedUser } from "./lib/firebase/server";
+import { LOGIN_PATH, PUBLIC_PATHS } from "./lib/app-constants";
+
 
 export default async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
     // const isProtectedRoute = protectedRoutes.includes(path);
-    const isPublicRoute = publicRoutes.includes(path);
-    const isAuthRoute = authRoutes.includes(path);
+    const isPublicRoute = PUBLIC_PATHS.includes(path);
+    const isAuthRoute = path === LOGIN_PATH;
 
     const user = await getAuthenticatedUser();
 

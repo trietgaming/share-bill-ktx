@@ -26,9 +26,9 @@ async function getAuthUserFromIdToken(idToken?: string | null) {
  * This result should not be passed directly to client components or server components that can be rendered on the client
  * because the result did not go through any serialization process.
  */
-export async function getAuthenticatedUser() {
+export async function getAuthenticatedUser(_idToken?: string | null) {
     const requestCookies = await cookies();
-    const idToken = requestCookies.get("__session")?.value;
+    const idToken = _idToken ?? requestCookies.get("__session")?.value;
 
     let user = await getAuthUserFromIdToken(idToken);
 

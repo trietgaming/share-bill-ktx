@@ -1,42 +1,31 @@
 declare const self: ServiceWorkerGlobalScope;
 
-import { NotificationAction, NotificationData } from "@/types/notification";
 import { MessagePayload } from "firebase/messaging";
-
-// Extends the NotificationOptions to support limited features
-interface ExtendedNotificationOptions extends NotificationOptions {
-    actions?: NotificationAction[];
-    renotify?: boolean;
-}
+import { createNotification } from "@/lib/notification/notification-factory";
+import { notificationDb } from "@/lib/notification/notification-db";
 
 export async function handleBackgroundMessage(payload: MessagePayload) {
     console.log('[firebase-messaging-sw] Received background message');
 
+    // If the message contains a notification payload, Firebase SDK would automatically display it.
     if (!payload.notification) {
-        console.log('[firebase-messaging-sw] No notification payload');
-        return;
-    }
+        const [title, options, additionalData] = createNotification(payload);
 
-    const notificationTitle = payload.notification?.title || 'Có cập nhật mới từ ShareBillKTX';
+        try {
+            const user: { uid: string } | null = await fetch('/auth').then(res => res.json());
 
-    const notificationData = payload.data as (NotificationData | undefined);
+            if (user) {
+                await notificationDb.notifications.add({
+                    title: title,
+                    ...options,
+                    ...additionalData,
+                    userId: user.uid,
+                });
+            }
 
-    const notificationOptions: ExtendedNotificationOptions = {
-        body: payload.notification.body,
-        icon: notificationData?.icon || '/favicon.ico',
-        badge: notificationData?.badge,
-        requireInteraction: notificationData?.requireInteraction === true,
-        silent: notificationData?.silent === true,
-        tag: notificationData?.tag,
-        actions: notificationData?.actions,
-        renotify: notificationData?.renotify,
-        dir: notificationData?.dir,
-        lang: notificationData?.lang,
-    };
-
-    try {
-        await self.registration.showNotification(notificationTitle, notificationOptions);
-    } catch (error) {
-        console.error("[firebase-messaging-sw] Error showing notification", error);
+            await self.registration.showNotification(title, options);
+        } catch (error) {
+            console.error("[firebase-messaging-sw] Error showing notification", error);
+        }
     }
 }

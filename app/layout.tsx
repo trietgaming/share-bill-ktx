@@ -14,6 +14,7 @@ import { ConfirmModalProvider } from "@/components/are-you-sure";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { NotificationProvider } from "@/components/notification-context";
+import { PUBLIC_PATHS } from "@/lib/app-constants";
 
 export const metadata: Metadata = {
     title: "Share bill KTX",
