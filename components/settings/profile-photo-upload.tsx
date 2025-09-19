@@ -13,6 +13,7 @@ import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { useAuth } from "@/components/auth-context"
 import imageCompression from 'browser-image-compression';
+import { handleAction } from "@/lib/action-handler"
 
 interface ProfilePhotoUploadProps {
 
@@ -41,7 +42,7 @@ export function ProfilePhotoUpload({ className }: ProfilePhotoUploadProps) {
 
       }
 
-      const photoURL = await updateUserPhoto(file);
+      const photoURL = await handleAction(updateUserPhoto(file));
 
       setUserData((prev) => ({ ...prev, photoURL }) as IUserDataWithBankAccounts)
     },

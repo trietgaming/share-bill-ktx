@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ROOM_ID_LENGTH } from "@/lib/app-constants";
 import { joinRoom } from "@/lib/actions/room";
+import { handleAction } from "@/lib/action-handler";
 
 const joinRoomFormSchema = z.object({
     roomId: z.string().length(ROOM_ID_LENGTH, `Mã phòng phải có đúng ${ROOM_ID_LENGTH} ký tự.`)
@@ -26,7 +27,7 @@ export default function JoinRoomForm() {
 
     async function onSubmit(values: z.infer<typeof joinRoomFormSchema>) {
         try {
-            const isJoinSuccessfully = await joinRoom(values.roomId);
+            const isJoinSuccessfully = await handleAction(joinRoom(values.roomId));
 
             if (isJoinSuccessfully) router.push(`/room/${values.roomId}`);
             else toast.error("Không thể tham gia phòng. Vui lòng thử lại sau");

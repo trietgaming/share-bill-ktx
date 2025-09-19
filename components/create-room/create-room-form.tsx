@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createNewRoom } from "@/lib/actions/room";
 import { useRouter } from "next/navigation";
+import { handleAction } from "@/lib/action-handler";
 
 const createRoomFormSchema = z.object({
     name: z.string().min(1, "Tên phòng là bắt buộc!").max(100, "Tên phòng không được vượt quá 100 ký tự."),
@@ -26,7 +27,7 @@ export default function CreateRoomForm() {
 
     async function onSubmit(values: z.infer<typeof createRoomFormSchema>) {
         try {
-            const newRoomId = await createNewRoom(values);
+            const newRoomId = await handleAction(createNewRoom(values));
 
             router.push(`/room/${newRoomId}?isNew=true`);
         } catch (err) {

@@ -3,6 +3,7 @@
 import { getToken } from "firebase/messaging";
 import { firebaseMessaging } from "../firebase/client";
 import { subscribeToNotification } from "../actions/notification";
+import { handleAction } from "@/lib/action-handler";
 
 export async function requestPermission() {
 
@@ -64,6 +65,6 @@ export async function initializeNotification() {
 
     if (firebaseToken && firebaseToken !== cachedToken) {
         localStorage.setItem('fcm_token', firebaseToken);
-        await subscribeToNotification(firebaseToken);
+        await handleAction(subscribeToNotification(firebaseToken))
     }
 }

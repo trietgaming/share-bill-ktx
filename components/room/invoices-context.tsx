@@ -9,6 +9,7 @@ import { getInvoicesByRoom } from "@/lib/actions/invoice";
 import { getRoomMonthsPresence } from "@/lib/actions/month-presence";
 import { IMonthPresence } from "@/types/month-presence";
 import { InvoiceCheckoutDialog } from "./invoice-checkout-dialog";
+import { handleAction } from "@/lib/action-handler";
 
 interface InvoicesContextType {
     pendingInvoicesQuery: UseQueryResult<IInvoice[], Error>;
@@ -30,7 +31,7 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
         queryKey: ["invoices", room._id],
         queryFn: () => {
             queryClient.invalidateQueries({ queryKey: ["presence", room._id] });
-            return getInvoicesByRoom(room._id)
+            return handleAction(getInvoicesByRoom(room._id))
         },
         staleTime: 1000 * 60 * 60, // 1 hour
     });
@@ -46,7 +47,7 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
 
             if (!months || months.length === 0) return [];
 
-            const monthsPresence = await getRoomMonthsPresence(room._id, months);
+            const monthsPresence = await handleAction(getRoomMonthsPresence(room._id, months));
             return monthsPresence;
         },
         enabled: !!pendingInvoicesQuery.data,

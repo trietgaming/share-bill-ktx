@@ -7,10 +7,13 @@ import { isYYYYMM, parseYYYYMM } from "@/lib/utils";
 import { serializeDocument } from "@/lib/serializer";
 import { IMonthPresence } from "@/types/month-presence";
 import { AppError } from "../errors";
+import { createErrorResponse, createSuccessResponse } from "@/lib/actions-helper";
+import { ErrorCode } from "@/enums/error";
+import { ServerActionResponse } from "@/types/actions";
 
-export async function getRoomMonthPresence(roomId: string, month: string) {
+export async function getRoomMonthPresence(roomId: string, month: string): ServerActionResponse<IMonthPresence[]> {
     if (!isYYYYMM(month)) {
-        throw new AppError("Invalid month format. Expected YYYY-MM");
+        return createErrorResponse("Định dạng tháng không hợp lệ.", ErrorCode.INVALID_INPUT);
     }
     const user = await authenticate();
     await verifyMembership(user.uid, roomId);
@@ -26,25 +29,25 @@ export async function getRoomMonthPresence(roomId: string, month: string) {
             presence: Array(new Date(year, m, 0).getDate()).fill("undetermined"),
         }).save();
 
-        return [serializeDocument<IMonthPresence>(newPresence)];
+        return createSuccessResponse([serializeDocument<IMonthPresence>(newPresence)]);
     }
 
-    return serializeDocument<IMonthPresence[]>(roomMonthPresences);
+    return createSuccessResponse(serializeDocument<IMonthPresence[]>(roomMonthPresences));
 }
 
-export async function getRoomMonthsPresence(roomId: string, months: string[]) {
+export async function getRoomMonthsPresence(roomId: string, months: string[]): ServerActionResponse<IMonthPresence[]> {
     if (months.length >= 12) {
-        throw new AppError("Too many months requested. Maximum is 12.");
+        return createErrorResponse("Không thể truy vấn quá 12 tháng một lần.", ErrorCode.INVALID_INPUT);
     }
     if (!months.every(isYYYYMM)) {
-        throw new AppError("Invalid month format. Expected YYYY-MM");
+        return createErrorResponse("Định dạng tháng không hợp lệ.", ErrorCode.INVALID_INPUT);
     }
     const user = await authenticate();
     await verifyMembership(user.uid, roomId);
 
     const roomMonthPresences = await MonthPresence.find({ roomId, month: { $in: months } });
 
-    return serializeDocument<IMonthPresence[]>(roomMonthPresences);
+    return createSuccessResponse(serializeDocument<IMonthPresence[]>(roomMonthPresences));
 }
 
 export interface UpdateMyMonthPresenceData {
@@ -52,7 +55,7 @@ export interface UpdateMyMonthPresenceData {
     month: string; // Format: YYYY-MM
     presence: ("present" | "absent" | "undetermined")[];
 }
-export async function updateMyMonthPresence(data: UpdateMyMonthPresenceData) {
+export async function updateMyMonthPresence(data: UpdateMyMonthPresenceData): ServerActionResponse<void> {
     const user = await authenticate();
     await verifyMembership(user.uid, data.roomId);
 
@@ -68,4 +71,6 @@ export async function updateMyMonthPresence(data: UpdateMyMonthPresenceData) {
         { roomId: data.roomId, userId: user.uid, month: data.month },
         updateData,
         { upsert: true, new: true, setDefaultsOnInsert: true });
+
+    return createSuccessResponse(void 0);
 }

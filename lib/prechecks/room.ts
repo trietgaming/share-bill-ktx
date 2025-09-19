@@ -1,11 +1,21 @@
 import { Membership } from "@/models/Membership";
 import { IMembership } from "@/types/membership";
 import { AppError } from "@/lib/errors";
+import { NextResponse } from "next/server";
+import { ErrorServerActionResult } from "@/types/actions";
+import { ErrorCode } from "@/enums/error";
 
 export async function verifyMembership(userId: string, roomId: string) {
     const membership = await Membership.findOne({ user: userId, room: roomId });
     if (!membership) {
-        throw new AppError("User is not a member of this room");
+        return NextResponse.json<ErrorServerActionResult>({
+            success: false,
+            data: null,
+            error: {
+                message: "Người dùng không phải là thành viên của phòng này",
+                code: ErrorCode.FORBIDDEN
+            }
+        }, { status: 403 }) as never;
     }
 
     return membership;
@@ -13,6 +23,13 @@ export async function verifyMembership(userId: string, roomId: string) {
 
 export function verifyRoomPermission(membership: IMembership, roles: IMembership["role"][]) {
     if (!roles.includes(membership.role)) {
-        throw new AppError("User does not have permission to perform this action");
+        return NextResponse.json<ErrorServerActionResult>({
+            success: false,
+            data: null,
+            error: {
+                message: "Người dùng không có quyền thực hiện hành động này",
+                code: ErrorCode.FORBIDDEN
+            }
+        }, { status: 403 });
     }
 }

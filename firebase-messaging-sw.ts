@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
-// const resources = self.__WB_MANIFEST; // this is just to satisfy workbox
+/// @ts-ignore
+const resources = self.__WB_MANIFEST; // this is just to satisfy workbox
 
 declare const self: ServiceWorkerGlobalScope;
 

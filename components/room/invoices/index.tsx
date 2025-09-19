@@ -32,6 +32,7 @@ import { CreateMonthInvoiceForm } from "./create-month-invoice-form"
 import { Skeleton } from "@/components/ui/skeleton"
 import { InvoiceCard } from "./invoice-card"
 import { toast } from "sonner"
+import { handleAction } from "@/lib/action-handler"
 
 interface PersonalInvoice extends IInvoice {
   personalAmount: number
@@ -58,8 +59,7 @@ export function InvoicesManagement() {
   const deleteInvoiceMutation = useMutation({
     mutationKey: ['delete-invoice'],
     mutationFn: async (invoice: IInvoice) => {
-      // Call delete API
-      await deleteInvoice(invoice._id);
+      await handleAction(deleteInvoice(invoice._id));
       queryClient.setQueriesData<IInvoice[]>(
         { queryKey: ['invoices', invoice.roomId] },
         old => old?.filter(inv => inv._id !== invoice._id) || []

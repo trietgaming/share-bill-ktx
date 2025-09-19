@@ -28,6 +28,8 @@ import { IInvoice } from "@/types/invoice";
 import { toast } from "sonner";
 import { queryClient } from "@/lib/query-client";
 import { RoommateItem } from "./roomate-item";
+import { handleAction } from "@/lib/action-handler";
+import { ServerActionError } from "@/lib/errors";
 
 const payInfoSchema = z.object({
     paidBy: z.string().min(1, "Người trả trước là bắt buộc"),
@@ -98,7 +100,7 @@ export function CreateMonthInvoiceForm({ onSuccess, invoiceType }: CreateOtherIn
 
     const { mutateAsync } = useMutation({
         mutationFn: async (values: CreateInvoiceFormData) => {
-            const invoice = await createNewInvoice(values);
+            const invoice = await handleAction(createNewInvoice(values));
             queryClient.invalidateQueries({ queryKey: ['invoices', room._id] });
             return invoice;
         },
@@ -110,7 +112,9 @@ export function CreateMonthInvoiceForm({ onSuccess, invoiceType }: CreateOtherIn
         },
         onError: (error) => {
             console.error("Failed to create invoice:", error);
-            toast.error("Đã có lỗi xảy ra khi tạo hóa đơn.");
+            toast.error("Đã có lỗi xảy ra khi tạo hóa đơn.",
+                error instanceof ServerActionError ? { description: error.message } : undefined
+            );
         }
     });
 

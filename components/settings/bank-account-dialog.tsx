@@ -23,6 +23,7 @@ import { createOrUpdateUserBankAccount } from "@/lib/actions/user-data"
 import { toast } from "sonner"
 import { useAuth } from "@/components/auth-context"
 import { BankSelect } from "./bank-select"
+import { handleAction } from "@/lib/action-handler"
 
 const bankAccountSchema = z
   .object({
@@ -122,7 +123,7 @@ export function BankAccountDialog({ open, onOpenChange, account }: BankAccountDi
   const onSubmit = async (data: BankAccountFormData) => {
     try {
       console.log(data)
-      const updatedBankAccount = await createOrUpdateUserBankAccount(
+      const updatedBankAccount = await handleAction(createOrUpdateUserBankAccount(
         isQrMode
           ? {
             id: account?._id,
@@ -130,7 +131,7 @@ export function BankAccountDialog({ open, onOpenChange, account }: BankAccountDi
             bankName: data.bankName
           }
           : data
-      );
+      ));
       setUserData((prev) => {
         if (!prev) return prev;
         let found = false;

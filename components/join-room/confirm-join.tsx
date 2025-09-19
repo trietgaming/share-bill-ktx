@@ -9,6 +9,7 @@ import { useState } from "react"
 import { joinRoom } from "@/lib/actions/room"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { handleAction } from "@/lib/action-handler"
 
 export function ConfirmJoinRoomPage({ room }: { room: IRoom }) {
     const [isJoining, setIsJoining] = useState(false);
@@ -17,7 +18,7 @@ export function ConfirmJoinRoomPage({ room }: { room: IRoom }) {
     const handleJoinRoom = async () => {
         setIsJoining(true);
         try {
-            await joinRoom(room._id);
+            await handleAction(joinRoom(room._id));
             router.push(`/room/${room._id}`);
             toast.success("Tham gia phòng thành công!");
         }

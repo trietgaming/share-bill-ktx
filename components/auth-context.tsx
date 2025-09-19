@@ -1,5 +1,6 @@
 "use client";
 
+import { handleAction } from "@/lib/action-handler";
 import { getAuthenticatedUserData } from "@/lib/actions/user-data";
 import { LOGIN_PATH, PUBLIC_PATHS } from "@/lib/app-constants";
 import { firebaseClientAuth } from "@/lib/firebase/client";
@@ -39,7 +40,7 @@ export const AuthProvider = ({ children, initialUserData }: AuthProviderProps) =
                     return;
                 }
                 if (authUser?.uid !== userData?._id) {
-                    const newUserData = await getAuthenticatedUserData(await authUser?.getIdToken());
+                    const newUserData = await handleAction(getAuthenticatedUserData(await authUser?.getIdToken()));
                     console.log("Auth state changed, new user data:", newUserData)
                     setUserData(newUserData);
                 }

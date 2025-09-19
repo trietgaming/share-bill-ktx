@@ -17,6 +17,7 @@ import { queryClient } from "@/lib/query-client"
 import { PresenceSkeleton } from "./skeleton"
 import { UserAvatar } from "@/components/user-avatar"
 import { toast } from "sonner"
+import { handleAction } from "@/lib/action-handler"
 
 export function PresenceCalendar() {
   const { data: room } = useRoomQuery();
@@ -92,7 +93,7 @@ export function PresenceCalendar() {
         month: month,
         presence: snapshot.presence || Array(daysInMonth).fill("undetermined"),
       }
-      await updateMyMonthPresence(updateData);
+      await handleAction(updateMyMonthPresence(updateData));
       if (!updatePresenceDebounced.isPending()) resolve();
     } catch (error) {
       reject(error);

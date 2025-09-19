@@ -20,6 +20,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { useBanks } from "@/hooks/use-banks";
+import { handleAction } from "@/lib/action-handler";
 
 const invoiceCheckoutFormSchema = z.object({
     invoiceId: z.string().min(1, "Invoice ID is required"),
@@ -82,7 +83,7 @@ export function InvoiceCheckoutDialog({ invoice, ...props }: React.ComponentProp
 
     const { mutateAsync: onSubmit } = useMutation({
         mutationFn: async (data: z.infer<typeof invoiceCheckoutFormSchema>) => {
-            await payInvoice(data.invoiceId, data.amount);
+            await handleAction(payInvoice(data.invoiceId, data.amount));
             queryClient.invalidateQueries({ queryKey: ['invoices', invoice!.roomId] });
         },
         onSuccess: () => {

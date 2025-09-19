@@ -26,6 +26,7 @@ import { IInvoice } from "@/types/invoice";
 import { toast } from "sonner";
 import { queryClient } from "@/lib/query-client";
 import { RoommateItem } from "./roomate-item";
+import { handleAction } from "@/lib/action-handler";
 
 const payInfoSchema = z.object({
     paidBy: z.string().min(1, "Người trả trước là bắt buộc"),
@@ -147,7 +148,9 @@ export function InvoiceForm({ onSuccess, invoice, type }: { onSuccess?: (invoice
 
     const { mutateAsync } = useMutation({
         mutationFn: async (values: CreateInvoiceFormData) => {
-            const updatedInvoice = isEditMode ? await updateInvoice({ invoiceId: invoice!._id, ...values }) : await createNewInvoice(values);
+            const updatedInvoice = isEditMode
+                ? await handleAction(updateInvoice({ invoiceId: invoice!._id, ...values }))
+                : await handleAction(createNewInvoice(values));
             queryClient.invalidateQueries({ queryKey: ['invoices', room._id] });
             return updatedInvoice;
         },

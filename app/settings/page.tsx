@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { updateUserData } from "@/lib/actions/user-data"
 import { useAuth } from "@/components/auth-context"
 import { BankAccountList } from "@/components/settings/bank-account-list"
+import { handleAction } from "@/lib/action-handler"
 
 const profileSchema = z.object({
     displayName: z.string().min(1, "Tên hiển thị không được để trống"),
@@ -39,7 +40,7 @@ export default function UserManagementPage() {
 
     const handleProfileSubmit = async (data: ProfileFormData) => {
         try {
-            await updateUserData(data)
+            await handleAction(updateUserData(data))
             setUserData(prev => ({ ...prev, displayName: data.displayName }) as typeof prev);
             form.reset(data);
             toast.success("Thành công", {

@@ -7,12 +7,13 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getUserRooms } from "@/lib/actions/room";
 import { useQuery } from "@tanstack/react-query";
+import { handleAction } from "@/lib/action-handler";
 
 
 export function RoomList() {
   const { data: rooms, isLoading, error } = useQuery<IRoom[]>({
     queryKey: ['user-rooms'],
-    queryFn: getUserRooms
+    queryFn: () => handleAction(getUserRooms())
   })
 
   const router = useRouter();

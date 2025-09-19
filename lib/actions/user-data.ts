@@ -12,6 +12,9 @@ import mongoose from "mongoose";
 import { IBankAccount, IClientBankAccount } from "@/types/bank-account";
 import { uploadFileToCloudinary } from "../cloudinary";
 import { AppError } from "../errors";
+import { ServerActionResponse } from "@/types/actions";
+import { createErrorResponse, createSuccessResponse } from "@/lib/actions-helper";
+import { ErrorCode } from "@/enums/error";
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -19,27 +22,27 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-export async function getAuthenticatedUserData(_idToken?: string | null) {
+export async function getAuthenticatedUserData(_idToken?: string | null): ServerActionResponse<IUserDataWithBankAccounts | null> {
     const user = await getAuthenticatedUser(_idToken);
-    if (!user) return null;
+    if (!user) return createSuccessResponse(null);
 
     const userData = await (await getUserData(user)).populate<{ bankAccounts: IBankAccount[] }>("bankAccounts");
 
-    return serializeDocument<IUserDataWithBankAccounts>(userData);
+    return createSuccessResponse(serializeDocument<IUserDataWithBankAccounts>(userData));
 }
 
 const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 
-export async function updateUserPhoto(photo: File) {
+export async function updateUserPhoto(photo: File): ServerActionResponse<string> {
     const user = await authenticate();
     // only support jpg, jpeg, png, webp
     if (!SUPPORTED_IMAGE_TYPES.includes(photo.type)) {
-        throw new AppError("Invalid file type");
+        return createErrorResponse("Định dạng file không hợp lệ", ErrorCode.INVALID_INPUT);
     }
     if (photo.size > MAX_FILE_SIZE) {
-        throw new AppError("File size must be less than 5MB");
+        return createErrorResponse("Tệp phải nhỏ hơn 5MB!", ErrorCode.INVALID_INPUT);
     }
 
     const imageId = `user_photo_${user.uid}`;
@@ -55,26 +58,27 @@ export async function updateUserPhoto(photo: File) {
 
     const photoURL = uploadResult?.url;
     if (!photoURL) {
-        throw new AppError("Failed to upload image");
+        return createErrorResponse("Failed to upload image", ErrorCode.UNKNOWN);
     }
 
     const userData = await getUserData(user);
     userData.photoURL = photoURL;
     await userData.save();
 
-    return photoURL;
+    return createSuccessResponse(photoURL);
 }
 
 export interface UpdateUserDataFormData {
     displayName: string;
 }
 
-export async function updateUserData(data: UpdateUserDataFormData) {
+export async function updateUserData(data: UpdateUserDataFormData): ServerActionResponse<void> {
     const user = await authenticate();
     const userData = await getUserData(user);
 
     userData.displayName = data.displayName;
     await userData.save();
+    return createSuccessResponse(void 0);
 }
 
 export interface CreateOrUpdateUserBankAccountFormData {
@@ -85,12 +89,12 @@ export interface CreateOrUpdateUserBankAccountFormData {
     qrCodeFile?: File;
 }
 
-export async function createOrUpdateUserBankAccount(data: CreateOrUpdateUserBankAccountFormData): Promise<IClientBankAccount> {
+export async function createOrUpdateUserBankAccount(data: CreateOrUpdateUserBankAccountFormData): ServerActionResponse<IClientBankAccount> {
     const user = await authenticate();
     const userData = await getUserData(user);
 
     if (data.id && userData.bankAccounts.every(bankId => !bankId.equals(data.id))) {
-        throw new AppError("Bank account not found");
+        return createErrorResponse("Không tìm thấy tài khoản ngân hàng", ErrorCode.NOT_FOUND);
     }
 
     const isUpdate = Boolean(data.id);
@@ -101,10 +105,10 @@ export async function createOrUpdateUserBankAccount(data: CreateOrUpdateUserBank
 
     if (data.qrCodeFile) {
         if (!SUPPORTED_IMAGE_TYPES.includes(data.qrCodeFile.type)) {
-            throw new AppError("Invalid file type");
+            return createErrorResponse("Định dạng file không hợp lệ", ErrorCode.INVALID_INPUT);
         }
         if (data.qrCodeFile.size > MAX_FILE_SIZE) {
-            throw new AppError("File size must be less than 1MB");
+            return createErrorResponse("Tệp phải nhỏ hơn 1MB", ErrorCode.INVALID_INPUT);
         }
 
         const imageId = `bank_account_qr_${bankAccount._id}`;
@@ -138,15 +142,15 @@ export async function createOrUpdateUserBankAccount(data: CreateOrUpdateUserBank
         return bankAccount;
     })
 
-    return serializeDocument<IClientBankAccount>(newBankAccount);
+    return createSuccessResponse(serializeDocument<IClientBankAccount>(newBankAccount));
 }
 
-export async function deleteUserBankAccount(bankAccountId: string) {
+export async function deleteUserBankAccount(bankAccountId: string): ServerActionResponse<void> {
     const user = await authenticate();
     const userData = await getUserData(user);
 
     if (!userData.bankAccounts.some(bankId => bankId.equals(bankAccountId))) {
-        throw new AppError("Bank account not found");
+        return createErrorResponse("Không tìm thấy tài khoản ngân hàng", ErrorCode.NOT_FOUND);
     }
 
     const session = await mongoose.startSession();
@@ -160,4 +164,5 @@ export async function deleteUserBankAccount(bankAccountId: string) {
             }
         }, { session, runValidators: true });
     });
+    return createSuccessResponse(void 0);
 }

@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { InviteMemberTab } from "./action-tabs/invite-member"
+import { handleAction } from "@/lib/action-handler"
 
 interface RoomSidebarProps {
   onClose?: () => void,
@@ -54,7 +55,7 @@ export function RoomSidebar({ onClose, isSidebarOpen }: RoomSidebarProps) {
 
   const { mutate: handleDeleteRoom, isPending: isDeletingRoom, error: deleteRoomError, isSuccess: isDeleteRoomSuccess } = useMutation({
     mutationFn: async () => {
-      await deleteRoom(room._id);
+      await handleAction(deleteRoom(room._id));
       router.push('/');
     },
     onError: (error) => {
@@ -65,7 +66,7 @@ export function RoomSidebar({ onClose, isSidebarOpen }: RoomSidebarProps) {
 
   const { mutate: handleLeaveRoom, isPending: isLeavingRoom, error: leaveRoomError, isSuccess: isLeaveRoomSuccess } = useMutation({
     mutationFn: async () => {
-      await leaveRoom(room._id);
+      await handleAction(leaveRoom(room._id));
       router.push('/');
     },
     onError: (error) => {

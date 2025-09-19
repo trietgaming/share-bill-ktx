@@ -38,7 +38,7 @@ export default async function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    const authenticatedUserData = await getAuthenticatedUserData();
+    const authenticatedUserData = (await getAuthenticatedUserData()).data;
 
     return (
         <html lang="vi">

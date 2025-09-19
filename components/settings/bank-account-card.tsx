@@ -13,6 +13,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/components/auth-context"
 import { IUserDataWithBankAccounts } from "@/types/user-data"
 import { useBanks } from "@/hooks/use-banks"
+import { handleAction } from "@/lib/action-handler"
 
 interface BankAccountCardProps {
   account: IClientBankAccount
@@ -25,7 +26,7 @@ export function BankAccountCard({ account, onEdit }: BankAccountCardProps) {
   const isQrAccount = !!account.qrCodeUrl
 
   const { mutate: handleDeleteAccount } = useMutation({
-    mutationFn: () => deleteUserBankAccount(account._id),
+    mutationFn: () => handleAction(deleteUserBankAccount(account._id)),
     onError: () => {
       toast.error("Lỗi", {
         description: "Đã có lỗi xảy ra khi xoá tài khoản ngân hàng"
