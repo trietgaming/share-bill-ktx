@@ -30,6 +30,7 @@ import { sendNotificationToKickedMember } from "../messages/room";
 export async function createNewRoom(data: {
     name: string;
     maxMembers: number;
+    isPrivate: boolean
 }): ServerActionResponse<string> {
     const user = await authenticate();
 
@@ -41,6 +42,7 @@ export async function createNewRoom(data: {
                 name: data.name,
                 maxMembers: data.maxMembers,
                 members: [user.uid],
+                isPrivate: data.isPrivate
             });
 
             await newRoom.save({ session });
