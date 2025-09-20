@@ -3,15 +3,6 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -19,23 +10,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
     Plus,
-    MoreHorizontal,
-    Edit,
-    Trash2,
-    CreditCard,
     Receipt,
     DollarSign,
     Users,
@@ -48,20 +23,15 @@ import { InvoiceForm } from "@/components/room/invoices/invoice-form";
 import { useInvoices, useRoomQuery } from "../room-context";
 import { IInvoice } from "@/types/invoice";
 import { useAuth } from "@/components/auth-context";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { deleteInvoice } from "@/lib/actions/invoice";
 import { invoicesQueryKey, queryClient } from "@/lib/query-client";
 import { InvoiceSkeleton } from "./skeleton";
-import { CreateMonthInvoiceForm } from "./create-month-invoice-form";
-import { Skeleton } from "@/components/ui/skeleton";
 import { InvoiceCard } from "./invoice-card";
 import { toast } from "sonner";
 import { handleAction } from "@/lib/action-handler";
-
-interface PersonalInvoice extends IInvoice {
-    personalAmount: number;
-}
+import { AddInvoiceButton } from "../add-invoice-button";
 
 export function InvoicesManagement() {
     const { userData } = useAuth();
@@ -70,12 +40,9 @@ export function InvoicesManagement() {
         pendingInvoicesQuery: { data: invoices },
         otherInvoices,
         monthlyInvoices,
+        setAddInvoiceType,
+        setEditingInvoice,
     } = useInvoices();
-
-    const [addInvoiceType, setAddInvoiceType] = useState<
-        IInvoice["type"] | null
-    >(null);
-    const [editingInvoice, setEditingInvoice] = useState<IInvoice | null>(null);
 
     const thisMonthInvoicesAmount = useMemo(() => {
         const now = new Date();
@@ -180,94 +147,7 @@ export function InvoicesManagement() {
                 </div>
 
                 {/* Add Invoice Dropdown */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            <span className="hidden md:inline-block">
-                                Thêm hóa đơn
-                            </span>
-                            <ChevronDown className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem asChild>
-                            <Button
-                                onClick={() => {
-                                    setAddInvoiceType("walec");
-                                    setEditingInvoice(null);
-                                }}
-                                variant="ghost"
-                                className="w-full justify-start"
-                            >
-                                <Zap className="mr-2 h-4 w-4" />
-                                <span>Hóa đơn điện nước</span>
-                            </Button>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                            <Button
-                                onClick={() => {
-                                    setAddInvoiceType("roomCost");
-                                    setEditingInvoice(null);
-                                }}
-                                variant="ghost"
-                                className="w-full justify-start"
-                            >
-                                <Home className="mr-2 h-4 w-4" />
-                                <span>Tiền phòng</span>
-                            </Button>
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem asChild>
-                            <Button
-                                onClick={() => {
-                                    setAddInvoiceType("other");
-                                    setEditingInvoice(null);
-                                }}
-                                variant="ghost"
-                                className="w-full justify-start"
-                            >
-                                <Receipt className="mr-2 h-4 w-4" />
-                                <span>Hóa đơn khác</span>
-                            </Button>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
-                <Dialog
-                    open={!!addInvoiceType}
-                    onOpenChange={() => {
-                        setAddInvoiceType(null);
-                    }}
-                >
-                    {/* Use onCloseAutoFocus to smooth out the transition in closing edit mode */}
-                    <DialogContent
-                        onCloseAutoFocus={() => {
-                            setEditingInvoice(null);
-                        }}
-                        className="max-w-lg overflow-y-auto max-h-[90vh]"
-                    >
-                        <DialogHeader>
-                            <DialogTitle>
-                                {editingInvoice
-                                    ? "Chỉnh sửa hóa đơn"
-                                    : "Thêm hóa đơn mới"}
-                            </DialogTitle>
-                            <DialogDescription>
-                                {editingInvoice
-                                    ? "Chỉnh sửa thông tin hóa đơn."
-                                    : "Tạo hóa đơn mới cho phòng."}
-                            </DialogDescription>
-                        </DialogHeader>
-                        <InvoiceForm
-                            invoice={editingInvoice}
-                            type={addInvoiceType!}
-                            onSuccess={() => {
-                                setAddInvoiceType(null);
-                            }}
-                        />
-                    </DialogContent>
-                </Dialog>
+                <AddInvoiceButton />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

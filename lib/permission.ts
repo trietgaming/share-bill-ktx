@@ -18,10 +18,10 @@ export function hasPermission(
     return role ? (permissionMap[permission] as MemberRole[]).includes(role) : false;
 }
 
-export function isRolePrecedent(role: MemberRole, targetRole: MemberRole) {
-    return RolePrecedence[role] > RolePrecedence[targetRole];
+export function isRolePrecedent(role: MemberRole | undefined, targetRole: MemberRole) {
+    return role && RolePrecedence[role] > RolePrecedence[targetRole];
 }
 
-export function isRolePrecedentOrEqual(role: MemberRole, targetRole: MemberRole) {
-    return RolePrecedence[role] >= RolePrecedence[targetRole];
+export function isRolePrecedentOrEqual(role: MemberRole | undefined, targetRole: MemberRole) {
+    return role && RolePrecedence[role] >= RolePrecedence[targetRole];
 }

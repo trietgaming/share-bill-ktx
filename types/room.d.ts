@@ -5,6 +5,8 @@ export interface IRoom {
     name: string;
     members: string[];
     maxMembers: number;
+    inviteToken: string;
+    isPrivate: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

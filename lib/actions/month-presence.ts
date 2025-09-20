@@ -6,48 +6,83 @@ import { MonthPresence } from "@/models/MonthPresence";
 import { isYYYYMM, parseYYYYMM } from "@/lib/utils";
 import { serializeDocument } from "@/lib/serializer";
 import { IMonthPresence } from "@/types/month-presence";
-import { AppError } from "../errors";
-import { createErrorResponse, createSuccessResponse } from "@/lib/actions-helper";
+import {
+    createErrorResponse,
+    createSuccessResponse,
+    handleDatabaseAction,
+} from "@/lib/actions-helper";
 import { ErrorCode } from "@/enums/error";
 import { ServerActionResponse } from "@/types/actions";
 
-export async function getRoomMonthPresence(roomId: string, month: string): ServerActionResponse<IMonthPresence[]> {
+export async function getRoomMonthPresence(
+    roomId: string,
+    month: string
+): ServerActionResponse<IMonthPresence[]> {
     if (!isYYYYMM(month)) {
-        return createErrorResponse("Định dạng tháng không hợp lệ.", ErrorCode.INVALID_INPUT);
+        return createErrorResponse(
+            "Định dạng tháng không hợp lệ.",
+            ErrorCode.INVALID_INPUT
+        );
     }
     const user = await authenticate();
-    await verifyMembership(user.uid, roomId);
+
+    const [_, err] = await verifyMembership(user.uid, roomId);
+    if (err) return createErrorResponse(err);
 
     const roomMonthPresences = await MonthPresence.find({ roomId, month });
-    if (!roomMonthPresences.some(rmp => rmp.userId === user.uid)) {
+    if (!roomMonthPresences.some((rmp) => rmp.userId === user.uid)) {
         const { year, month: m } = parseYYYYMM(month)!;
         // Create default for caller
-        const newPresence = await new MonthPresence({
-            month,
-            roomId,
-            userId: user.uid,
-            presence: Array(new Date(year, m, 0).getDate()).fill("undetermined"),
-        }).save();
+        const newPresence = await handleDatabaseAction(
+            new MonthPresence({
+                month,
+                roomId,
+                userId: user.uid,
+                presence: Array(new Date(year, m, 0).getDate()).fill(
+                    "undetermined"
+                ),
+            }).save()
+        );
 
-        return createSuccessResponse([serializeDocument<IMonthPresence>(newPresence)]);
+        return createSuccessResponse([
+            serializeDocument<IMonthPresence>(newPresence),
+        ]);
     }
 
-    return createSuccessResponse(serializeDocument<IMonthPresence[]>(roomMonthPresences));
+    return createSuccessResponse(
+        serializeDocument<IMonthPresence[]>(roomMonthPresences)
+    );
 }
 
-export async function getRoomMonthsPresence(roomId: string, months: string[]): ServerActionResponse<IMonthPresence[]> {
+export async function getRoomMonthsPresence(
+    roomId: string,
+    months: string[]
+): ServerActionResponse<IMonthPresence[]> {
     if (months.length >= 12) {
-        return createErrorResponse("Không thể truy vấn quá 12 tháng một lần.", ErrorCode.INVALID_INPUT);
+        return createErrorResponse(
+            "Không thể truy vấn quá 12 tháng một lần.",
+            ErrorCode.INVALID_INPUT
+        );
     }
     if (!months.every(isYYYYMM)) {
-        return createErrorResponse("Định dạng tháng không hợp lệ.", ErrorCode.INVALID_INPUT);
+        return createErrorResponse(
+            "Định dạng tháng không hợp lệ.",
+            ErrorCode.INVALID_INPUT
+        );
     }
     const user = await authenticate();
-    await verifyMembership(user.uid, roomId);
+    
+    const [_, err] = await verifyMembership(user.uid, roomId);
+    if (err) return createErrorResponse(err);
 
-    const roomMonthPresences = await MonthPresence.find({ roomId, month: { $in: months } });
+    const roomMonthPresences = await MonthPresence.find({
+        roomId,
+        month: { $in: months },
+    });
 
-    return createSuccessResponse(serializeDocument<IMonthPresence[]>(roomMonthPresences));
+    return createSuccessResponse(
+        serializeDocument<IMonthPresence[]>(roomMonthPresences)
+    );
 }
 
 export interface UpdateMyMonthPresenceData {
@@ -55,22 +90,29 @@ export interface UpdateMyMonthPresenceData {
     month: string; // Format: YYYY-MM
     presence: ("present" | "absent" | "undetermined")[];
 }
-export async function updateMyMonthPresence(data: UpdateMyMonthPresenceData): ServerActionResponse<void> {
+export async function updateMyMonthPresence(
+    data: UpdateMyMonthPresenceData
+): ServerActionResponse<void> {
     const user = await authenticate();
-    await verifyMembership(user.uid, data.roomId);
+    
+    const [_, err] = await verifyMembership(user.uid, data.roomId);
+    if (err) return createErrorResponse(err);
 
     const updateData: IMonthPresence = {
-        "presence": data.presence,
-        "month": data.month,
-        "roomId": data.roomId,
-        "userId": user.uid
-    }
-    await MonthPresence.validate(updateData);
+        presence: data.presence,
+        month: data.month,
+        roomId: data.roomId,
+        userId: user.uid,
+    };
+    await handleDatabaseAction(MonthPresence.validate(updateData));
 
-    await MonthPresence.findOneAndUpdate(
-        { roomId: data.roomId, userId: user.uid, month: data.month },
-        updateData,
-        { upsert: true, new: true, setDefaultsOnInsert: true });
+    await handleDatabaseAction(
+        MonthPresence.findOneAndUpdate(
+            { roomId: data.roomId, userId: user.uid, month: data.month },
+            updateData,
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        )
+    );
 
     return createSuccessResponse(void 0);
 }

@@ -8,7 +8,7 @@ export default function JoinRoomDialog({ isOpen, onOpenChange }: { isOpen: boole
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Gia nhập phòng</DialogTitle>
-                    <DialogDescription>Nhập ID phòng để tham gia</DialogDescription>
+                    <DialogDescription>Nhập ID hoặc liên kết phòng để tham gia</DialogDescription>
                 </DialogHeader>
                 <JoinRoomForm />
             </DialogContent>

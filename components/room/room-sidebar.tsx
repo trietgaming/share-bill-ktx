@@ -20,7 +20,7 @@ import {
     Key,
 } from "lucide-react";
 import { useConfirm } from "@/components/are-you-sure";
-import { useRoomQuery, useMembership } from "./room-context";
+import { useRoomQuery, useMembership, useInvoices } from "./room-context";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { deleteRoom, leaveRoom } from "@/lib/actions/room";
@@ -33,6 +33,9 @@ import { handleAction } from "@/lib/action-handler";
 import { ManageMembersTab } from "./action-tabs/mange-members";
 import { ManagePermissionsTab } from "./action-tabs/manage-permissions";
 import { MemberRole } from "@/enums/member-role";
+import { RoomDataForm } from "./room-data-form";
+import { AddInvoiceButton } from "./add-invoice-button";
+import { isRolePrecedentOrEqual } from "@/lib/permission";
 
 interface RoomSidebarProps {
     onClose?: () => void;
@@ -81,6 +84,7 @@ function SidebarTabTrigger({
 
 export function RoomSidebar({ onClose, isSidebarOpen }: RoomSidebarProps) {
     const { data: room } = useRoomQuery();
+    const { setAddInvoiceType } = useInvoices();
     const membership = useMembership();
 
     const router = useRouter();
@@ -88,7 +92,6 @@ export function RoomSidebar({ onClose, isSidebarOpen }: RoomSidebarProps) {
     const {
         mutate: handleDeleteRoom,
         isPending: isDeletingRoom,
-        error: deleteRoomError,
         isSuccess: isDeleteRoomSuccess,
     } = useMutation({
         mutationFn: async () => {
@@ -104,7 +107,6 @@ export function RoomSidebar({ onClose, isSidebarOpen }: RoomSidebarProps) {
     const {
         mutate: handleLeaveRoom,
         isPending: isLeavingRoom,
-        error: leaveRoomError,
         isSuccess: isLeaveRoomSuccess,
     } = useMutation({
         mutationFn: async () => {
@@ -178,97 +180,30 @@ export function RoomSidebar({ onClose, isSidebarOpen }: RoomSidebarProps) {
                                         <UserPlus className="h-4 w-4 mr-2" />
                                         Mời thành viên
                                     </SidebarTabTrigger>
-                                    <Button
-                                        className="w-full justify-start bg-transparent text-sm"
+                                    <AddInvoiceButton
+                                        className="w-full justify-start bg-transparent text-sm gap-4"
                                         variant="outline"
-                                    >
-                                        <DollarSign className="h-4 w-4 mr-2" />
-                                        Thêm hóa đơn
-                                    </Button>
+                                    />
                                 </CardContent>
                             </Card>
 
                             {/* Room Settings */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base lg:text-lg flex items-center gap-2">
-                                        <Settings className="h-4 lg:h-5 w-4 lg:w-5" />
-                                        Cài đặt
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    {/* <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="general">
-                <AccordionTrigger className="text-sm">Cài đặt chung</AccordionTrigger>
-                <AccordionContent className="space-y-2">
-                  <Button variant="ghost" className="w-full justify-start text-xs lg:text-sm">
-                    Thông tin phòng
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start text-xs lg:text-sm">
-                    Quy định phòng
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start text-xs lg:text-sm">
-                    Thông báo tự động
-                  </Button>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="billing">
-                <AccordionTrigger className="text-sm">Cài đặt hóa đơn</AccordionTrigger>
-                <AccordionContent className="space-y-2">
-                  <Button variant="ghost" className="w-full justify-start text-xs lg:text-sm">
-                    Giá điện nước
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start text-xs lg:text-sm">
-                    Chu kỳ thanh toán
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start text-xs lg:text-sm">
-                    Phương thức thanh toán
-                  </Button>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="members">
-                <AccordionTrigger className="text-sm">Quản lý thành viên</AccordionTrigger>
-                <AccordionContent className="space-y-2">
-                  <Button variant="ghost" className="w-full justify-start text-xs lg:text-sm">
-                    Danh sách thành viên
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start text-xs lg:text-sm">
-                    Phân quyền
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start text-xs lg:text-sm">
-                    Lời mời tham gia
-                  </Button>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion> */}
-                                </CardContent>
-                            </Card>
-
-                            {/* Data Management */}
-                            {/* <Card>
-                <CardHeader>
-                  <CardTitle className="text-base lg:text-lg flex items-center gap-2">
-                    <BarChart3 className="h-4 lg:h-5 w-4 lg:w-5" />
-                    Dữ liệu & Báo cáo
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 lg:space-y-3">
-                  <Button variant="outline" className="w-full justify-start bg-transparent text-sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Xuất báo cáo
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start bg-transparent text-sm">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Nhập dữ liệu
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start bg-transparent text-sm">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Thống kê tháng
-                  </Button>
-                </CardContent>
-              </Card> */}
+                            {isRolePrecedentOrEqual(
+                                membership?.role,
+                                MemberRole.MODERATOR
+                            ) && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base lg:text-lg flex items-center gap-2">
+                                            <Settings className="h-4 lg:h-5 w-4 lg:w-5" />
+                                            Cài đặt phòng
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <RoomDataForm />
+                                    </CardContent>
+                                </Card>
+                            )}
 
                             <Card>
                                 <CardHeader>

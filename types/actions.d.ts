@@ -17,4 +17,11 @@ export interface ErrorServerActionResult {
     error: ActionError;
 }
 
-export type ServerActionResponse<T> = Promise<(SuccessServerActionResult<T> | ErrorServerActionResult)> 
+export type ServerActionResponse<T> = Promise<(SuccessServerActionResult<T> | ErrorServerActionResult)>
+
+export type SuccessPrecheckResult<T> = [data: T, error: null];
+
+export type ErrorPrecheckResult = [data: null, error: ActionError]
+
+export type PrecheckResponse<T> = Promise<SuccessPrecheckResult<T> | ErrorPrecheckResult>;
+export type PrecheckSyncResponse<T> = SuccessPrecheckResult<T> | ErrorPrecheckResult;

@@ -459,7 +459,7 @@ export function PresenceCalendar() {
                                                 : dayStatus.availability ===
                                                   "absent"
                                                 ? "bg-destructive/10 border-destructive text-destructive"
-                                                : "bg-muted/10 border-muted bg-muted text-muted-foreground",
+                                                : "border-muted bg-muted text-muted-foreground",
                                             dayStatus.isToday &&
                                                 "ring-2 ring-primary ring-offset-2"
                                         )}

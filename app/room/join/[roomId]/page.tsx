@@ -4,22 +4,35 @@ import { Membership } from "@/models/Membership";
 import { Room } from "@/models/Room";
 import { notFound, redirect } from "next/navigation";
 
-export default async function JoinRoomPage({ params }: { params: Promise<{ roomId: string }> }) {
+export default async function JoinRoomPage({
+    params,
+    searchParams,
+}: {
+    params: Promise<{ roomId: string }>;
+    searchParams: { [key: string]: string | string[] | undefined };
+}) {
     const { roomId } = await params;
 
     const user = await getAuthenticatedUser();
 
     if (!user) return notFound();
 
-    const membership = await Membership.findOne({ user: user.uid, room: roomId }).lean();
+    const membership = await Membership.findOne({
+        user: user.uid,
+        room: roomId,
+    }).lean();
 
     if (membership) {
         return redirect(`/room/${roomId}`);
     }
 
     const room = await Room.findById(roomId).lean();
+    const token = Array.isArray(searchParams.token)
+        ? searchParams.token[0]
+        : searchParams.token;
 
-    if (!room) return notFound();
+    if (!room || (room.isPrivate && token !== room.inviteToken))
+        return notFound();
 
-    return <ConfirmJoinRoomPage room={room} />;
-} 
+    return <ConfirmJoinRoomPage room={room} token={token} />;
+}

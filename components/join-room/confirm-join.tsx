@@ -17,14 +17,20 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { handleAction } from "@/lib/action-handler";
 
-export function ConfirmJoinRoomPage({ room }: { room: IRoom }) {
+export function ConfirmJoinRoomPage({
+    room,
+    token,
+}: {
+    room: IRoom;
+    token?: string;
+}) {
     const [isJoining, setIsJoining] = useState(false);
     const router = useRouter();
 
     const handleJoinRoom = async () => {
         setIsJoining(true);
         try {
-            await handleAction(joinRoom(room._id));
+            await handleAction(joinRoom(room._id, token));
             router.push(`/room/${room._id}`);
             toast.success("Tham gia phòng thành công!");
         } catch (error: any) {

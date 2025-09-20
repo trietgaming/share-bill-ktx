@@ -18,10 +18,11 @@ import { MonthPresence } from "@/models/MonthPresence";
 import {
     createErrorResponse,
     createSuccessResponse,
+    handleDatabaseAction,
 } from "@/lib/actions-helper";
 import { ServerActionResponse } from "@/types/actions";
 import { ErrorCode } from "@/enums/error";
-import { verifyMembership } from "../prechecks/room";
+import { verifyMembership, verifyRoomPermission } from "../prechecks/room";
 import { hasPermission, isRolePrecedent } from "../permission";
 import { MemberRole } from "@/enums/member-role";
 import { sendNotificationToKickedMember } from "../messages/room";
@@ -34,39 +35,44 @@ export async function createNewRoom(data: {
 
     // Create the new room
     const session = await mongoose.startSession();
-    const newRoom = await session.withTransaction(async () => {
-        const newRoom = new Room({
-            name: data.name,
-            maxMembers: data.maxMembers,
-            members: [user.uid],
-        });
+    const newRoom = await handleDatabaseAction(
+        session.withTransaction(async () => {
+            const newRoom = new Room({
+                name: data.name,
+                maxMembers: data.maxMembers,
+                members: [user.uid],
+            });
 
-        await newRoom.save({ session });
+            await newRoom.save({ session });
 
-        await new Membership({
-            user: user.uid,
-            room: newRoom._id,
-            joinedAt: new Date(),
-            role: "admin",
-        }).save({ session });
+            await new Membership({
+                user: user.uid,
+                room: newRoom._id,
+                joinedAt: new Date(),
+                role: "admin",
+            }).save({ session });
 
-        await UserData.findByIdAndUpdate(
-            user.uid,
-            {
-                $push: {
-                    roomsJoined: newRoom._id,
+            await UserData.findByIdAndUpdate(
+                user.uid,
+                {
+                    $push: {
+                        roomsJoined: newRoom._id,
+                    },
                 },
-            },
-            { session, runValidators: true }
-        );
+                { session, runValidators: true }
+            );
 
-        return newRoom;
-    });
+            return newRoom;
+        })
+    );
 
     return createSuccessResponse(newRoom._id.toString());
 }
 
-export async function joinRoom(roomId: string): ServerActionResponse<boolean> {
+export async function joinRoom(
+    roomId: string,
+    token?: string | null
+): ServerActionResponse<boolean> {
     const user = await authenticate();
 
     // TODO: check permission to join the room
@@ -85,28 +91,37 @@ export async function joinRoom(roomId: string): ServerActionResponse<boolean> {
         return createSuccessResponse(true);
     }
 
-    const session = await mongoose.startSession();
-    await session.withTransaction(async () => {
-        targetRoom.members.push(user.uid);
-        await targetRoom.save({ session });
-
-        await new Membership({
-            user: user.uid,
-            room: targetRoom._id,
-            joinedAt: new Date(),
-            role: "member",
-        }).save({ session });
-
-        await UserData.findByIdAndUpdate(
-            user.uid,
-            {
-                $push: {
-                    roomsJoined: targetRoom._id,
-                },
-            },
-            { session, runValidators: true }
+    if (targetRoom.isPrivate && token !== targetRoom.inviteToken) {
+        return createErrorResponse(
+            "Phòng riêng tư yêu cầu liên kết mời hợp lệ",
+            ErrorCode.FORBIDDEN
         );
-    });
+    }
+
+    const session = await mongoose.startSession();
+    await handleDatabaseAction(
+        session.withTransaction(async () => {
+            targetRoom.members.push(user.uid);
+            await targetRoom.save({ session });
+
+            await new Membership({
+                user: user.uid,
+                room: targetRoom._id,
+                joinedAt: new Date(),
+                role: "member",
+            }).save({ session });
+
+            await UserData.findByIdAndUpdate(
+                user.uid,
+                {
+                    $push: {
+                        roomsJoined: targetRoom._id,
+                    },
+                },
+                { session, runValidators: true }
+            );
+        })
+    );
 
     return createSuccessResponse(true);
 }
@@ -114,7 +129,8 @@ export async function joinRoom(roomId: string): ServerActionResponse<boolean> {
 export async function deleteRoom(roomId: string): ServerActionResponse<void> {
     const user = await authenticate();
 
-    const membership = await verifyMembership(user.uid, roomId);
+    const [membership, error] = await verifyMembership(user.uid, roomId);
+    if (error) return createErrorResponse(error);
 
     if (membership.role !== MemberRole.ADMIN) {
         return createErrorResponse(
@@ -124,26 +140,28 @@ export async function deleteRoom(roomId: string): ServerActionResponse<void> {
     }
 
     const session = await mongoose.startSession();
-    await session.withTransaction(async () => {
-        // Delete all memberships related to the room
-        await Membership.deleteMany({ room: roomId }, { session });
+    await handleDatabaseAction(
+        session.withTransaction(async () => {
+            // Delete all memberships related to the room
+            await Membership.deleteMany({ room: roomId }, { session });
 
-        // Delete all invoices related to the room
-        await Invoice.deleteMany({ roomId: roomId }, { session });
+            // Delete all invoices related to the room
+            await Invoice.deleteMany({ roomId: roomId }, { session });
 
-        // Delete all month presences related to the room
-        await MonthPresence.deleteMany({ roomId: roomId }, { session });
+            // Delete all month presences related to the room
+            await MonthPresence.deleteMany({ roomId: roomId }, { session });
 
-        // Remove the room from all users' roomsJoined
-        await UserData.updateMany(
-            { roomsJoined: roomId },
-            { $pull: { roomsJoined: roomId } },
-            { session, runValidators: true }
-        );
+            // Remove the room from all users' roomsJoined
+            await UserData.updateMany(
+                { roomsJoined: roomId },
+                { $pull: { roomsJoined: roomId } },
+                { session, runValidators: true }
+            );
 
-        // Finally, delete the room
-        await Room.findByIdAndDelete(roomId, { session });
-    });
+            // Finally, delete the room
+            await Room.findByIdAndDelete(roomId, { session });
+        })
+    );
 
     return createSuccessResponse(void 0);
 }
@@ -151,7 +169,8 @@ export async function deleteRoom(roomId: string): ServerActionResponse<void> {
 export async function leaveRoom(roomId: string): ServerActionResponse<void> {
     const user = await authenticate();
 
-    const membership = await verifyMembership(user.uid, roomId);
+    const [membership, error] = await verifyMembership(user.uid, roomId);
+    if (error) return createErrorResponse(error);
 
     if (membership.role === "admin") {
         return createErrorResponse(
@@ -174,37 +193,39 @@ export async function leaveRoom(roomId: string): ServerActionResponse<void> {
     }
 
     const session = await mongoose.startSession();
-    await session.withTransaction(async () => {
-        // Remove membership
-        await Membership.deleteOne(
-            { room: roomId, user: user.uid },
-            { session }
-        );
+    await handleDatabaseAction(
+        session.withTransaction(async () => {
+            // Remove membership
+            await Membership.deleteOne(
+                { room: roomId, user: user.uid },
+                { session }
+            );
 
-        // Remove user's presence records in the room
-        await MonthPresence.deleteMany(
-            { roomId: roomId, userId: user.uid },
-            { session }
-        );
+            // Remove user's presence records in the room
+            await MonthPresence.deleteMany(
+                { roomId: roomId, userId: user.uid },
+                { session }
+            );
 
-        // Remove the user from the room's members
-        await Room.findByIdAndUpdate(
-            roomId,
-            {
-                $pull: { members: user.uid },
-            },
-            { session, runValidators: true }
-        );
+            // Remove the user from the room's members
+            await Room.findByIdAndUpdate(
+                roomId,
+                {
+                    $pull: { members: user.uid },
+                },
+                { session, runValidators: true }
+            );
 
-        // Remove the room from user's roomsJoined
-        await UserData.findByIdAndUpdate(
-            user.uid,
-            {
-                $pull: { roomsJoined: roomId },
-            },
-            { session, runValidators: true }
-        );
-    });
+            // Remove the room from user's roomsJoined
+            await UserData.findByIdAndUpdate(
+                user.uid,
+                {
+                    $pull: { roomsJoined: roomId },
+                },
+                { session, runValidators: true }
+            );
+        })
+    );
     return createSuccessResponse(void 0);
 }
 
@@ -309,7 +330,9 @@ export async function kickMember(
         );
     }
 
-    const membership = await verifyMembership(user.uid, roomId);
+    const [membership, error] = await verifyMembership(user.uid, roomId);
+    if (error) return createErrorResponse(error);
+
     const membershipToRemove = await Membership.findOne({
         room: roomId,
         user: memberId,
@@ -333,53 +356,99 @@ export async function kickMember(
     }
 
     const session = await mongoose.startSession();
-    await session.withTransaction(async () => {
-        // Remove membership
-        await Membership.deleteOne(
-            { room: roomId, user: memberId },
-            { session }
-        );
 
-        // Remove user's presence records in the room
-        await MonthPresence.deleteMany(
-            { roomId: roomId, userId: memberId },
-            { session }
-        );
+    await handleDatabaseAction(
+        session.withTransaction(async () => {
+            // Remove membership
+            await Membership.deleteOne(
+                { room: roomId, user: memberId },
+                { session }
+            );
 
-        // Remove the user from the room's members
-        await Room.findByIdAndUpdate(
-            roomId,
-            {
-                $pull: { members: memberId },
-            },
-            { session, runValidators: true }
-        );
+            // Remove user's presence records in the room
+            await MonthPresence.deleteMany(
+                { roomId: roomId, userId: memberId },
+                { session }
+            );
 
-        // Remove the room from user's roomsJoined
-        await UserData.findByIdAndUpdate(
-            memberId,
-            {
-                $pull: { roomsJoined: roomId },
-            },
-            { session, runValidators: true }
-        );
-
-        // Remove user from all pending invoices
-        await Invoice.updateMany(
-            { applyTo: memberId, roomId: roomId, status: "pending" },
-            {
-                $pull: {
-                    applyTo: memberId,
+            // Remove the user from the room's members
+            await Room.findByIdAndUpdate(
+                roomId,
+                {
+                    $pull: { members: memberId },
                 },
-            },
-            {
-                session,
-                runValidators: true,
-            }
-        );
-    });
+                { session, runValidators: true }
+            );
+
+            // Remove the room from user's roomsJoined
+            await UserData.findByIdAndUpdate(
+                memberId,
+                {
+                    $pull: { roomsJoined: roomId },
+                },
+                { session, runValidators: true }
+            );
+
+            // Remove user from all pending invoices
+            await Invoice.updateMany(
+                { applyTo: memberId, roomId: roomId, status: "pending" },
+                {
+                    $pull: {
+                        applyTo: memberId,
+                    },
+                },
+                {
+                    session,
+                    runValidators: true,
+                }
+            );
+        })
+    );
+
     sendNotificationToKickedMember(memberId, roomId);
     return createSuccessResponse(void 0);
 }
 
-export async function updateRoomData() {}
+interface UpdateRoomFormData {
+    name: string;
+    maxMembers: number;
+    isPrivate: boolean;
+}
+
+export async function updateRoomData(
+    roomId: string,
+    data: UpdateRoomFormData
+): ServerActionResponse<void> {
+    const user = await authenticate();
+
+    const [membership, membershipError] = await verifyMembership(
+        user.uid,
+        roomId
+    );
+
+    if (membershipError) return createErrorResponse(membershipError);
+
+    const [_, permissionError] = verifyRoomPermission(membership, [
+        MemberRole.ADMIN,
+        MemberRole.MODERATOR,
+    ]);
+
+    if (permissionError) return createErrorResponse(permissionError);
+
+    if (!membership) {
+        return createErrorResponse(
+            "Bạn không có quyền sửa thông tin phòng",
+            ErrorCode.FORBIDDEN
+        );
+    }
+
+    const room = await Room.findById(roomId);
+    if (!room) {
+        return createErrorResponse("Phòng không tồn tại", ErrorCode.NOT_FOUND);
+    }
+
+    Object.assign(room, data);
+    await handleDatabaseAction(room.save());
+
+    return createSuccessResponse(void 0);
+}
