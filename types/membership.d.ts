@@ -10,6 +10,8 @@ export interface IMembership {
     role: MemberRole;
 }
 
+export interface MembershipDocument extends IMembership, Document {}
+
 export interface IClientMembership {
     joinedAt: Date;
     role: MemberRole;

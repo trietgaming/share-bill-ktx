@@ -1,5 +1,5 @@
 import { Membership } from "@/models/Membership";
-import { IMembership } from "@/types/membership";
+import { IMembership, MembershipDocument } from "@/types/membership";
 import { ErrorCode } from "@/enums/error";
 import { MemberRole } from "@/enums/member-role";
 import { PrecheckResponse, PrecheckSyncResponse } from "@/types/actions";
@@ -7,7 +7,7 @@ import { PrecheckResponse, PrecheckSyncResponse } from "@/types/actions";
 export async function verifyMembership(
     userId: string,
     roomId: string
-): PrecheckResponse<IMembership> {
+): PrecheckResponse<MembershipDocument> {
     const membership = await Membership.findOne({ user: userId, room: roomId });
     if (!membership) {
         return [

@@ -30,7 +30,7 @@ import { sendNotificationToKickedMember } from "../messages/room";
 export async function createNewRoom(data: {
     name: string;
     maxMembers: number;
-    isPrivate: boolean
+    isPrivate: boolean;
 }): ServerActionResponse<string> {
     const user = await authenticate();
 
@@ -42,7 +42,7 @@ export async function createNewRoom(data: {
                 name: data.name,
                 maxMembers: data.maxMembers,
                 members: [user.uid],
-                isPrivate: data.isPrivate
+                isPrivate: data.isPrivate,
             });
 
             await newRoom.save({ session });
@@ -451,6 +451,45 @@ export async function updateRoomData(
 
     Object.assign(room, data);
     await handleDatabaseAction(room.save());
+
+    return createSuccessResponse(void 0);
+}
+
+export async function updateUserRole(
+    roomId: string,
+    memberId: string,
+    targetRole: MemberRole
+): ServerActionResponse<void> {
+    if (
+        targetRole !== MemberRole.MODERATOR &&
+        targetRole !== MemberRole.MEMBER
+    ) {
+        return createErrorResponse(
+            "Bạn không có quyền thay đổi vai trò này",
+            ErrorCode.FORBIDDEN
+        );
+    }
+
+    const user = await authenticate();
+
+    const [membership, membershipError] = await verifyMembership(
+        user.uid,
+        roomId
+    );
+    if (membershipError) return createErrorResponse(membershipError);
+
+    const [targetMembership, targetMembershipError] = await verifyMembership(memberId, roomId);
+    if (targetMembershipError)
+        return createErrorResponse(targetMembershipError);
+
+    const [, permissionError] = verifyRoomPermission(membership, [
+        MemberRole.ADMIN,
+    ]);
+
+    if (permissionError) return createErrorResponse(permissionError);
+
+    targetMembership.role = targetRole;
+    await handleDatabaseAction(targetMembership.save());    
 
     return createSuccessResponse(void 0);
 }

@@ -254,13 +254,10 @@ export function RoomSidebar({ onClose, isSidebarOpen }: RoomSidebarProps) {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-2 lg:space-y-3">
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-start bg-transparent text-sm"
-                                        >
+                                        <SidebarTabTrigger value="manage-permissions">
                                             <Shield className="h-4 w-4 mr-2" />
-                                            Quản lý quyền
-                                        </Button>
+                                            Quản lý Quyền
+                                        </SidebarTabTrigger>
                                         {/* <Button variant="outline" className="w-full justify-start bg-transparent text-sm">
                       <Settings className="h-4 w-4 mr-2" />
                       Cài đặt hệ thống

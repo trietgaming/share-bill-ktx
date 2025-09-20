@@ -7,11 +7,19 @@ import { firebaseClientAuth } from "@/lib/firebase/client";
 import { setAuthCookie } from "@/lib/firebase/server";
 import type { IUserDataWithBankAccounts } from "@/types/user-data";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useLayoutEffect, useState } from "react";
+import {
+    createContext,
+    useContext,
+    useEffect,
+    useLayoutEffect,
+    useState,
+} from "react";
 
 interface AuthContextType {
     userData: IUserDataWithBankAccounts | null;
-    setUserData: React.Dispatch<React.SetStateAction<IUserDataWithBankAccounts | null>>
+    setUserData: React.Dispatch<
+        React.SetStateAction<IUserDataWithBankAccounts | null>
+    >;
 }
 
 interface AuthProviderProps {
@@ -21,11 +29,16 @@ interface AuthProviderProps {
 
 const AuthContext = createContext<AuthContextType>({
     userData: null,
-    setUserData: () => { },
+    setUserData: () => {},
 });
 
-export const AuthProvider = ({ children, initialUserData }: AuthProviderProps) => {
-    const [userData, setUserData] = useState<IUserDataWithBankAccounts | null>(initialUserData);
+export const AuthProvider = ({
+    children,
+    initialUserData,
+}: AuthProviderProps) => {
+    const [userData, setUserData] = useState<IUserDataWithBankAccounts | null>(
+        initialUserData
+    );
     const pathname = usePathname();
     const router = useRouter();
 
@@ -33,19 +46,23 @@ export const AuthProvider = ({ children, initialUserData }: AuthProviderProps) =
     const isLoginRoute = pathname === LOGIN_PATH;
 
     useEffect(() => {
-        const unsubscribeAuthStateChanged = firebaseClientAuth.onAuthStateChanged(
-            async (authUser) => {
+        const unsubscribeAuthStateChanged =
+            firebaseClientAuth.onAuthStateChanged(async (authUser) => {
                 if (!authUser) {
                     setUserData(null);
                     return;
                 }
                 if (authUser?.uid !== userData?._id) {
-                    const newUserData = await handleAction(getAuthenticatedUserData(await authUser?.getIdToken()));
-                    console.log("Auth state changed, new user data:", newUserData)
-                    setUserData(newUserData);
+                    const newUserData = await getAuthenticatedUserData(
+                        await authUser?.getIdToken()
+                    );
+                    console.log(
+                        "Auth state changed, new user data:",
+                        newUserData
+                    );
+                    setUserData(newUserData.data);
                 }
-            }
-        );
+            });
 
         const unsubscribeIdTokenChanged = firebaseClientAuth.onIdTokenChanged(
             (authUser) => {
@@ -53,7 +70,8 @@ export const AuthProvider = ({ children, initialUserData }: AuthProviderProps) =
                 authUser?.getIdToken().then((idToken) => {
                     setAuthCookie(idToken);
                 });
-            })
+            }
+        );
 
         return () => {
             unsubscribeAuthStateChanged();
@@ -68,16 +86,20 @@ export const AuthProvider = ({ children, initialUserData }: AuthProviderProps) =
         }
 
         if (isLoginRoute && userData) {
-            const searchCb = new URLSearchParams(window.location.search).get("cb");
+            const searchCb = new URLSearchParams(window.location.search).get(
+                "cb"
+            );
 
-            if (searchCb && searchCb.startsWith("/") && !searchCb.startsWith("//")) {
+            if (
+                searchCb &&
+                searchCb.startsWith("/") &&
+                !searchCb.startsWith("//")
+            ) {
                 router.replace(searchCb);
-            }
-            else {
-                router.replace("/")
+            } else {
+                router.replace("/");
             }
         }
-
     }, [userData]);
 
     return (

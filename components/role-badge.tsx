@@ -1,11 +1,11 @@
-import { MemberRole } from "@/enums/member-role";
+import { MemberRole, RoleLabelMap } from "@/enums/member-role";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const roleRenderMap: Record<MemberRole, { label: string; color: string }> = {
-    [MemberRole.ADMIN]: { label: "Quản trị viên", color: "bg-red-700" },
-    [MemberRole.MODERATOR]: { label: "Người điều hành", color: "bg-blue-700" },
-    [MemberRole.MEMBER]: { label: "Thành viên", color: "bg-gray-700" },
+    [MemberRole.ADMIN]: { label: RoleLabelMap[MemberRole.ADMIN], color: "bg-red-700" },
+    [MemberRole.MODERATOR]: { label: RoleLabelMap[MemberRole.MODERATOR], color: "bg-blue-700" },
+    [MemberRole.MEMBER]: { label: RoleLabelMap[MemberRole.MEMBER], color: "bg-gray-700" },
 };
 
 export function RoleBadge({
