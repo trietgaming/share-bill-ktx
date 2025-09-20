@@ -1,3 +1,4 @@
+import { MemberRole } from "@/enums/member-role";
 import { IRoom, IRoomDocument } from "@/types/room";
 import { Document, ObjectId } from "mongoose";
 
@@ -6,10 +7,10 @@ export interface IMembership {
     user: string;
     room: string;
     joinedAt: Date;
-    role: 'admin' | 'member' | 'moderator';
+    role: MemberRole;
 }
 
 export interface IClientMembership {
     joinedAt: Date;
-    role: 'admin' | 'member' | 'moderator';
+    role: MemberRole;
 }

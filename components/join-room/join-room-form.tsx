@@ -31,9 +31,10 @@ export default function JoinRoomForm() {
 
             if (isJoinSuccessfully) router.push(`/room/${values.roomId}`);
             else toast.error("Không thể tham gia phòng. Vui lòng thử lại sau");
-        } catch (err) {
-            // TODO: Handle errors
-            toast.error("Đã có lỗi xảy ra khi tham gia phòng. Vui lòng thử lại sau")
+        } catch (err: any) {
+            toast.error("Đã có lỗi xảy ra khi tham gia phòng", {
+                description: err?.message
+            })
         }
     }
 

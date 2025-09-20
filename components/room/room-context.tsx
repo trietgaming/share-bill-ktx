@@ -11,6 +11,7 @@ import { IMonthPresence } from "@/types/month-presence";
 import { toYYYYMM } from "@/lib/utils";
 import { InvoicesProvider } from "./invoices-context";
 import { handleAction } from "@/lib/action-handler";
+import { presenceQueryKey, roommatesQueryKey, roomQueryKey } from "@/lib/query-client";
 
 interface RoomProviderProps {
     children: any;
@@ -31,14 +32,14 @@ export const RoomProvider = ({ children, initialRoom }: RoomProviderProps) => {
     const { userData } = useAuth();
 
     const roomQuery = useQuery<IRoom>({
-        queryKey: ["room", initialRoom._id],
+        queryKey: roomQueryKey(initialRoom._id),
         queryFn: () => handleAction(getRoomById(initialRoom._id)),
         initialData: initialRoom,
         staleTime: 1000 * 60 * 60, // 1 hour
     });
 
     const roommatesQuery = useQuery<Roommate[]>({
-        queryKey: ["roommates", initialRoom._id],
+        queryKey: roommatesQueryKey(initialRoom._id),
         queryFn: () => handleAction(getRoommates(initialRoom._id)),
         staleTime: 1000 * 60 * 60, // 1 hour
     });
@@ -48,7 +49,7 @@ export const RoomProvider = ({ children, initialRoom }: RoomProviderProps) => {
         if (month instanceof Date) month = toYYYYMM(month);
 
         return useQuery<IMonthPresence[]>({
-            queryKey: ["presence", initialRoom._id, month],
+            queryKey: presenceQueryKey(initialRoom._id, month),
             queryFn: () => handleAction(getRoomMonthPresence(initialRoom._id, month)),
             staleTime: 1000 * 60 * 60, // 1 hour
         });

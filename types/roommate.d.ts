@@ -1,3 +1,4 @@
+import { MemberRole } from "@/enums/member-role";
 import { IClientBankAccount } from "./bank-account";
 
 export interface Roommate {
@@ -6,6 +7,6 @@ export interface Roommate {
     email: string;
     photoUrl?: string;
     joinedAt: Date;
-    role: 'admin' | 'member' | 'moderator';
+    role: MemberRole;
     bankAccounts: IClientBankAccount[];
 }

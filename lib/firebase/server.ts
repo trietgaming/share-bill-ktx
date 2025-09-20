@@ -8,7 +8,6 @@ import { AppError } from "../errors";
 async function getAuthUserFromIdToken(idToken?: string | null) {
     if (!idToken) return null;
 
-
     const firebaseServerApp = initializeServerApp(
         initializeApp(firebaseConfig),
         {
@@ -36,7 +35,9 @@ export async function getAuthenticatedUser(_idToken?: string | null) {
         const refreshToken = requestCookies.get("__refreshToken")?.value;
 
         if (refreshToken) {
-            const newIdToken = await exchangeRefreshTokenForIdToken(refreshToken);
+            const newIdToken = await exchangeRefreshTokenForIdToken(
+                refreshToken
+            );
 
             user = await getAuthUserFromIdToken(newIdToken);
         }
@@ -46,32 +47,35 @@ export async function getAuthenticatedUser(_idToken?: string | null) {
 }
 
 interface RefreshTokenResponse {
-    expires_in: string
-    token_type: "Bearer"
-    refresh_token: string
-    id_token: string
-    user_id: string
-    project_id: string
+    expires_in: string;
+    token_type: "Bearer";
+    refresh_token: string;
+    id_token: string;
+    user_id: string;
+    project_id: string;
 }
 
 async function exchangeRefreshTokenForIdToken(refreshToken: string) {
     const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-    if (!apiKey) throw new AppError("FIREBASE_API_KEY is not set");
+    if (!apiKey) throw new Error("FIREBASE_API_KEY is not set");
 
-    const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${apiKey}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-            grant_type: "refresh_token",
-            refresh_token: refreshToken,
-        }).toString(),
-    });
+    const response = await fetch(
+        `https://securetoken.googleapis.com/v1/token?key=${apiKey}`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+                grant_type: "refresh_token",
+                refresh_token: refreshToken,
+            }).toString(),
+        }
+    );
 
-    if (!response.ok) throw new AppError("Failed to exchange refresh token");
+    if (!response.ok) throw new Error("Failed to exchange refresh token");
 
-    const data = await response.json() as RefreshTokenResponse;
+    const data = (await response.json()) as RefreshTokenResponse;
 
     return data.id_token;
 }
@@ -84,20 +88,25 @@ export async function setAuthRefreshTokenCookie(refreshToken?: string | null) {
         return setAuthCookie(null);
     }
 
-    // Verify if the refresh token is valid by exchanging it for an ID token
-    const idToken = await exchangeRefreshTokenForIdToken(refreshToken);
+    try {
+        // Verify if the refresh token is valid by exchanging it for an ID token
+        const idToken = await exchangeRefreshTokenForIdToken(refreshToken);
 
-    requestCookies.set("__refreshToken", refreshToken, {
-        sameSite: "strict",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-    });
+        requestCookies.set("__refreshToken", refreshToken, {
+            sameSite: "strict",
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+        });
 
-    await setAuthCookie(idToken);
+        await setAuthCookie(idToken);
+    } catch (error) {
+        requestCookies.delete("__refreshToken");
+        return setAuthCookie(null);
+    }
 }
 
 /**
- * This will not check if the ID token is valid or not. 
+ * This will not check if the ID token is valid or not.
  */
 export async function setAuthCookie(authIdToken?: string | null) {
     const requestCookies = await cookies();
@@ -111,6 +120,6 @@ export async function setAuthCookie(authIdToken?: string | null) {
         sameSite: "strict",
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        maxAge: 60 * 60 // 1 hour
+        maxAge: 60 * 60, // 1 hour
     });
 }

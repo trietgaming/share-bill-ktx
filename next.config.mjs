@@ -18,7 +18,7 @@ const nextConfig = {
           swSrc: './firebase-messaging-sw.ts',
           swDest: '../public/firebase-messaging-sw.js',
           exclude: [/\.map$/, /manifest$/, /\.htaccess$/],
-          // maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10mb
+          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10mb
         })
       );
     }

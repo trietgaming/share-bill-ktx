@@ -26,7 +26,7 @@ import { useMutation } from "@tanstack/react-query"
 import { useEffect } from "react"
 import { IInvoice } from "@/types/invoice";
 import { toast } from "sonner";
-import { queryClient } from "@/lib/query-client";
+import { invoicesQueryKey, queryClient } from "@/lib/query-client";
 import { RoommateItem } from "./roomate-item";
 import { handleAction } from "@/lib/action-handler";
 import { ServerActionError } from "@/lib/errors";
@@ -101,7 +101,7 @@ export function CreateMonthInvoiceForm({ onSuccess, invoiceType }: CreateOtherIn
     const { mutateAsync } = useMutation({
         mutationFn: async (values: CreateInvoiceFormData) => {
             const invoice = await handleAction(createNewInvoice(values));
-            queryClient.invalidateQueries({ queryKey: ['invoices', room._id] });
+            queryClient.invalidateQueries({ queryKey: invoicesQueryKey(room._id) });
             return invoice;
         },
         onSuccess: (data) => {

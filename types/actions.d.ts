@@ -1,7 +1,6 @@
 import { ErrorCode } from "@/enums/error";
 
 export interface ActionError {
-    isActionError: true;
     message: string;
     code: ErrorCode;
 }

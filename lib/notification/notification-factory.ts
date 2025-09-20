@@ -8,7 +8,7 @@ import { createDeleteInvoiceNotification } from "./factories/delete-invoice";
 
 export type NotificationFactory<D extends NotificationData> = (data: D) => NotificationBlueprint<D>;
 
-const factoryMap: Record<NotificationType, NotificationFactory<NotificationData>> = {
+const factoryMap: Partial<Record<NotificationType, NotificationFactory<any>>> = {
     [NotificationType.NEW_INVOICE]: createNewInvoiceNotification,
     [NotificationType.DELETE_INVOICE]: createDeleteInvoiceNotification,
 };

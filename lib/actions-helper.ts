@@ -7,7 +7,6 @@ export function responseWithError(message: string, code: ErrorCode, status: numb
         success: false,
         data: null,
         error: {
-            isActionError: true,
             message,
             code
         }
@@ -19,7 +18,6 @@ export function createErrorResponse(message: string, code: ErrorCode): ErrorServ
         success: false,
         data: null,
         error: {
-            isActionError: true,
             message,
             code
         }

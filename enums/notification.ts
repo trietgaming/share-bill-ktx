@@ -7,6 +7,7 @@ export const enum NotificationType {
     PAYMENT_REMINDER = 'payment_reminder',
     ROOM_MEMBER_JOINED = 'room_member_joined',
     ROOM_MEMBER_LEFT = 'room_member_left',
+    KICKED_FROM_ROOM = 'kicked_from_room',
 }
 
 export const enum NotificationClickAction {

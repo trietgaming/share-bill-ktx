@@ -47,8 +47,8 @@ export function ProfilePhotoUpload({ className }: ProfilePhotoUploadProps) {
       setUserData((prev) => ({ ...prev, photoURL }) as IUserDataWithBankAccounts)
     },
     onError: (error: any) => {
-      toast.error("Lỗi", {
-        description: "Đã có lỗi xảy ra khi tải ảnh lên"
+      toast.error("Đã có lỗi xảy ra khi tải ảnh lên", {
+        description: error?.message
       })
     },
     onSuccess: () => {

@@ -2,6 +2,8 @@ import "server-only";
 import mongoose, { Schema } from "mongoose";
 import type { IUserData } from "@/types/user-data";
 
+export const MAX_FCM_TOKENS = 5;
+
 export const userDataSchema = new Schema<IUserData>({
     _id: {
         type: String,
@@ -60,9 +62,9 @@ export const userDataSchema = new Schema<IUserData>({
         type: [String],
         validate: {
             validator: function (v: string[]) {
-                return v.length <= 5;
+                return v.length <= MAX_FCM_TOKENS;
             },
-            message: 'Cannot have more than 5 FCM tokens'
+            message: `Cannot have more than ${MAX_FCM_TOKENS} FCM tokens`
         }
     }
 }, {

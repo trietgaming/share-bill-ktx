@@ -15,7 +15,7 @@ export function BankAccountList() {
     const [editingAccount, setEditingAccount] = useState<IClientBankAccount | undefined>()
 
     const handleAddAccount = () => {
-        setEditingAccount(undefined)
+        setEditingAccount(void 0)
         setDialogOpen(true)
     }
 

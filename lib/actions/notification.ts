@@ -1,9 +1,10 @@
 "use server";
 
 import { ServerActionResponse } from "@/types/actions";
-import { authenticate } from "../prechecks/auth";
-import { getUserData } from "../user-data";
+import { authenticate } from "@/lib/prechecks/auth";
+import { getUserData } from "@/lib/user-data";
 import { createSuccessResponse } from "@/lib/actions-helper";
+import { MAX_FCM_TOKENS } from "@/models/UserData";
 
 export async function subscribeToNotification(fcmToken: string): ServerActionResponse<void> {
     const user = await authenticate();
@@ -12,6 +13,9 @@ export async function subscribeToNotification(fcmToken: string): ServerActionRes
         return createSuccessResponse(void 0);
     }
 
+    if (userData.fcmTokens.length >= MAX_FCM_TOKENS) {
+        userData.fcmTokens.shift();
+    }
     userData.fcmTokens.push(fcmToken);
     await userData.save();
     return createSuccessResponse(void 0);

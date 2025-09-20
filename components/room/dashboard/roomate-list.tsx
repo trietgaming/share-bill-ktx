@@ -4,6 +4,7 @@ import { useRoommatesQuery } from "@/components/room/room-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth-context";
+import { RoleBadge } from "@/components/role-badge";
 
 function RoommateListSkeleton() {
     return (
@@ -35,7 +36,9 @@ export default function RoomateList() {
     }
 
     if (error) {
-        toast.error("Đã có lỗi xảy ra khi tải danh sách bạn cùng phòng.");
+        toast.error("Đã có lỗi xảy ra khi tải danh sách bạn cùng phòng.", {
+            description: error?.message,
+        });
         return <div className="text-red-500">Đã có lỗi xảy ra khi tải danh sách bạn cùng phòng.</div>
     }
 
@@ -60,7 +63,8 @@ export default function RoomateList() {
                                     Bạn
                                 </Badge>
                             )}
-                            {roommate.role === "admin" && (
+                            <RoleBadge role={roommate.role} className="text-xs" />
+                            {/* {roommate.role === "admin" && (
                                 <Badge variant="default" className="text-xs">
                                     Quản trị viên
                                 </Badge>
@@ -69,7 +73,7 @@ export default function RoomateList() {
                                 <Badge variant="secondary" className="text-xs">
                                     Người điều hành
                                 </Badge>
-                            )}
+                            )} */}
                         </div>
                     </div>
                 </div>

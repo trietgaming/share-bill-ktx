@@ -4,7 +4,7 @@ import { UseQueryResult, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
 import { useRoomQuery, useRoommatesQuery } from "./room-context";
 import { IInvoice, PersonalInvoice } from "@/types/invoice";
-import { queryClient } from "@/lib/query-client";
+import { invoicesQueryKey, presenceQueryKey, queryClient } from "@/lib/query-client";
 import { getInvoicesByRoom } from "@/lib/actions/invoice";
 import { getRoomMonthsPresence } from "@/lib/actions/month-presence";
 import { IMonthPresence } from "@/types/month-presence";
@@ -28,9 +28,9 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
 
 
     const pendingInvoicesQuery = useQuery<IInvoice[]>({
-        queryKey: ["invoices", room._id],
+        queryKey: invoicesQueryKey(room._id),
         queryFn: () => {
-            queryClient.invalidateQueries({ queryKey: ["presence", room._id] });
+            queryClient.invalidateQueries({ queryKey: presenceQueryKey(room._id) });
             return handleAction(getInvoicesByRoom(room._id))
         },
         staleTime: 1000 * 60 * 60, // 1 hour
@@ -38,7 +38,7 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
 
 
     const monthsPresenceQuery = useQuery({
-        queryKey: ["presence", room._id],
+        queryKey: presenceQueryKey(room._id),
         queryFn: async () => {
             const months = pendingInvoicesQuery.data
                 ?.filter(inv => inv.type === "walec" || inv.type === "roomCost")

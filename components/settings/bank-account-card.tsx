@@ -27,9 +27,9 @@ export function BankAccountCard({ account, onEdit }: BankAccountCardProps) {
 
   const { mutate: handleDeleteAccount } = useMutation({
     mutationFn: () => handleAction(deleteUserBankAccount(account._id)),
-    onError: () => {
-      toast.error("Lỗi", {
-        description: "Đã có lỗi xảy ra khi xoá tài khoản ngân hàng"
+    onError: (error) => {
+      toast.error("Đã có lỗi xảy ra khi xoá tài khoản ngân hàng", {
+        description: error?.message
       })
     },
     onSuccess: () => {

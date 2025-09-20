@@ -24,7 +24,7 @@ import { useMutation } from "@tanstack/react-query"
 import { useEffect, useLayoutEffect } from "react"
 import { IInvoice } from "@/types/invoice";
 import { toast } from "sonner";
-import { queryClient } from "@/lib/query-client";
+import { invoicesQueryKey, queryClient } from "@/lib/query-client";
 import { RoommateItem } from "./roomate-item";
 import { handleAction } from "@/lib/action-handler";
 
@@ -151,7 +151,7 @@ export function InvoiceForm({ onSuccess, invoice, type }: { onSuccess?: (invoice
             const updatedInvoice = isEditMode
                 ? await handleAction(updateInvoice({ invoiceId: invoice!._id, ...values }))
                 : await handleAction(createNewInvoice(values));
-            queryClient.invalidateQueries({ queryKey: ['invoices', room._id] });
+            queryClient.invalidateQueries({ queryKey: invoicesQueryKey(room._id) });
             return updatedInvoice;
         },
         onSuccess: (data) => {
@@ -162,7 +162,9 @@ export function InvoiceForm({ onSuccess, invoice, type }: { onSuccess?: (invoice
         },
         onError: (error) => {
             console.error("Failed to create invoice:", error);
-            toast.error("Đã có lỗi xảy ra khi tạo hóa đơn.");
+            toast.error("Đã có lỗi xảy ra khi tạo hóa đơn.", {
+                description: error?.message
+            });
         }
     });
 
