@@ -4,6 +4,7 @@ on:
   schedule:
   # Runs at 12:00 UTC+7 (05:00 UTC = 12:00 UTC+7)
   - cron: "0 5 * * *"
+  workflow_dispatch:
 
 jobs:
   remind_check_presence:
