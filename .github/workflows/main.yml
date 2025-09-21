@@ -1,0 +1,17 @@
+name: Daily Reminder
+
+on:
+  schedule:
+  # Runs at 12:00 UTC+7 (05:00 UTC = 12:00 UTC+7)
+  - cron: "0 5 * * *"
+
+jobs:
+  remind_check_presence:
+    name: "Remind room members to check their presence status every day"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Call app's remind API"
+        run: |
+          curl -X POST "${{ secrets.APP_ORIGIN }}/api/reminder/presence" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+    
