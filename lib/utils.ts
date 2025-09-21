@@ -63,3 +63,7 @@ export function sum(numbers: number[]): number {
   }
   return total;
 }
+
+export async function delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}

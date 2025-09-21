@@ -1,5 +1,6 @@
 import { NotificationType } from "@/enums/notification";
 import { MessagePayload, NotificationPayload } from "firebase/messaging";
+import { AndroidConfig, ApnsConfig, FcmOptions, WebpushConfig } from "firebase-admin/messaging";
 
 export interface NotificationAction {
     action: string;
@@ -24,8 +25,12 @@ export interface NotificationSendOptions<T extends NotificationData> {
          * URL of an image to be displayed in the notification.
          */
         imageUrl?: string;
-    },
-    data: T
+    };
+    data: T;
+    android?: AndroidConfig;
+    webpush?: WebpushConfig;
+    apns?: ApnsConfig;
+    fcmOptions?: FcmOptions;
 }
 
 export interface AdditionalNotificationOptions {
@@ -52,8 +57,7 @@ export interface NotificationData extends Record<string, string> {
     persistent?: "true" | "false";
 }
 
-
-/** 
+/**
  * Extends the NotificationOptions to support limited features
  */
 export interface ExtendedNotificationOptions extends NotificationOptions {
@@ -61,7 +65,8 @@ export interface ExtendedNotificationOptions extends NotificationOptions {
     renotify?: boolean;
 }
 
-export interface NotificationBlueprint<T extends NotificationData> extends ExtendedNotificationOptions {
+export interface NotificationBlueprint<T extends NotificationData>
+    extends ExtendedNotificationOptions {
     title: string;
     data: T;
 }
@@ -74,8 +79,9 @@ export interface AdditionalNotificationData {
     receivedAt: number;
 }
 
-export interface ForegroundNotification extends NotificationPayload, AdditionalNotificationData {}
-
+export interface ForegroundNotification
+    extends NotificationPayload,
+        AdditionalNotificationData {}
 
 export interface NewInvoiceNotificationData extends NotificationData {
     type: NotificationType.NEW_INVOICE;
@@ -122,4 +128,18 @@ export interface RoomDeletedNotificationData extends NotificationData {
     roomId: string;
     roomName: string;
     deleteByUserName: string;
+}
+
+export interface PresenceReminderNotificationData extends NotificationData {
+    type: NotificationType.PRESENCE_REMINDER;
+    roomId: string;
+    roomName: string;
+    /**
+     * Month in the format of YYYY-MM
+     */
+    month: string;
+    /**
+     * 0-based day of the month
+     */
+    day: string;
 }

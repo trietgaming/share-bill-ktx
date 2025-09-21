@@ -1,4 +1,5 @@
 import { ErrorCode } from "@/enums/error";
+import { IMonthPresence } from "./month-presence";
 
 export interface ActionError {
     message: string;
@@ -25,3 +26,16 @@ export type ErrorPrecheckResult = [data: null, error: ActionError]
 
 export type PrecheckResponse<T> = Promise<SuccessPrecheckResult<T> | ErrorPrecheckResult>;
 export type PrecheckSyncResponse<T> = SuccessPrecheckResult<T> | ErrorPrecheckResult;
+
+export interface MarkPresenceBody {
+    /**
+     * Month in the format of YYYY-MM
+     */
+    month: string;
+    /**
+     * 0-based day of the month
+     */
+    day: number;
+    status: IMonthPresence["presence"][0];
+    roomId: string;
+}

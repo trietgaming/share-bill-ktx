@@ -67,6 +67,10 @@ export async function notify<T extends NotificationData>(
                     data: sendOptions.data as unknown as {
                         [key: string]: string;
                     },
+                    android: sendOptions.android,
+                    apns: sendOptions.apns,
+                    webpush: sendOptions.webpush,
+                    fcmOptions: sendOptions.fcmOptions,
                 })
                 .catch((error) =>
                     onError
@@ -88,5 +92,9 @@ export async function notifyTopic<T extends NotificationData = any>(
         topic,
         notification: sendOptions.notification,
         data: sendOptions.data as unknown as { [key: string]: string },
+        android: sendOptions.android,
+        apns: sendOptions.apns,
+        webpush: sendOptions.webpush,
+        fcmOptions: sendOptions.fcmOptions,
     });
 }
