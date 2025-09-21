@@ -1,24 +1,89 @@
 "use server";
-import { getAuth, User } from "firebase/auth";
-import { initializeApp, initializeServerApp } from "firebase/app";
-import { firebaseConfig } from "./config";
 import { cookies } from "next/headers";
-import { AppError } from "../errors";
+import * as jose from "jose";
+import { DecodedIdToken } from "@/types/auth";
+import { LRUCache } from 'lru-cache'
 
-async function getAuthUserFromIdToken(idToken?: string | null) {
+// Better use Redis or Memcached for production
+const publicKeyMap = new LRUCache<string, jose.CryptoKey>({
+    max: 5,
+    ttl: 1000 * 60 * 60 // 1 hour
+});
+const idTokenCache = new LRUCache<string, DecodedIdToken>({
+    max: 1000,
+    ttl: 1000 * 60 * 15 // 15 minutes
+});
+
+const sessionPublicKeyResolver: jose.JWTVerifyGetKey = async (
+    protectedHeader
+) => {
+    const { kid, alg } = protectedHeader;
+    if (!kid || !alg) {
+        throw new Error("Invalid token");
+    }
+
+    if (!publicKeyMap.has(kid)) {
+        const publicKeys = await fetch(
+            "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
+        ).then((response) => response.json());
+
+        const publicKey = publicKeys[kid];
+
+        if (!publicKey) {
+            throw new Error("Invalid token");
+        }
+
+        publicKeyMap.set(kid, await jose.importX509(publicKey, alg));
+    }
+
+    return publicKeyMap.get(kid)!;
+};
+
+async function getAuthUserFromIdToken(
+    idToken?: string | null
+): Promise<DecodedIdToken | null> {
     if (!idToken) return null;
 
-    const firebaseServerApp = initializeServerApp(
-        initializeApp(firebaseConfig),
-        {
-            authIdToken: idToken,
+    const now = Date.now() / 1000;
+    const cachedToken = idTokenCache.get(idToken);
+    if (cachedToken && cachedToken.exp > now) {
+        return cachedToken;
+    }
+
+    idTokenCache.delete(idToken);
+
+    try {
+        const verifiedToken = await jose.jwtVerify(
+            idToken,
+            sessionPublicKeyResolver,
+            {
+                issuer: `https://securetoken.google.com/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`,
+                audience: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+            }
+        );
+
+        const payload = verifiedToken.payload as DecodedIdToken;
+        // For compatibility (The id token itself does not have 'uid' field)
+        payload.uid = payload.user_id;
+
+        if (
+            // Not matching sub and uid
+            payload.sub !== payload.user_id ||
+            // Expired
+            payload.exp <= now ||
+            // Issued in the future
+            payload.iat >= now ||
+            // Auth time in the future
+            payload.auth_time >= now
+        ) {
+            return null;
         }
-    );
 
-    const auth = getAuth(firebaseServerApp);
-    await auth.authStateReady();
-
-    return auth.currentUser;
+        idTokenCache.set(idToken, payload);
+        return payload;
+    } catch (error) {
+        return null;
+    }
 }
 
 /**
@@ -43,7 +108,7 @@ export async function getAuthenticatedUser(_idToken?: string | null) {
         }
     }
 
-    return user as User;
+    return user;
 }
 
 interface RefreshTokenResponse {
@@ -92,7 +157,7 @@ export async function setAuthRefreshTokenCookie(refreshToken?: string | null) {
         // Verify if the refresh token is valid by exchanging it for an ID token
         const idToken = await exchangeRefreshTokenForIdToken(refreshToken);
 
-        requestCookies.set("__refreshToken", refreshToken, {
+        await requestCookies.set("__refreshToken", refreshToken, {
             sameSite: "strict",
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",

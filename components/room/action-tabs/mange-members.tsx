@@ -27,6 +27,7 @@ import { useState } from "react";
 import { kickMember } from "@/lib/actions/room";
 import { handleAction } from "@/lib/action-handler";
 import {
+    invalidateAllRoomQuery,
     invoicesQueryKey,
     presenceQueryKey,
     queryClient,
@@ -58,18 +59,8 @@ export function ManageMembersTab() {
         try {
             await handleAction(kickMember(room._id, member.userId));
 
-            queryClient.invalidateQueries({
-                queryKey: roommatesQueryKey(room._id),
-            });
-            queryClient.invalidateQueries({
-                queryKey: invoicesQueryKey(room._id),
-            });
-            queryClient.invalidateQueries({
-                queryKey: presenceQueryKey(room._id),
-            });
-            queryClient.invalidateQueries({
-                queryKey: presenceQueryKey(room._id, toYYYYMM(new Date())),
-            });
+            invalidateAllRoomQuery(room._id);
+
             toast.success("Đã xóa thành viên khỏi phòng");
         } catch (error) {
             toast.error("Đã có lỗi xảy ra khi xóa thành viên", {

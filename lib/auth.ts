@@ -16,5 +16,5 @@ export async function logOut() {
     await firebaseClientAuth.signOut();
     await setAuthRefreshTokenCookie(null);
     await deleteToken(firebaseMessaging);
-    queryClient.invalidateQueries();
+    queryClient.removeQueries();
 }

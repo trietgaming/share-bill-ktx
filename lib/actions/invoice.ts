@@ -8,7 +8,8 @@ import { verifyMembership, verifyRoomPermission } from "@/lib/prechecks/room";
 import {
     sendDeleteInvoiceNotification,
     sendNewInvoiceNotification,
-} from "@/lib/messages/room";
+    sendUpdateInvoiceNotification,
+} from "@/lib/messages/invoice";
 import { createErrorResponse, createSuccessResponse } from "../actions-helper";
 import { ErrorCode } from "@/enums/error";
 import { ServerActionResponse } from "@/types/actions";
@@ -67,6 +68,7 @@ export async function updateInvoice(
     Object.assign(invoice, data);
     await invoice.save();
 
+    sendUpdateInvoiceNotification(invoice, user.uid);
     return createSuccessResponse(serializeDocument<IInvoice>(invoice));
 }
 
@@ -138,7 +140,7 @@ export async function payInvoice(
 
     const [_, err] = await verifyMembership(user.uid, invoice.roomId);
     if (err) return createErrorResponse(err);
-    
+
     const totalAmountToPay = await calculateShare(invoice, user.uid);
     const userPayInfo = invoice.payInfo?.find((pi) => pi.paidBy === user.uid);
 

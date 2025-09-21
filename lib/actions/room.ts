@@ -5,14 +5,12 @@ import mongoose, { HydratedDocument } from "mongoose";
 import { UserData } from "@/models/UserData";
 import { Roommate } from "@/types/roommate";
 import { Membership } from "@/models/Membership";
-import { IUserData, IUserDataWithBankAccounts } from "@/types/user-data";
+import { IUserData } from "@/types/user-data";
 import { getUserData } from "@/lib/user-data";
 import { IRoom } from "@/types/room";
 import { serializeDocument } from "@/lib/serializer";
 import { authenticate } from "../prechecks/auth";
-import { IBankAccount, IClientBankAccount } from "@/types/bank-account";
 import { IMembership } from "@/types/membership";
-import { AppError } from "../errors";
 import { Invoice } from "@/models/Invoice";
 import { MonthPresence } from "@/models/MonthPresence";
 import {
@@ -25,7 +23,8 @@ import { ErrorCode } from "@/enums/error";
 import { verifyMembership, verifyRoomPermission } from "../prechecks/room";
 import { hasPermission, isRolePrecedent } from "../permission";
 import { MemberRole } from "@/enums/member-role";
-import { sendNotificationToKickedMember } from "../messages/room";
+import { sendNotificationToKickedMember, sendRoomLeftNotification, sendRoomDeletedNotification, sendRoomJoinedNotification} from "@/lib/messages/room";
+import { IClientBankAccount } from "@/types/bank-account";
 
 export async function createNewRoom(data: {
     name: string;
@@ -125,6 +124,8 @@ export async function joinRoom(
         })
     );
 
+    sendRoomJoinedNotification(roomId, user.uid);
+
     return createSuccessResponse(true);
 }
 
@@ -165,6 +166,7 @@ export async function deleteRoom(roomId: string): ServerActionResponse<void> {
         })
     );
 
+    sendRoomDeletedNotification(user.uid, roomId);
     return createSuccessResponse(void 0);
 }
 
@@ -228,6 +230,7 @@ export async function leaveRoom(roomId: string): ServerActionResponse<void> {
             );
         })
     );
+    sendRoomLeftNotification(roomId, user.uid);
     return createSuccessResponse(void 0);
 }
 
@@ -408,6 +411,7 @@ export async function kickMember(
     );
 
     sendNotificationToKickedMember(memberId, roomId);
+    sendRoomLeftNotification(roomId, memberId);
     return createSuccessResponse(void 0);
 }
 
@@ -452,6 +456,7 @@ export async function updateRoomData(
     Object.assign(room, data);
     await handleDatabaseAction(room.save());
 
+    // TODO: send notification to room members about the update
     return createSuccessResponse(void 0);
 }
 
@@ -490,6 +495,8 @@ export async function updateUserRole(
 
     targetMembership.role = targetRole;
     await handleDatabaseAction(targetMembership.save());    
+
+    // TODO: send notification to room members about the update
 
     return createSuccessResponse(void 0);
 }

@@ -90,9 +90,9 @@ export interface UpdateInvoiceNotificationData extends NotificationData {
     type: NotificationType.INVOICE_UPDATE;
     roomId: string;
     roomName: string;
+    invoiceId: string;
     invoiceName: string;
-    invoiceAmount: string;
-    updateDetail: string;
+    updateUserName: string;
 }
 
 export interface DeleteInvoiceNotificationData extends NotificationData {
@@ -101,4 +101,25 @@ export interface DeleteInvoiceNotificationData extends NotificationData {
     roomName: string;
     invoiceName: string;
     deleteUserName: string;
+}
+
+export interface MemberLeftNotificationData extends NotificationData {
+    type: NotificationType.ROOM_MEMBER_LEFT;
+    roomId: string;
+    roomName: string;
+    memberName: string;
+}
+
+export interface MemberJoinedNotificationData extends NotificationData {
+    type: NotificationType.ROOM_MEMBER_JOINED;
+    roomId: string;
+    roomName: string;
+    memberName: string;
+}
+
+export interface RoomDeletedNotificationData extends NotificationData {
+    type: NotificationType.ROOM_DELETED;
+    roomId: string;
+    roomName: string;
+    deleteByUserName: string;
 }

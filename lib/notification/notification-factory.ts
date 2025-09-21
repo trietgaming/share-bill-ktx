@@ -3,14 +3,14 @@
 import { NotificationType } from "@/enums/notification";
 import { AdditionalNotificationData, NotificationBlueprint, NotificationData } from "@/types/notification";
 import { MessagePayload } from "firebase/messaging/sw";
-import { createNewInvoiceNotification } from "./factories/new-invoice";
-import { createDeleteInvoiceNotification } from "./factories/delete-invoice";
+import { createNewInvoiceNotification, createDeleteInvoiceNotification, createUpdateInvoiceNotification } from "./factories/invoice";
 
 export type NotificationFactory<D extends NotificationData> = (data: D) => NotificationBlueprint<D>;
 
 const factoryMap: Partial<Record<NotificationType, NotificationFactory<any>>> = {
     [NotificationType.NEW_INVOICE]: createNewInvoiceNotification,
     [NotificationType.DELETE_INVOICE]: createDeleteInvoiceNotification,
+    [NotificationType.UPDATE_INVOICE]: createUpdateInvoiceNotification,
 };
 
 const fallbackNotificationOptions = {

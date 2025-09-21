@@ -10,17 +10,24 @@ export async function handleBackgroundMessage(payload: MessagePayload) {
     const [title, options, additionalData] = createNotification(payload);
 
     try {
-        const user: { uid: string } | null = await fetch("/auth").then((res) =>
-            res.json()
+        const user: { uid: string } | null = await fetch("/api/auth").then(
+            (res) => res.json()
         );
 
         if (user) {
-            await notificationDb.notifications.add({
-                title: title,
-                ...options,
-                ...additionalData,
-                userId: user.uid,
-            });
+            if (self.clients && self.clients.matchAll) {
+                const clients = await self.clients.matchAll();
+                clients.forEach((client) => {
+                    client.postMessage({ type: "FCM_MESSAGE", payload });
+                });
+            } else {
+                await notificationDb.notifications.add({
+                    title: title,
+                    ...options,
+                    ...additionalData,
+                    userId: user.uid,
+                });
+            }
         }
 
         // If the message contains a notification payload, Firebase SDK would automatically display it.

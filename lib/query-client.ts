@@ -1,7 +1,8 @@
 "use client";
 import { QueryClient } from "@tanstack/react-query";
+import { toYYYYMM } from "./utils";
 
-export const queryClient = new QueryClient()
+export const queryClient = new QueryClient();
 
 export function userRoomsQueryKey() {
     return ["user-rooms"];
@@ -21,4 +22,21 @@ export function invoicesQueryKey(roomId: string) {
 
 export function presenceQueryKey(roomId: string, month?: string) {
     return month ? ["presence", roomId, month] : ["presence", roomId];
+}
+
+export function invalidateAllRoomQuery(roomId: string) {
+    queryClient.invalidateQueries({ queryKey: roomQueryKey(roomId) });
+
+    queryClient.invalidateQueries({
+        queryKey: roommatesQueryKey(roomId),
+    });
+    queryClient.invalidateQueries({
+        queryKey: invoicesQueryKey(roomId),
+    });
+    queryClient.invalidateQueries({
+        queryKey: presenceQueryKey(roomId),
+    });
+    queryClient.invalidateQueries({
+        queryKey: presenceQueryKey(roomId, toYYYYMM(new Date())),
+    });
 }

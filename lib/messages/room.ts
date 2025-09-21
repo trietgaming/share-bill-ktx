@@ -1,76 +1,79 @@
-import {
-    DeleteInvoiceNotificationData,
-    NewInvoiceNotificationData,
-} from "@/types/notification";
-import { IRoom } from "@/types/room";
-import "server-only";
-import { notify, notifyUser } from "@/lib/notify";
 import { NotificationType } from "@/enums/notification";
-import { IInvoice } from "@/types/invoice";
 import { Room } from "@/models/Room";
 import { UserData } from "@/models/UserData";
-import { IUserData } from "@/types/user-data";
+import { notifyUser } from "@/lib/notify";
+import {
+    MemberJoinedNotificationData,
+    MemberLeftNotificationData,
+    RoomDeletedNotificationData,
+} from "@/types/notification";
 
-export async function sendNewInvoiceNotification(invoice: IInvoice) {
-    const room = (await Room.findById(invoice.roomId, [
-        "name",
-    ]).lean()) as IRoom | null;
-    if (!room) return;
-
-    const users = await UserData.find({ _id: { $in: invoice.applyTo } }, [
-        "fcmTokens",
-    ]).lean();
-
-    for (const user of users) {
-        if (!user.fcmTokens || user._id === invoice.createdBy) continue;
-        notifyUser<NewInvoiceNotificationData>(user, {
-            data: {
-                type: NotificationType.NEW_INVOICE,
-                persistent: "true",
-                invoiceId: invoice._id.toString(),
-                invoiceName: invoice.name,
-                invoiceAmount: invoice.amount.toString(),
-                roomId: invoice.roomId,
-                roomName: room.name,
-            },
-        });
-    }
-}
-
-export async function sendDeleteInvoiceNotification(
-    invoice: IInvoice,
-    deleteUserId: string
+export async function sendRoomJoinedNotification(
+    roomId: string,
+    newMemberId: string
 ) {
-    const room = (await Room.findById(invoice.roomId, [
-        "name",
-    ]).lean()) as IRoom | null;
+    const room = await Room.findById(roomId, ["name", "members"]).lean();
     if (!room) return;
 
-    const users = await UserData.find({ _id: { $in: invoice.applyTo } }, [
+    const roomMembers = await UserData.find({ _id: { $in: room.members } }, [
         "fcmTokens",
     ]).lean();
-    const deleteUser = await UserData.findById(deleteUserId, [
+    const newMember = await UserData.findById(newMemberId, [
         "displayName",
     ]).lean();
 
-    if (!deleteUser) return;
+    if (!newMember) return;
 
-    for (const user of users) {
-        if (!user.fcmTokens || user._id === deleteUserId) continue;
-        notifyUser<DeleteInvoiceNotificationData>(user, {
+    for (const member of roomMembers) {
+        if (!member.fcmTokens || member._id === newMemberId) continue;
+
+        await notifyUser<MemberJoinedNotificationData>(member, {
+            notification: {
+                title: `Thành viên ${newMember.displayName} vừa tham gia phòng ${room.name}`,
+            },
             data: {
-                type: NotificationType.DELETE_INVOICE,
+                type: NotificationType.ROOM_MEMBER_JOINED,
                 persistent: "true",
-                invoiceId: invoice._id.toString(),
-                invoiceName: invoice.name,
-                deleteUserName: deleteUser.displayName || "Một thành viên",
-                roomId: invoice.roomId,
+                roomId: roomId,
                 roomName: room.name,
+                memberName: newMember.displayName || "Thành viên",
             },
         });
     }
 }
 
+export async function sendRoomLeftNotification(
+    roomId: string,
+    leftUserId: string
+) {
+    const room = await Room.findById(roomId, ["name", "members"]).lean();
+    if (!room) return;
+
+    const roomMembers = await UserData.find({ _id: { $in: room.members } }, [
+        "fcmTokens",
+    ]).lean();
+    const leftUser = await UserData.findById(leftUserId, [
+        "displayName",
+    ]).lean();
+    if (!leftUser) return;
+
+    for (const member of roomMembers) {
+        if (!member.fcmTokens || member._id === leftUserId) continue;
+
+        await notifyUser<MemberLeftNotificationData>(member, {
+            notification: {
+                title: `Thành viên ${leftUser.displayName} đã rời khỏi phòng ${room.name}`,
+            },
+            data: {
+                type: NotificationType.ROOM_MEMBER_LEFT,
+                persistent: "true",
+                roomId: roomId,
+                roomName: room.name,
+                memberName: leftUser.displayName || "Thành viên",
+            },
+        });
+    }
+}
 export async function sendNotificationToKickedMember(
     userId: string,
     roomId: string
@@ -84,6 +87,7 @@ export async function sendNotificationToKickedMember(
     await notifyUser(user, {
         notification: {
             title: `Bạn đã bị xóa khỏi phòng ${room.name}`,
+            body: "Bạn có thể tham gia lại bất cứ lúc nào.",
         },
         data: {
             type: NotificationType.KICKED_FROM_ROOM,
@@ -92,4 +96,38 @@ export async function sendNotificationToKickedMember(
             roomName: room.name,
         },
     });
+}
+
+export async function sendRoomDeletedNotification(
+    deleteByUserId: string,
+    roomId: string
+) {
+    const room = await Room.findById(roomId, ["name", "members"]).lean();
+    if (!room) return;
+
+    const roomMembers = await UserData.find({ _id: { $in: room.members } }, [
+        "fcmTokens",
+    ]).lean();
+
+    const deleteByUser = await UserData.findById(deleteByUserId, [
+        "displayName",
+    ]).lean();
+
+    for (const member of roomMembers) {
+        if (!member.fcmTokens || member._id === deleteByUserId) continue;
+
+        await notifyUser<RoomDeletedNotificationData>(member, {
+            notification: {
+                title: `Phòng ${room.name} đã bị xóa`,
+                body: "Bạn không thể truy cập phòng này nữa.",
+            },
+            data: {
+                type: NotificationType.ROOM_DELETED,
+                persistent: "true",
+                roomId: roomId,
+                roomName: room.name,
+                deleteByUserName: deleteByUser?.displayName || "Quản trị viên",
+            },
+        });
+    }
 }
