@@ -1,4 +1,4 @@
-import { dispatchAction } from "./action-dispatcher";
+import { dispatchAction } from "@/lib/notification/action-dispatcher";
 
 declare const self: ServiceWorkerGlobalScope;
 

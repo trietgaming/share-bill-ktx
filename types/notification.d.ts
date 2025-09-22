@@ -1,6 +1,11 @@
 import { NotificationType } from "@/enums/notification";
 import { MessagePayload, NotificationPayload } from "firebase/messaging";
-import { AndroidConfig, ApnsConfig, FcmOptions, WebpushConfig } from "firebase-admin/messaging";
+import {
+    AndroidConfig,
+    ApnsConfig,
+    FcmOptions,
+    WebpushConfig,
+} from "firebase-admin/messaging";
 
 export interface NotificationAction {
     action: string;
@@ -33,19 +38,6 @@ export interface NotificationSendOptions<T extends NotificationData> {
     fcmOptions?: FcmOptions;
 }
 
-export interface AdditionalNotificationOptions {
-    actions?: NotificationAction[];
-    renotify?: boolean;
-    badge?: string;
-    dir?: NotificationDirection;
-    icon?: string;
-    lang?: string;
-    requireInteraction?: boolean;
-    silent?: boolean | null;
-    tag?: string;
-    renotify?: boolean;
-}
-
 /**
  * Data must be serializable to string key-value pairs.
  */
@@ -63,6 +55,15 @@ export interface NotificationData extends Record<string, string> {
 export interface ExtendedNotificationOptions extends NotificationOptions {
     actions?: NotificationAction[];
     renotify?: boolean;
+    badge?: string;
+    dir?: NotificationDirection;
+    icon?: string;
+    lang?: string;
+    requireInteraction?: boolean;
+    silent?: boolean | null;
+    tag?: string;
+    renotify?: boolean;
+    image?: string;
 }
 
 export interface NotificationBlueprint<T extends NotificationData>
@@ -80,8 +81,16 @@ export interface AdditionalNotificationData {
 }
 
 export interface ForegroundNotification
-    extends NotificationPayload,
+    extends NotificationBlueprint<NotificationData>,
         AdditionalNotificationData {}
+
+/**
+ * Notification record stored in IndexedDB
+ */
+export interface NotificationRecord extends ForegroundNotification {
+    _id: number;
+    userId: string;
+}
 
 export interface NewInvoiceNotificationData extends NotificationData {
     type: NotificationType.NEW_INVOICE;

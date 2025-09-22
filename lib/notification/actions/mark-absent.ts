@@ -1,7 +1,11 @@
+import { queryClient, presenceQueryKey } from "@/lib/query-client";
 import { MarkPresenceBody } from "@/types/actions";
 import { PresenceReminderNotificationData } from "@/types/notification";
 
-export async function markAbsent(data: PresenceReminderNotificationData) {
+export async function markAbsent(
+    data: PresenceReminderNotificationData,
+    isForeground = false
+) {
     try {
         const response = await fetch("/api/presence", {
             method: "POST",
@@ -15,6 +19,11 @@ export async function markAbsent(data: PresenceReminderNotificationData) {
 
         if (!response.ok) {
             console.error("Failed to mark absent:", response);
+        }
+        if (isForeground) {
+            queryClient.invalidateQueries({
+                queryKey: presenceQueryKey(data.roomId, data.month),
+            });
         }
     } catch (error) {
         console.error("Error marking absent:", error);

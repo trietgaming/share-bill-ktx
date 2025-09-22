@@ -3,6 +3,7 @@ declare const self: ServiceWorkerGlobalScope;
 import { MessagePayload } from "firebase/messaging";
 import { createNotification } from "@/lib/notification/notification-factory";
 import { notificationDb } from "@/lib/notification/notification-db";
+import { NotificationRecord } from "@/types/notification";
 
 export async function handleBackgroundMessage(payload: MessagePayload) {
     console.log("[firebase-messaging-sw] Received background message");
@@ -26,7 +27,7 @@ export async function handleBackgroundMessage(payload: MessagePayload) {
                     ...options,
                     ...additionalData,
                     userId: user.uid,
-                });
+                } as NotificationRecord);
             }
         }
 

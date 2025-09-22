@@ -12,6 +12,7 @@ export default async function middleware(req: NextRequest) {
     const isAuthRoute = path === LOGIN_PATH;
 
     const user = await getAuthenticatedUser();
+    console.log("Authenticated: ", !!user);
 
     if (!isPublicRoute && !user) {
         return NextResponse.redirect(new URL(`/login?cb=${req.nextUrl.pathname}`, req.nextUrl));

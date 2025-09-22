@@ -20,7 +20,7 @@ import {
     useQuery,
 } from "@tanstack/react-query";
 import { createNotification } from "@/lib/notification/notification-factory";
-import { ForegroundNotification } from "@/types/notification";
+import { ForegroundNotification, NotificationRecord } from "@/types/notification";
 import { toast } from "sonner";
 import { Bell } from "lucide-react";
 import { useAuth } from "./auth-context";
@@ -29,13 +29,11 @@ import { handleForegroundMessage } from "@/lib/notification/foreground-message-d
 
 export interface NotificationContextType {
     isNotificationPermissionGranted: boolean | null;
-    notifications: (ForegroundNotification & { _id: number })[];
+    notifications: NotificationRecord[];
     notificationQuery: UseInfiniteQueryResult<
         InfiniteData<
             {
-                items: (ForegroundNotification & {
-                    _id: number;
-                })[];
+                items: NotificationRecord[];
                 nextCursor: number | null;
             },
             unknown
@@ -60,9 +58,7 @@ export const NotificationProvider = ({
     const { userData } = useAuth();
 
     const notificationQuery = useInfiniteQuery<{
-        items: (ForegroundNotification & {
-            _id: number;
-        })[];
+        items: NotificationRecord[];
         nextCursor: number | null;
     }>({
         queryKey: ["notifications"],
@@ -94,7 +90,7 @@ export const NotificationProvider = ({
         getNextPageParam: (lastPage) => lastPage.nextCursor,
     });
 
-    const notifications = useMemo(
+    const notifications = useMemo<NotificationRecord[]>(
         () => notificationQuery.data?.pages.flatMap((page) => page.items) || [],
         [notificationQuery.data]
     );
@@ -140,14 +136,15 @@ export const NotificationProvider = ({
 
             const [title, notificationOptions, additionalData] =
                 createNotification(payload);
-            const notification: ForegroundNotification & { userId: string } = {
+            const notification = {
                 title,
                 ...notificationOptions,
                 ...additionalData,
                 userId: userData?._id || "",
-            };
+            } as NotificationRecord;
 
-            await notificationDb.notifications.add(notification);
+            notification._id = await notificationDb.notifications.add(notification);
+            console.log("Added notification to IndexedDB", notification);
             await notificationQuery.refetch();
 
             toast(notification.title, {
