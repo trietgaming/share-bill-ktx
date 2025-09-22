@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "./lib/firebase/server";
 import { LOGIN_PATH, PUBLIC_PATHS } from "./lib/app-constants";
 
-
 export default async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
     // const isProtectedRoute = protectedRoutes.includes(path);
@@ -15,7 +14,9 @@ export default async function middleware(req: NextRequest) {
     console.log("Authenticated: ", !!user);
 
     if (!isPublicRoute && !user) {
-        return NextResponse.redirect(new URL(`/login?cb=${req.nextUrl.pathname}`, req.nextUrl));
+        return NextResponse.redirect(
+            new URL(`/login?cb=${req.nextUrl.pathname}`, req.nextUrl)
+        );
     }
 
     if (user && isAuthRoute) {
@@ -27,5 +28,15 @@ export default async function middleware(req: NextRequest) {
 
 // Routes Middleware should not run on
 export const config = {
-    matcher: ["/((?!api|firebase-messaging-sw.js|_next/static|_next/image|.*\\.png$).*)"],
+    matcher: [
+        {
+            source: "/((?!api|firebase-messaging-sw.js|_next/static|_next/image|.*\\.png$).*)",
+            missing: [
+                {
+                    type: "header",
+                    key: "next-action",
+                },
+            ],
+        },
+    ],
 };
