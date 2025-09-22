@@ -47,16 +47,3 @@ export async function connectToDb() {
         isConnecting = false;
     }
 }
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('Closing MongoDB connection...');
-  await mongoose.connection.close();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('Closing MongoDB connection...');
-  await mongoose.connection.close();
-  process.exit(0);
-});

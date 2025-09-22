@@ -1,7 +1,7 @@
 "use server";
 import { cookies } from "next/headers";
 import * as jose from "jose";
-import { DecodedIdToken } from "@/types/auth";
+import type { DecodedIdToken } from "@/types/auth";
 import { LRUCache } from 'lru-cache'
 
 // Better use Redis or Memcached for production
