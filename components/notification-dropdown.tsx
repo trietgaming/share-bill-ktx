@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -56,6 +56,28 @@ export function NotificationPrompt() {
             >
                 Bật thông báo ngay
             </Button>
+        </div>
+    );
+}
+
+export function NotificationNotSupported() {
+    return (
+        <div className="flex flex-col items-center text-center space-y-4 p-0">
+            {/* Icon */}
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                <Bell className="w-8 h-8 text-muted-foreground" />
+            </div>
+            {/* Message */}
+            <div className="space-y-2">
+                <h3 className="font-semibold text-lg">
+                    Trình duyệt không hỗ trợ thông báo
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                    Trình duyệt hiện tại của bạn không hỗ trợ thông báo (có thể
+                    đang là WebView). Vui lòng mở ứng dụng bằng trình duyệt để
+                    nhận thông báo.
+                </p>
+            </div>
         </div>
     );
 }
@@ -129,7 +151,9 @@ export function NotificationList() {
                                                     notification.data,
                                                     true
                                                 );
-                                                removeNotification(notification._id);
+                                                removeNotification(
+                                                    notification._id
+                                                );
                                             }}
                                         >
                                             {action.title}
@@ -161,6 +185,15 @@ export function NotificationDropdown() {
         clearAllNotifications,
         notificationQuery,
     } = useNotification();
+    
+    const [isNotificationSupported, setIsNotificationSupported] =
+        useState(true);
+
+    useEffect(() => {
+        if (window && !("Notification" in window)) {
+            setIsNotificationSupported(false);
+        }
+    }, []);
 
     return (
         <DropdownMenu
@@ -199,7 +232,11 @@ export function NotificationDropdown() {
                         </Button>
                     </div>
                     {!isNotificationPermissionGranted ? (
-                        <NotificationPrompt />
+                        isNotificationSupported ? (
+                            <NotificationPrompt />
+                        ) : (
+                            <NotificationNotSupported />
+                        )
                     ) : (
                         <NotificationList />
                     )}

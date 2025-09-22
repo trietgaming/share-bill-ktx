@@ -20,7 +20,10 @@ import {
     useQuery,
 } from "@tanstack/react-query";
 import { createNotification } from "@/lib/notification/notification-factory";
-import { ForegroundNotification, NotificationRecord } from "@/types/notification";
+import {
+    ForegroundNotification,
+    NotificationRecord,
+} from "@/types/notification";
 import { toast } from "sonner";
 import { Bell } from "lucide-react";
 import { useAuth } from "./auth-context";
@@ -102,9 +105,11 @@ export const NotificationProvider = ({
 
     useEffect(() => {
         const handlePermissionChange = () => {
-            setIsNotificationPermissionGranted(
-                Notification.permission === "granted"
-            );
+            if ("Notification" in window) {
+                setIsNotificationPermissionGranted(
+                    Notification.permission === "granted"
+                );
+            }
         };
 
         handlePermissionChange();
@@ -143,7 +148,9 @@ export const NotificationProvider = ({
                 userId: userData?._id || "",
             } as NotificationRecord;
 
-            notification._id = await notificationDb.notifications.add(notification);
+            notification._id = await notificationDb.notifications.add(
+                notification
+            );
             console.log("Added notification to IndexedDB", notification);
             await notificationQuery.refetch();
 

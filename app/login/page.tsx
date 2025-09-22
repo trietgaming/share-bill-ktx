@@ -7,15 +7,14 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { ComponentProps, useState } from "react";
+import { ComponentProps, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-    AuthErrorCodes,
-} from "firebase/auth";
+import { AuthErrorCodes } from "firebase/auth";
 import { toast } from "sonner";
 import { FirebaseError } from "firebase/app";
 import { logIn } from "@/lib/auth";
 import { useRouter, useSearchParams } from "next/navigation";
+import { WebviewNotSupported } from "@/components/webview-not-supported";
 
 const GoogleLogo = (props: ComponentProps<"svg">) => (
     <svg
@@ -45,8 +44,44 @@ const GoogleLogo = (props: ComponentProps<"svg">) => (
     </svg>
 );
 
+function checkWebView() {
+    const userAgent = navigator.userAgent.toLowerCase();
+
+    // Kiểm tra các WebView phổ biến
+    return (
+        // Android WebView
+        userAgent.includes("wv") ||
+        // iOS WebView - có AppleWebKit nhưng không có Safari
+        (userAgent.includes("applewebkit") && !userAgent.includes("safari")) ||
+        // Facebook WebView
+        userAgent.includes("fban") ||
+        userAgent.includes("fbav") ||
+        // Instagram WebView
+        userAgent.includes("instagram") ||
+        // Line WebView
+        userAgent.includes("line") ||
+        // WeChat WebView
+        userAgent.includes("micromessenger") ||
+        // Twitter WebView
+        userAgent.includes("twitter") ||
+        // Zalo WebView
+        userAgent.includes("zalo") ||
+        // Cordova/PhoneGap
+        "cordova" in window ||
+        // Android WebView pattern
+        (/android.*applewebkit.*(version\/[\d\.]+).*mobile/i.test(userAgent) &&
+            !/chrome\/[\d\.]+/i.test(userAgent)) ||
+        // iOS WebView pattern
+        (/(iphone|ipad).*applewebkit/i.test(userAgent) &&
+            !/safari/i.test(userAgent) &&
+            !/crios|fxios/i.test(userAgent))
+    );
+}
+
 export default function LoginPage() {
     const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const [isWebView, setIsWebView] = useState(false);
+
     const router = useRouter();
 
     const searchParams = useSearchParams();
@@ -55,17 +90,19 @@ export default function LoginPage() {
         setIsLoggingIn(true);
 
         try {
-            await logIn()
+            await logIn();
 
             const searchCb = searchParams.get("cb");
-            
-            if (searchCb && searchCb.startsWith("/") && !searchCb.startsWith("//")) {
-                router.replace(searchCb);
-            }
-            else {
-                router.replace("/")
-            }
 
+            if (
+                searchCb &&
+                searchCb.startsWith("/") &&
+                !searchCb.startsWith("//")
+            ) {
+                router.replace(searchCb);
+            } else {
+                router.replace("/");
+            }
         } catch (error) {
             // Only set state in catch block since we'll redirect user to / when logged in
             setIsLoggingIn(false);
@@ -85,6 +122,16 @@ export default function LoginPage() {
             toast.error("Đã có lỗi xảy ra khi đăng nhập: " + error.message);
         }
     };
+
+    useEffect(() => {
+        if (checkWebView()) {
+            setIsWebView(true);
+        }
+    }, []);
+
+    if (isWebView) {
+        return <WebviewNotSupported />;
+    }
 
     return (
         <div className="min-h-screen bg-background flex items-center justify-center p-4">
