@@ -34,7 +34,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({
     children,
-    initialUserData,
+    initialUserData
 }: AuthProviderProps) => {
     const [userData, setUserData] = useState<IUserDataWithBankAccounts | null>(
         initialUserData

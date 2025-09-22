@@ -27,9 +27,10 @@ export async function remindRoomsPresence() {
     const day = (now.getDate() - 1).toString();
 
     while (true) {
+        console.log("Processing rooms after ID:", lastId);
         const query: any = {};
         if (lastId) {
-            query._id = { $gt: lastId }; // Sửa: dùng $gt thay vì $lt
+            query._id = { $gt: lastId };
         }
 
         const rooms: PopulatedRoom[] = await Room.find(query)
@@ -46,6 +47,7 @@ export async function remindRoomsPresence() {
         lastId = rooms[rooms.length - 1]._id;
 
         for (const room of rooms) {
+            console.log(`Sending reminders for room: ${room.name} (${room._id})`);
             for (const member of room.members) {
                 sendRemindNotification({
                     roomId: room._id,
@@ -67,7 +69,8 @@ export async function sendRemindNotification(payload: {
     day: string;
     user: Pick<IUserData, "_id" | "fcmTokens">;
 }) {
-    notifyUser<PresenceReminderNotificationData>(payload.user, {
+    console.log(`Notifying user ${payload.user._id} for room ${payload.roomName} (${payload.roomId})`);
+    await notifyUser<PresenceReminderNotificationData>(payload.user, {
         data: {
             type: NotificationType.PRESENCE_REMINDER,
             day: payload.day,
@@ -79,4 +82,5 @@ export async function sendRemindNotification(payload: {
             priority: "high",
         },
     });
+    console.log(`Notification sent to user ${payload.user._id}`);
 }
