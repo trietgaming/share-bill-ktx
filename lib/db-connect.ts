@@ -1,20 +1,32 @@
 import "server-only";
 import mongoose from "mongoose";
 
+class GlobalRef<T> {
+  private readonly sym: symbol;
+
+  constructor(uniqueName: string) {
+    this.sym = Symbol.for(uniqueName);
+  }
+
+  get value(): T | undefined {
+    return (global as any)[this.sym];
+  }
+
+  set value(value: T) {
+    (global as any)[this.sym] = value;
+  }
+}
+
+const dbConn = new GlobalRef('db.connection');
+
 if (!process.env.FIRESTORE_CONNECTION_URI) {
     throw new Error(
         "FIRESTORE_CONNECTION_URI environment variable is not defined"
     );
 }
 
-let cached = (global as any).mongoose;
-
-if (!cached) {
-    cached = (global as any).mongoose = { conn: null, promise: null };
-}
-
 export async function connectToDb() {
-    if (cached.conn) {
+    if (dbConn.value) {
         console.log("Connecting or Already connected to Firestore DB");
         return;
     }
@@ -23,9 +35,7 @@ export async function connectToDb() {
         console.log("Connecting to Firestore DB...");
 
         mongoose.connection.removeAllListeners();
-        cached.promise = mongoose.connect(process.env.FIRESTORE_CONNECTION_URI);
-
-        cached.conn = await cached.promise;
+        dbConn.value = await mongoose.connect(process.env.FIRESTORE_CONNECTION_URI);
 
         console.log("✅ Connected to Firestore DB successfully");
 
@@ -36,7 +46,7 @@ export async function connectToDb() {
 
         mongoose.connection.on("disconnected", () => {
             console.log("⚠️ Firestore DB disconnected");
-            cached.conn = null;
+            dbConn.value = null;
             // Auto-reconnect
             setTimeout(connectToDb, 5000);
         });
@@ -46,11 +56,11 @@ export async function connectToDb() {
         });
     } catch (error) {
         console.error("❌ Failed to connect to MongoDB:", error);
-        cached.conn = null;
+        dbConn.value = null;
 
         // Retry connection after delay
         setTimeout(connectToDb, 5000);
     } finally {
-        cached.conn = null;
+        dbConn.value = null;
     }
 }
