@@ -6,6 +6,7 @@ import { LOGIN_PATH, PUBLIC_PATHS } from "./lib/app-constants";
 
 export default async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
+    const query = req.nextUrl.search;
     // const isProtectedRoute = protectedRoutes.includes(path);
     const isPublicRoute = PUBLIC_PATHS.includes(path);
     const isAuthRoute = path === LOGIN_PATH;
@@ -15,7 +16,7 @@ export default async function middleware(req: NextRequest) {
 
     if (!isPublicRoute && !user) {
         return NextResponse.redirect(
-            new URL(`/login?cb=${req.nextUrl.pathname}`, req.nextUrl)
+            new URL(`/login?cb=${req.nextUrl.pathname}${query}`, req.nextUrl)
         );
     }
 

@@ -9,9 +9,10 @@ export default async function JoinRoomPage({
     searchParams,
 }: {
     params: Promise<{ roomId: string }>;
-    searchParams: { [key: string]: string | string[] | undefined };
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
     const { roomId } = await params;
+    const searchParamStore = await searchParams;
 
     const user = await getAuthenticatedUser();
 
@@ -27,9 +28,9 @@ export default async function JoinRoomPage({
     }
 
     const room = await Room.findById(roomId).lean();
-    const token = Array.isArray(searchParams.token)
-        ? searchParams.token[0]
-        : searchParams.token;
+    const token = Array.isArray(searchParamStore.token)
+        ? searchParamStore.token[0]
+        : searchParamStore.token;
 
     if (!room || (room.isPrivate && token !== room.inviteToken))
         return notFound();

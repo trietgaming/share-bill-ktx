@@ -76,92 +76,105 @@ export function HomeDashboard() {
         return { processed, unprocessed, totalDays };
     }, [thisMonthPresence]);
 
+    const getTabHref = (tab: string) =>
+        pathname
+            ?.split("/")
+            .slice(0, 3)
+            .join("/")
+            .concat("/" + tab);
+
     return (
         <div className="space-y-4 md:space-y-6">
             {/* Overview Stats */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-xs md:text-sm font-medium">
-                            Điện nước tháng này
-                        </CardTitle>
-                        <Zap className="h-3 md:h-4 w-3 md:w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        {thisMonthElectricInvoice ? (
-                            <>
-                                <div
-                                    className={cn(
-                                        "text-lg md:text-2xl font-bold",
-                                        thisMonthElectricInvoice.status ===
-                                            "paid"
-                                            ? "text-success"
-                                            : "text-destructive"
-                                    )}
-                                >
-                                    {formatCurrency(
-                                        thisMonthElectricInvoice.amount
-                                    )}
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    {thisMonthElectricInvoice.status ===
-                                    "pending"
-                                        ? `Đã thanh toán ${formatCurrency(
-                                              thisMonthElectricInvoice.amount -
-                                                  thisMonthElectricInvoice.remainingAmount
-                                          )}`
-                                        : thisMonthElectricInvoice.status ===
-                                          "paid"
-                                        ? "Đã thanh toán"
-                                        : "Đã hết hạn"}
-                                </p>
-                            </>
-                        ) : (
-                            "Chưa có hóa đơn tháng này"
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-xs md:text-sm font-medium">
-                            Hóa đơn khác
-                        </CardTitle>
-                        <Receipt className="h-3 md:h-4 w-3 md:w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-lg md:text-2xl font-bold text-destructive">
-                            {formatCurrency(
-                                otherInvoices.reduce(
-                                    (sum, inv) =>
-                                        sum + (inv.personalAmount || 0),
-                                    0
-                                )
+                <Link href={getTabHref("invoices")}>
+                    <Card className="w-full h-full"> 
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-xs md:text-sm font-medium">
+                                Điện nước tháng này
+                            </CardTitle>
+                            <Zap className="h-3 md:h-4 w-3 md:w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            {thisMonthElectricInvoice ? (
+                                <>
+                                    <div
+                                        className={cn(
+                                            "text-lg md:text-2xl font-bold",
+                                            thisMonthElectricInvoice.status ===
+                                                "paid"
+                                                ? "text-success"
+                                                : "text-destructive"
+                                        )}
+                                    >
+                                        {formatCurrency(
+                                            thisMonthElectricInvoice.amount
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {thisMonthElectricInvoice.status ===
+                                        "pending"
+                                            ? `Đã thanh toán ${formatCurrency(
+                                                  thisMonthElectricInvoice.amount -
+                                                      thisMonthElectricInvoice.remainingAmount
+                                              )}`
+                                            : thisMonthElectricInvoice.status ===
+                                              "paid"
+                                            ? "Đã thanh toán"
+                                            : "Đã hết hạn"}
+                                    </p>
+                                </>
+                            ) : (
+                                "Chưa có hóa đơn tháng này"
                             )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            Chưa thanh toán
-                        </p>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </Link>
 
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-xs md:text-sm font-medium">
-                            Ngày ở
-                        </CardTitle>
-                        <Calendar className="h-3 md:h-4 w-3 md:w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-lg md:text-2xl font-bold text-primary">
-                            {presenceStatus.processed}/
-                            {presenceStatus.totalDays}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            Đã xử lý
-                        </p>
-                    </CardContent>
-                </Card>
+                <Link href={getTabHref("invoices")}>
+                    <Card className="w-full h-full">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-xs md:text-sm font-medium">
+                                Hóa đơn khác
+                            </CardTitle>
+                            <Receipt className="h-3 md:h-4 w-3 md:w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-lg md:text-2xl font-bold text-destructive">
+                                {formatCurrency(
+                                    otherInvoices.reduce(
+                                        (sum, inv) =>
+                                            sum + (inv.personalAmount || 0),
+                                        0
+                                    )
+                                )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Chưa thanh toán
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
+
+                <Link href={getTabHref("presence")}>
+                    <Card className="w-full h-full">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-xs md:text-sm font-medium">
+                                Ngày ở
+                            </CardTitle>
+                            <Calendar className="h-3 md:h-4 w-3 md:w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-lg md:text-2xl font-bold text-primary">
+                                {presenceStatus.processed}/
+                                {presenceStatus.totalDays}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Đã xử lý
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
             </div>
 
             {/* Main Content Grid */}
@@ -326,7 +339,8 @@ export function HomeDashboard() {
                             asChild
                         >
                             <Link
-                                href={pathname?.split("/")
+                                href={pathname
+                                    ?.split("/")
                                     .slice(0, 3)
                                     .join("/")
                                     .concat("/presence")}
