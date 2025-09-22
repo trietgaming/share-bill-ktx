@@ -1,10 +1,9 @@
 import "server-only";
-
+import { connectToDb } from "@/lib/db-connect";
 
 export async function register() {
     if (process.env.NEXT_RUNTIME !== "nodejs") return;
-    
-    const { connectToDb } = await import("@/lib/db-connect")
+    console.log("Running instrumentation for DB connection...");
 
     await connectToDb();
 }

@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 let isConnecting = false;
 export async function connectToDb() {
     if (isConnecting || mongoose.connections[0]?.readyState === 1) {
+        console.log("Connecting or Already connected to Firestore DB");
         return;
     }
 
