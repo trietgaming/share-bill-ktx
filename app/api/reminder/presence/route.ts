@@ -9,7 +9,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false }, { status: 401 });
     }
 
-    remindRoomsPresence();
+    // In production, vercel will suspense the db connection right after function ends
+    await remindRoomsPresence();
 
     return NextResponse.json({ success: true });
 }
