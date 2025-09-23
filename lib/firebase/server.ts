@@ -183,7 +183,7 @@ export async function setAuthCookie(authIdToken?: string | null) {
     }
 
     requestCookies.set("__session", authIdToken as string, {
-        sameSite: "strict",
+        sameSite: "lax",
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60, // 1 hour
