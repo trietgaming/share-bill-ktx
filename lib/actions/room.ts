@@ -133,7 +133,7 @@ export async function joinRoom(
         return handleServerActionError(error);
     }
 
-    sendRoomJoinedNotification(roomId, user.uid);
+    await sendRoomJoinedNotification(roomId, user.uid);
 
     return createSuccessResponse(true);
 }
@@ -177,7 +177,7 @@ export async function deleteRoom(roomId: string): ServerActionResponse<void> {
         return handleServerActionError(error);
     }
 
-    sendRoomDeletedNotification(user.uid, roomId);
+    await sendRoomDeletedNotification(user.uid, roomId);
     return createSuccessResponse(void 0);
 }
 
@@ -244,7 +244,7 @@ export async function leaveRoom(roomId: string): ServerActionResponse<void> {
         return handleServerActionError(error);
     }
 
-    sendRoomLeftNotification(roomId, user.uid);
+    await sendRoomLeftNotification(roomId, user.uid);
     return createSuccessResponse(void 0);
 }
 
@@ -426,8 +426,8 @@ export async function kickMember(
         return handleServerActionError(err);
     }
 
-    sendNotificationToKickedMember(memberId, roomId);
-    sendRoomLeftNotification(roomId, memberId);
+    await sendNotificationToKickedMember(memberId, roomId);
+    await sendRoomLeftNotification(roomId, memberId);
     return createSuccessResponse(void 0);
 }
 

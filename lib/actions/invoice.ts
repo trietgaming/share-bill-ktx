@@ -48,7 +48,7 @@ export async function createNewInvoice(
             createdBy: user.uid,
         }).save();
 
-        sendNewInvoiceNotification(invoice);
+        await sendNewInvoiceNotification(invoice);
 
         return createSuccessResponse(serializeDocument<IInvoice>(invoice));
     } catch (error) {
@@ -78,7 +78,7 @@ export async function updateInvoice(
         Object.assign(invoice, data);
         await invoice.save();
 
-        sendUpdateInvoiceNotification(invoice, user.uid);
+        await sendUpdateInvoiceNotification(invoice, user.uid);
         return createSuccessResponse(serializeDocument<IInvoice>(invoice));
     } catch (error) {
         return handleServerActionError(error);
@@ -134,7 +134,7 @@ export async function deleteInvoice(
 
     try {
         await Invoice.findByIdAndDelete(invoiceId);
-        sendDeleteInvoiceNotification(invoice, user.uid);
+        await sendDeleteInvoiceNotification(invoice, user.uid);
         return createSuccessResponse(null);
     } catch (error) {
         return handleServerActionError(error);
