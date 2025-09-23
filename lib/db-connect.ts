@@ -39,11 +39,3 @@ export async function connectToDb() {
         throw e;
     }
 }
-
-export async function ensureDbConnection() {
-    if (mongoose.connection.readyState === 1) {
-        return;
-    }
-    await connectToDb();
-    return;
-}

@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getAuthenticatedUser } from "./lib/firebase/server";
 import { LOGIN_PATH, PUBLIC_PATHS } from "./lib/app-constants";
-import { ensureDbConnection } from "./lib/db-connect";
 
 export default async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
@@ -24,8 +23,6 @@ export default async function middleware(req: NextRequest) {
     if (user && isAuthRoute) {
         return NextResponse.redirect(new URL("/", req.nextUrl));
     }
-
-    await ensureDbConnection();
 
     return NextResponse.next();
 }
