@@ -23,7 +23,7 @@ export function AddInvoiceButton({
                     {...props}
                 >
                     <Plus className="h-4 w-4" />
-                    <span className="hidden md:inline-block">Thêm hóa đơn</span>
+                    <span className="inline-block">Thêm hóa đơn</span>
                     <ChevronDown className="h-4 w-4" />
                 </Button>
             </DropdownMenuTrigger>

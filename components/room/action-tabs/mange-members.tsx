@@ -80,7 +80,7 @@ export function ManageMembersTab() {
     });
 
     return (
-        <div className="w-full lg:w-80 h-full bg-sidebar overflow-y-auto p-4 lg:p-6">
+        <div className="w-full h-full bg-sidebar overflow-y-auto p-4 lg:p-6">
             <h2 className="text-lg font-semibold mb-4">Quản lý thành viên</h2>
             <Card>
                 <CardHeader>

@@ -31,7 +31,7 @@ export function RoomLayout({ children }: RoomLayoutProps) {
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-4">
             {/* Mobile menu button */}
-            <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+            <Button variant="ghost" size="sm" className="xl:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
               {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
             <div className="flex flex-col md:flex-row items-center gap-3">

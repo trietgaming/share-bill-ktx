@@ -51,7 +51,7 @@ function SidebarTabContent({
     children: React.ReactNode;
 }) {
     return (
-        <TabsContent className="relative h-full bg-accent" {...props}>
+        <TabsContent className="w-full sm:w-80 h-screen bg-accent" {...props}>
             <Button
                 className="absolute top-4 right-4"
                 variant="ghost"
@@ -149,17 +149,16 @@ export function RoomSidebar({ onClose, isSidebarOpen }: RoomSidebarProps) {
             onValueChange={setCurrentTab}
             orientation="vertical"
             className={`
-  fixed lg:relative top-0 left-0 z-50
-  w-screen lg:w-80 h-full
+  fixed xl:sticky top-0 left-0 z-50 w-screen sm:w-80 h-full
   bg-sidebar flex flex-col
   transform transition-transform duration-300 ease-in-out
-  ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+  ${isSidebarOpen ? "translate-x-0" : "-translate-x-full xl:translate-x-0"}
     `}
         >
             <TabsContent asChild value="default">
                 <TabsList>
-                    <div className="relative md:static overflow-y-auto h-full">
-                        <div className="lg:hidden flex items-center justify-between p-4 border-b border-border">
+                    <div className="relative xl:static overflow-y-auto h-full">
+                        <div className="xl:hidden flex items-center justify-between p-4 border-b border-border">
                             <h2 className="text-lg font-semibold">Menu</h2>
                             <Button variant="ghost" size="sm" onClick={onClose}>
                                 <X className="h-5 w-5" />
