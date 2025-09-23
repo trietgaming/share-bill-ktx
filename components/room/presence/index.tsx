@@ -211,8 +211,7 @@ export function PresenceCalendar() {
     const toggleUserPresence = (day: number) => {
         const currentAvailability = userPresenceMap[day];
 
-        const shouldAbsent = currentAvailability === PresenceStatus.PRESENT;
-        const shouldPresent = currentAvailability === PresenceStatus.UNDETERMINED;
+        const nextStatus = (currentAvailability + 1) % 3 // 3 is number of statuses
 
         let snapshot: IMonthPresence;
         // Optimistically update UI
@@ -224,11 +223,7 @@ export function PresenceCalendar() {
                 return old.map((mp) => {
                     if (mp.userId === userData!._id) {
                         const newPresence = [...mp.presence];
-                        newPresence[day] = shouldAbsent
-                            ? PresenceStatus.ABSENT
-                            : shouldPresent
-                            ? PresenceStatus.PRESENT
-                            : PresenceStatus.UNDETERMINED;
+                        newPresence[day] = nextStatus;
                         return (snapshot = { ...mp, presence: newPresence });
                     }
                     return mp;
@@ -454,7 +449,7 @@ export function PresenceCalendar() {
                                         key={day}
                                         onClick={() => toggleUserPresence(day)}
                                         className={cn(
-                                            "p-2 h-20 border rounded-lg transition-colors hover:bg-muted/50 flex flex-col items-center justify-start gap-1",
+                                            "p-2 h-20 border rounded-lg transition-colors hover:cursor-pointer flex flex-col items-center justify-start gap-1",
                                             dayStatus.availability === PresenceStatus.PRESENT
                                                 ? "bg-primary/10 border-primary text-primary"
                                                 : dayStatus.availability ===
