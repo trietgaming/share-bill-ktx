@@ -9,6 +9,8 @@ import {
 } from "@/enums/notification";
 import { Room } from "@/models/Room";
 import { IRoomDocument } from "@/types/room";
+import { MonthPresence } from "@/models/MonthPresence";
+import { PresenceStatus } from "@/enums/presence";
 
 type PopulatedRoom = Omit<IRoomDocument, "members"> & {
     members: { _id: string; fcmTokens: string[] }[];
@@ -24,7 +26,8 @@ export async function remindRoomsPresence() {
     const limit = 20;
     const now = new Date();
     const month = toYYYYMM(now);
-    const day = (now.getDate() - 1).toString();
+    const dayInt = now.getDate() - 1;
+    const day = dayInt.toString();
 
     while (true) {
         console.log("Processing rooms after ID:", lastId);
@@ -33,12 +36,12 @@ export async function remindRoomsPresence() {
             query._id = { $gt: lastId };
         }
 
-        const rooms: PopulatedRoom[] = await Room.find(query)
+        const rooms = (await Room.find(query)
             .sort({ _id: 1 })
             .limit(limit)
             .select({ name: 1, members: 1 })
             .populate<{ members: IUserData[] }>("members", { fcmTokens: 1 })
-            .lean();
+            .lean()) as unknown as PopulatedRoom[];
 
         if (rooms.length === 0) {
             break;
@@ -47,8 +50,28 @@ export async function remindRoomsPresence() {
         lastId = rooms[rooms.length - 1]._id;
 
         for (const room of rooms) {
-            console.log(`Sending reminders for room: ${room.name} (${room._id})`);
-            for (const member of room.members) {
+            console.log(
+                `Sending reminders for room: ${room.name} (${room._id})`
+            );
+
+            const promises = room.members.map(async (member) => {
+                const userPresence = await MonthPresence.findOne(
+                    {
+                        roomId: room._id,
+                        userId: member._id,
+                        month: month,
+                    },
+                    {
+                        presence: 1,
+                    }
+                ).lean();
+                // Only send if presence is still undetermined
+                if (
+                    userPresence?.presence[dayInt] !==
+                    PresenceStatus.UNDETERMINED
+                ) {
+                    return;
+                }
                 sendRemindNotification({
                     roomId: room._id,
                     roomName: room.name,
@@ -56,7 +79,9 @@ export async function remindRoomsPresence() {
                     day: day,
                     user: member,
                 });
-            }
+            });
+
+            await Promise.all(promises);
             await delay(delayBetweenRooms);
         }
     }
@@ -69,7 +94,9 @@ export async function sendRemindNotification(payload: {
     day: string;
     user: Pick<IUserData, "_id" | "fcmTokens">;
 }) {
-    console.log(`Notifying user ${payload.user._id} for room ${payload.roomName} (${payload.roomId})`);
+    console.log(
+        `Notifying user ${payload.user._id} for room ${payload.roomName} (${payload.roomId})`
+    );
     await notifyUser<PresenceReminderNotificationData>(payload.user, {
         data: {
             type: NotificationType.PRESENCE_REMINDER,
