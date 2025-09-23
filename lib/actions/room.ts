@@ -16,14 +16,19 @@ import { MonthPresence } from "@/models/MonthPresence";
 import {
     createErrorResponse,
     createSuccessResponse,
-    handleDatabaseAction,
+    handleServerActionError,
 } from "@/lib/actions-helper";
 import { ServerActionResponse } from "@/types/actions";
 import { ErrorCode } from "@/enums/error";
 import { verifyMembership, verifyRoomPermission } from "../prechecks/room";
 import { hasPermission, isRolePrecedent } from "../permission";
 import { MemberRole } from "@/enums/member-role";
-import { sendNotificationToKickedMember, sendRoomLeftNotification, sendRoomDeletedNotification, sendRoomJoinedNotification} from "@/lib/messages/room";
+import {
+    sendNotificationToKickedMember,
+    sendRoomLeftNotification,
+    sendRoomDeletedNotification,
+    sendRoomJoinedNotification,
+} from "@/lib/messages/room";
 import { IClientBankAccount } from "@/types/bank-account";
 
 export async function createNewRoom(data: {
@@ -34,9 +39,9 @@ export async function createNewRoom(data: {
     const user = await authenticate();
 
     // Create the new room
-    const session = await mongoose.startSession();
-    const newRoom = await handleDatabaseAction(
-        session.withTransaction(async () => {
+    try {
+        const session = await mongoose.startSession();
+        const newRoom = await session.withTransaction(async () => {
             const newRoom = new Room({
                 name: data.name,
                 maxMembers: data.maxMembers,
@@ -64,10 +69,12 @@ export async function createNewRoom(data: {
             );
 
             return newRoom;
-        })
-    );
+        });
 
-    return createSuccessResponse(newRoom._id.toString());
+        return createSuccessResponse(newRoom._id.toString());
+    } catch (err) {
+        return handleServerActionError(err);
+    }
 }
 
 export async function joinRoom(
@@ -99,9 +106,9 @@ export async function joinRoom(
         );
     }
 
-    const session = await mongoose.startSession();
-    await handleDatabaseAction(
-        session.withTransaction(async () => {
+    try {
+        const session = await mongoose.startSession();
+        await session.withTransaction(async () => {
             targetRoom.members.push(user.uid);
             await targetRoom.save({ session });
 
@@ -121,8 +128,10 @@ export async function joinRoom(
                 },
                 { session, runValidators: true }
             );
-        })
-    );
+        });
+    } catch (error) {
+        return handleServerActionError(error);
+    }
 
     sendRoomJoinedNotification(roomId, user.uid);
 
@@ -142,9 +151,9 @@ export async function deleteRoom(roomId: string): ServerActionResponse<void> {
         );
     }
 
-    const session = await mongoose.startSession();
-    await handleDatabaseAction(
-        session.withTransaction(async () => {
+    try {
+        const session = await mongoose.startSession();
+        await session.withTransaction(async () => {
             // Delete all memberships related to the room
             await Membership.deleteMany({ room: roomId }, { session });
 
@@ -163,8 +172,10 @@ export async function deleteRoom(roomId: string): ServerActionResponse<void> {
 
             // Finally, delete the room
             await Room.findByIdAndDelete(roomId, { session });
-        })
-    );
+        });
+    } catch (error) {
+        return handleServerActionError(error);
+    }
 
     sendRoomDeletedNotification(user.uid, roomId);
     return createSuccessResponse(void 0);
@@ -196,9 +207,9 @@ export async function leaveRoom(roomId: string): ServerActionResponse<void> {
         );
     }
 
-    const session = await mongoose.startSession();
-    await handleDatabaseAction(
-        session.withTransaction(async () => {
+    try {
+        const session = await mongoose.startSession();
+        await session.withTransaction(async () => {
             // Remove membership
             await Membership.deleteOne(
                 { room: roomId, user: user.uid },
@@ -228,8 +239,11 @@ export async function leaveRoom(roomId: string): ServerActionResponse<void> {
                 },
                 { session, runValidators: true }
             );
-        })
-    );
+        });
+    } catch (error) {
+        return handleServerActionError(error);
+    }
+
     sendRoomLeftNotification(roomId, user.uid);
     return createSuccessResponse(void 0);
 }
@@ -360,10 +374,10 @@ export async function kickMember(
         );
     }
 
-    const session = await mongoose.startSession();
+    try {
+        const session = await mongoose.startSession();
 
-    await handleDatabaseAction(
-        session.withTransaction(async () => {
+        await session.withTransaction(async () => {
             // Remove membership
             await Membership.deleteOne(
                 { room: roomId, user: memberId },
@@ -407,8 +421,10 @@ export async function kickMember(
                     runValidators: true,
                 }
             );
-        })
-    );
+        });
+    } catch (err) {
+        return handleServerActionError(err);
+    }
 
     sendNotificationToKickedMember(memberId, roomId);
     sendRoomLeftNotification(roomId, memberId);
@@ -454,7 +470,12 @@ export async function updateRoomData(
     }
 
     Object.assign(room, data);
-    await handleDatabaseAction(room.save());
+
+    try {
+        await room.save();
+    } catch (error) {
+        return handleServerActionError(error);
+    }
 
     // TODO: send notification to room members about the update
     return createSuccessResponse(void 0);
@@ -483,7 +504,10 @@ export async function updateUserRole(
     );
     if (membershipError) return createErrorResponse(membershipError);
 
-    const [targetMembership, targetMembershipError] = await verifyMembership(memberId, roomId);
+    const [targetMembership, targetMembershipError] = await verifyMembership(
+        memberId,
+        roomId
+    );
     if (targetMembershipError)
         return createErrorResponse(targetMembershipError);
 
@@ -494,7 +518,12 @@ export async function updateUserRole(
     if (permissionError) return createErrorResponse(permissionError);
 
     targetMembership.role = targetRole;
-    await handleDatabaseAction(targetMembership.save());    
+    
+    try {
+        await targetMembership.save();
+    } catch (error) {
+        return handleServerActionError(error);
+    }
 
     // TODO: send notification to room members about the update
 

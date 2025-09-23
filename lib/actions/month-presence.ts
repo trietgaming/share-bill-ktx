@@ -9,7 +9,7 @@ import { IMonthPresence } from "@/types/month-presence";
 import {
     createErrorResponse,
     createSuccessResponse,
-    handleDatabaseAction,
+    handleServerActionError,
 } from "@/lib/actions-helper";
 import { ErrorCode } from "@/enums/error";
 import { ServerActionResponse } from "@/types/actions";
@@ -25,29 +25,33 @@ export async function getRoomMonthPresence(
             ErrorCode.INVALID_INPUT
         );
     }
+
     const user = await authenticate();
 
     const [_, err] = await verifyMembership(user.uid, roomId);
     if (err) return createErrorResponse(err);
 
     const roomMonthPresences = await MonthPresence.find({ roomId, month });
+
     if (!roomMonthPresences.some((rmp) => rmp.userId === user.uid)) {
         const { year, month: m } = parseYYYYMM(month)!;
         // Create default for caller
-        const newPresence = await handleDatabaseAction(
-            new MonthPresence({
+        try {
+            const newPresence = await new MonthPresence({
                 month,
                 roomId,
                 userId: user.uid,
                 presence: Array(new Date(year, m, 0).getDate()).fill(
                     PresenceStatus.UNDETERMINED
                 ),
-            }).save()
-        );
+            }).save();
 
-        return createSuccessResponse([
-            serializeDocument<IMonthPresence>(newPresence),
-        ]);
+            return createSuccessResponse([
+                serializeDocument<IMonthPresence>(newPresence),
+            ]);
+        } catch (error) {
+            return handleServerActionError(error);
+        }
     }
 
     return createSuccessResponse(
@@ -72,7 +76,7 @@ export async function getRoomMonthsPresence(
         );
     }
     const user = await authenticate();
-    
+
     const [_, err] = await verifyMembership(user.uid, roomId);
     if (err) return createErrorResponse(err);
 
@@ -89,14 +93,18 @@ export async function getRoomMonthsPresence(
 export interface UpdateMyMonthPresenceData {
     roomId: string;
     month: string; // Format: YYYY-MM
-    presence: (PresenceStatus.PRESENT | PresenceStatus.ABSENT | PresenceStatus.UNDETERMINED)[];
+    presence: (
+        | PresenceStatus.PRESENT
+        | PresenceStatus.ABSENT
+        | PresenceStatus.UNDETERMINED
+    )[];
 }
 export async function updateMyMonthPresence(
     data: UpdateMyMonthPresenceData
 ): ServerActionResponse<void> {
     const user = await authenticate();
-    
-    const [_, err] = await verifyMembership(user.uid, data.roomId);
+
+    const [, err] = await verifyMembership(user.uid, data.roomId);
     if (err) return createErrorResponse(err);
 
     const updateData: IMonthPresence = {
@@ -105,15 +113,18 @@ export async function updateMyMonthPresence(
         roomId: data.roomId,
         userId: user.uid,
     };
-    await handleDatabaseAction(MonthPresence.validate(updateData));
 
-    await handleDatabaseAction(
-        MonthPresence.findOneAndUpdate(
+    try {
+        await MonthPresence.validate(updateData);
+
+        await MonthPresence.findOneAndUpdate(
             { roomId: data.roomId, userId: user.uid, month: data.month },
             updateData,
             { upsert: true, new: true, setDefaultsOnInsert: true }
-        )
-    );
+        );
+    } catch (error) {
+        return handleServerActionError(error);
+    }
 
     return createSuccessResponse(void 0);
 }

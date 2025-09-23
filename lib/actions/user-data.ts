@@ -11,12 +11,11 @@ import { UserData } from "@/models/UserData";
 import mongoose from "mongoose";
 import { IBankAccount, IClientBankAccount } from "@/types/bank-account";
 import { uploadFileToCloudinary } from "../cloudinary";
-import { AppError } from "../errors";
 import { ServerActionResponse } from "@/types/actions";
 import {
     createErrorResponse,
     createSuccessResponse,
-    handleDatabaseAction,
+    handleServerActionError,
 } from "@/lib/actions-helper";
 import { ErrorCode } from "@/enums/error";
 
@@ -65,25 +64,32 @@ export async function updateUserPhoto(
 
     const imageId = `user_photo_${user.uid}`;
 
-    // Upload an image
-    const uploadResult = await uploadFileToCloudinary(photo, {
-        folder: "share-bill-ktx",
-        public_id: imageId,
-        overwrite: true,
-        resource_type: "image",
-        upload_preset: "avatar_upload",
-    });
+    try {
+        // Upload an image
+        const uploadResult = await uploadFileToCloudinary(photo, {
+            folder: "share-bill-ktx",
+            public_id: imageId,
+            overwrite: true,
+            resource_type: "image",
+            upload_preset: "avatar_upload",
+        });
 
-    const photoURL = uploadResult?.url;
-    if (!photoURL) {
-        return createErrorResponse("Failed to upload image", ErrorCode.UNKNOWN);
+        const photoURL = uploadResult?.url;
+        if (!photoURL) {
+            return createErrorResponse(
+                "Failed to upload image",
+                ErrorCode.UNKNOWN
+            );
+        }
+
+        const userData = await getUserData(user);
+        userData.photoURL = photoURL;
+
+        await userData.save();
+        return createSuccessResponse(photoURL);
+    } catch (err) {
+        return handleServerActionError(err);
     }
-
-    const userData = await getUserData(user);
-    userData.photoURL = photoURL;
-    await handleDatabaseAction(userData.save());
-
-    return createSuccessResponse(photoURL);
 }
 
 export interface UpdateUserDataFormData {
@@ -97,7 +103,12 @@ export async function updateUserData(
     const userData = await getUserData(user);
 
     userData.displayName = data.displayName;
-    await handleDatabaseAction(userData.save());
+
+    try {
+        await userData.save();
+    } catch (err) {
+        return handleServerActionError(err);
+    }
     return createSuccessResponse(void 0);
 }
 
@@ -127,46 +138,46 @@ export async function createOrUpdateUserBankAccount(
 
     const isUpdate = Boolean(data.id);
 
-    const bankAccount = isUpdate
-        ? (await BankAccount.findById(data.id))!
-        : new BankAccount();
+    try {
+        const bankAccount = isUpdate
+            ? (await BankAccount.findById(data.id))!
+            : new BankAccount();
 
-    if (data.qrCodeFile) {
-        if (!SUPPORTED_IMAGE_TYPES.includes(data.qrCodeFile.type)) {
-            return createErrorResponse(
-                "Định dạng file không hợp lệ",
-                ErrorCode.INVALID_INPUT
-            );
+        if (data.qrCodeFile) {
+            if (!SUPPORTED_IMAGE_TYPES.includes(data.qrCodeFile.type)) {
+                return createErrorResponse(
+                    "Định dạng file không hợp lệ",
+                    ErrorCode.INVALID_INPUT
+                );
+            }
+            if (data.qrCodeFile.size > MAX_FILE_SIZE) {
+                return createErrorResponse(
+                    "Tệp phải nhỏ hơn 1MB",
+                    ErrorCode.INVALID_INPUT
+                );
+            }
+
+            const imageId = `bank_account_qr_${bankAccount._id}`;
+
+            const uploadResult = await uploadFileToCloudinary(data.qrCodeFile, {
+                folder: "share-bill-ktx",
+                public_id: imageId,
+                overwrite: true,
+                resource_type: "image",
+                upload_preset: "avatar_upload",
+            });
+
+            const qrCodeUrl = uploadResult!.url;
+            bankAccount.qrCodeUrl = qrCodeUrl;
+        } else {
+            bankAccount.accountName = data.accountName;
+            bankAccount.accountNumber = data.accountNumber;
         }
-        if (data.qrCodeFile.size > MAX_FILE_SIZE) {
-            return createErrorResponse(
-                "Tệp phải nhỏ hơn 1MB",
-                ErrorCode.INVALID_INPUT
-            );
-        }
+        bankAccount.bankName = data.bankName;
 
-        const imageId = `bank_account_qr_${bankAccount._id}`;
+        const session = await mongoose.startSession();
 
-        const uploadResult = await uploadFileToCloudinary(data.qrCodeFile, {
-            folder: "share-bill-ktx",
-            public_id: imageId,
-            overwrite: true,
-            resource_type: "image",
-            upload_preset: "avatar_upload",
-        });
-
-        const qrCodeUrl = uploadResult!.url;
-        bankAccount.qrCodeUrl = qrCodeUrl;
-    } else {
-        bankAccount.accountName = data.accountName;
-        bankAccount.accountNumber = data.accountNumber;
-    }
-    bankAccount.bankName = data.bankName;
-
-    const session = await mongoose.startSession();
-
-    const newBankAccount = await handleDatabaseAction(
-        session.withTransaction(async () => {
+        const newBankAccount = await session.withTransaction(async () => {
             await bankAccount.save({ session });
 
             if (!isUpdate) {
@@ -175,12 +186,14 @@ export async function createOrUpdateUserBankAccount(
             }
 
             return bankAccount;
-        })
-    );
+        });
 
-    return createSuccessResponse(
-        serializeDocument<IClientBankAccount>(newBankAccount)
-    );
+        return createSuccessResponse(
+            serializeDocument<IClientBankAccount>(newBankAccount)
+        );
+    } catch (error) {
+        return handleServerActionError(error);
+    }
 }
 
 export async function deleteUserBankAccount(
@@ -196,10 +209,10 @@ export async function deleteUserBankAccount(
         );
     }
 
-    const session = await mongoose.startSession();
+    try {
+        const session = await mongoose.startSession();
 
-    await handleDatabaseAction(
-        session.withTransaction(async () => {
+        await session.withTransaction(async () => {
             await BankAccount.findByIdAndDelete(bankAccountId, { session });
 
             await UserData.findByIdAndUpdate(
@@ -213,7 +226,9 @@ export async function deleteUserBankAccount(
                 },
                 { session, runValidators: true }
             );
-        })
-    );
-    return createSuccessResponse(void 0);
+        });
+        return createSuccessResponse(void 0);
+    } catch (error) {
+        return handleServerActionError(error);
+    }
 }

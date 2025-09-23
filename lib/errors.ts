@@ -2,12 +2,19 @@ import { ErrorCode } from "@/enums/error";
 import { ErrorServerActionResult } from "@/types/actions";
 
 /**
- * @deprecated
+ * Predicable errors for application
  */
 export class AppError extends Error {
     constructor(message: string) {
         super(message);
         this.name = "AppError";
+    }
+}
+
+export class AppValidationError extends AppError {
+    constructor(message: string) {
+        super(message);
+        this.name = "AppValidationError";
     }
 }
 

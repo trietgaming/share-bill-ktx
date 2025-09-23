@@ -3,7 +3,7 @@ import mongoose, { Schema } from "mongoose";
 import { BankAccount, bankAccountSchema } from "@/models/BankAccount";
 import { MonthPresence } from "./MonthPresence";
 import { count, sum } from "@/lib/utils";
-import { AppError } from "@/lib/errors";
+import { AppValidationError } from "@/lib/errors";
 import { PresenceStatus } from "@/enums/presence";
 
 export const payInfoSchema = new Schema<IPayInfo>({
@@ -180,7 +180,7 @@ export async function calculateShare(invoice: IInvoice, userId: string) {
         });
 
         if (presences.length < invoice.applyTo.length) {
-            throw new AppError(
+            throw new AppValidationError(
                 "Chưa có đủ dữ liệu điểm danh cho tháng này, không thể tính toán được số tiền phải trả của bạn."
             );
         }
@@ -192,7 +192,7 @@ export async function calculateShare(invoice: IInvoice, userId: string) {
             const att = presences[i];
             const presentDays = count(att.presence, (availability) => {
                 if (availability === PresenceStatus.UNDETERMINED) {
-                    throw new AppError(
+                    throw new AppValidationError(
                         "Các thành viên chưa hoàn thành điểm danh, không thể tính toán được số tiền phải trả của bạn."
                     );
                 }

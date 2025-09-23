@@ -6,6 +6,7 @@ import type {
     SuccessServerActionResult,
 } from "@/types/actions";
 import mongoose from "mongoose";
+import { AppError, AppValidationError } from "./errors";
 
 export function createErrorResponse(
     error: ActionError
@@ -77,14 +78,11 @@ export function createSuccessResponse<T>(
 //     };
 // }
 
-/**
- * This must be used before any update/create/delete operation
- */
-export function handleDatabaseAction<T extends Promise<any>>(promise: T): T {
-    return promise.catch((err) => {
-        if (err instanceof mongoose.Error.ValidationError) {
-            return createErrorResponse(err.message, ErrorCode.INVALID_INPUT);
-        }
-        return createErrorResponse(err.message, ErrorCode.UNKNOWN);
-    }) as T;
+export function handleServerActionError(error: any): ErrorServerActionResult {
+    if (error instanceof mongoose.Error.ValidationError || error instanceof AppError) {
+        return createErrorResponse(error.message, ErrorCode.INVALID_INPUT);
+    }
+
+    console.error("Unhandled server action error:", error);
+    return createErrorResponse("Đã có lỗi xảy ra", ErrorCode.UNKNOWN);
 }
