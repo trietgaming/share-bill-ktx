@@ -2,16 +2,16 @@
 import { cookies } from "next/headers";
 import * as jose from "jose";
 import type { DecodedIdToken } from "@/types/auth";
-import { LRUCache } from 'lru-cache'
+import { LRUCache } from "lru-cache";
 
 // Better use Redis or Memcached for production
 const publicKeyMap = new LRUCache<string, jose.CryptoKey>({
     max: 5,
-    ttl: 1000 * 60 * 60 // 1 hour
+    ttl: 1000 * 60 * 60, // 1 hour
 });
 const idTokenCache = new LRUCache<string, DecodedIdToken>({
     max: 1000,
-    ttl: 1000 * 60 * 15 // 15 minutes
+    ttl: 1000 * 60 * 15, // 15 minutes
 });
 
 const sessionPublicKeyResolver: jose.JWTVerifyGetKey = async (
@@ -161,6 +161,7 @@ export async function setAuthRefreshTokenCookie(refreshToken?: string | null) {
             sameSite: "strict",
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
+            expires: Date.now() + 60 * 60 * 24 * 365 * 1000, // 1 year
         });
 
         await setAuthCookie(idToken);

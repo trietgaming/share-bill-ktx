@@ -32,6 +32,7 @@ import { PresenceSkeleton } from "./skeleton";
 import { UserAvatar } from "@/components/user-avatar";
 import { toast } from "sonner";
 import { handleAction } from "@/lib/action-handler";
+import { PresenceStatus } from "@/enums/presence";
 
 export function PresenceCalendar() {
     const { data: room } = useRoomQuery();
@@ -70,7 +71,7 @@ export function PresenceCalendar() {
 
         for (let day = 0; day < daysInMonth; day++) {
             roomPresence.forEach((mp) => {
-                if (mp.presence[day] === "present") {
+                if (mp.presence[day] === PresenceStatus.PRESENT) {
                     result[day].push(roommatesMap[mp.userId]);
                 }
             });
@@ -94,7 +95,7 @@ export function PresenceCalendar() {
         for (let day = 0; day < totalDays; day++) {
             processed += roomPresence.every(
                 (roommatePresence) =>
-                    roommatePresence.presence[day] !== "undetermined"
+                    roommatePresence.presence[day] !== PresenceStatus.UNDETERMINED
             )
                 ? 1
                 : 0;
@@ -111,7 +112,7 @@ export function PresenceCalendar() {
         );
         return mePresence
             ? mePresence.presence
-            : Array(daysInMonth).fill("undetermined");
+            : Array(daysInMonth).fill(PresenceStatus.UNDETERMINED);
     }, [roomPresence, userData, daysInMonth]);
 
     const updatePresenceDebounced = useDebouncedCallback(
@@ -128,7 +129,7 @@ export function PresenceCalendar() {
                     month: month,
                     presence:
                         snapshot.presence ||
-                        Array(daysInMonth).fill("undetermined"),
+                        Array(daysInMonth).fill(PresenceStatus.UNDETERMINED),
                 };
                 await handleAction(updateMyMonthPresence(updateData));
                 if (!updatePresenceDebounced.isPending()) resolve();
@@ -191,7 +192,7 @@ export function PresenceCalendar() {
 
     const userElectricCostPerDay = Math.round(
         (electricInvoice?.personalAmount || 0) /
-            (userPresenceMap.filter((a) => a !== "absent").length || 1)
+            (userPresenceMap.filter((a) => a !== PresenceStatus.ABSENT).length || 1)
     );
 
     // Generate calendar days
@@ -210,8 +211,8 @@ export function PresenceCalendar() {
     const toggleUserPresence = (day: number) => {
         const currentAvailability = userPresenceMap[day];
 
-        const shouldAbsent = currentAvailability === "present";
-        const shouldPresent = currentAvailability === "undetermined";
+        const shouldAbsent = currentAvailability === PresenceStatus.PRESENT;
+        const shouldPresent = currentAvailability === PresenceStatus.UNDETERMINED;
 
         let snapshot: IMonthPresence;
         // Optimistically update UI
@@ -224,10 +225,10 @@ export function PresenceCalendar() {
                     if (mp.userId === userData!._id) {
                         const newPresence = [...mp.presence];
                         newPresence[day] = shouldAbsent
-                            ? "absent"
+                            ? PresenceStatus.ABSENT
                             : shouldPresent
-                            ? "present"
-                            : "undetermined";
+                            ? PresenceStatus.PRESENT
+                            : PresenceStatus.UNDETERMINED;
                         return (snapshot = { ...mp, presence: newPresence });
                     }
                     return mp;
@@ -313,7 +314,7 @@ export function PresenceCalendar() {
                         <div className="text-2xl font-bold text-primary">
                             {
                                 userPresenceMap.filter(
-                                    (status) => status === "present"
+                                    (status) => status === PresenceStatus.PRESENT
                                 ).length
                             }
                             /{daysInMonth}
@@ -454,10 +455,10 @@ export function PresenceCalendar() {
                                         onClick={() => toggleUserPresence(day)}
                                         className={cn(
                                             "p-2 h-20 border rounded-lg transition-colors hover:bg-muted/50 flex flex-col items-center justify-start gap-1",
-                                            dayStatus.availability === "present"
+                                            dayStatus.availability === PresenceStatus.PRESENT
                                                 ? "bg-primary/10 border-primary text-primary"
                                                 : dayStatus.availability ===
-                                                  "absent"
+                                                  PresenceStatus.ABSENT
                                                 ? "bg-destructive/10 border-destructive text-destructive"
                                                 : "border-muted bg-muted text-muted-foreground",
                                             dayStatus.isToday &&

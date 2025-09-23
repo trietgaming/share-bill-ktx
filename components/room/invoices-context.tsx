@@ -14,6 +14,7 @@ import { IMonthPresence } from "@/types/month-presence";
 import { InvoiceCheckoutDialog } from "./invoice-checkout-dialog";
 import { handleAction } from "@/lib/action-handler";
 import { InvoiceDialog } from "@/components/room/invoice-dialog";
+import { PresenceStatus } from "@/enums/presence";
 
 interface InvoicesContextType {
     pendingInvoicesQuery: UseQueryResult<IInvoice[], Error>;
@@ -128,7 +129,7 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
                         month: inv.monthApplied!,
                         roomId: room._id,
                         userId: r.userId,
-                        presence: Array(31).fill("undetermined"),
+                        presence: Array(31).fill(PresenceStatus.UNDETERMINED),
                     });
                 });
             }
@@ -171,8 +172,8 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
                 presence.reduce(
                     (acc, availability) =>
                         acc +
-                        (availability === "present" ||
-                        availability === "undetermined"
+                        (availability === PresenceStatus.PRESENT ||
+                        availability === PresenceStatus.UNDETERMINED
                             ? 1
                             : 0),
                     0

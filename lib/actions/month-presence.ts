@@ -13,6 +13,7 @@ import {
 } from "@/lib/actions-helper";
 import { ErrorCode } from "@/enums/error";
 import { ServerActionResponse } from "@/types/actions";
+import { PresenceStatus } from "@/enums/presence";
 
 export async function getRoomMonthPresence(
     roomId: string,
@@ -39,7 +40,7 @@ export async function getRoomMonthPresence(
                 roomId,
                 userId: user.uid,
                 presence: Array(new Date(year, m, 0).getDate()).fill(
-                    "undetermined"
+                    PresenceStatus.UNDETERMINED
                 ),
             }).save()
         );
@@ -88,7 +89,7 @@ export async function getRoomMonthsPresence(
 export interface UpdateMyMonthPresenceData {
     roomId: string;
     month: string; // Format: YYYY-MM
-    presence: ("present" | "absent" | "undetermined")[];
+    presence: (PresenceStatus.PRESENT | PresenceStatus.ABSENT | PresenceStatus.UNDETERMINED)[];
 }
 export async function updateMyMonthPresence(
     data: UpdateMyMonthPresenceData

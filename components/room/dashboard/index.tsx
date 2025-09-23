@@ -26,6 +26,7 @@ import { useMemo } from "react";
 import { cn, formatCurrency, toYYYYMM } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PresenceStatus } from "@/enums/presence";
 
 export function HomeDashboard() {
     const pathname = usePathname();
@@ -66,7 +67,8 @@ export function HomeDashboard() {
         for (let day = 0; day < totalDays; day++) {
             processed += thisMonthPresence.every(
                 (roommatePresence) =>
-                    roommatePresence.presence[day] !== "undetermined"
+                    roommatePresence.presence[day] !==
+                    PresenceStatus.UNDETERMINED
             )
                 ? 1
                 : 0;
@@ -88,7 +90,7 @@ export function HomeDashboard() {
             {/* Overview Stats */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
                 <Link href={getTabHref("invoices")}>
-                    <Card className="w-full h-full"> 
+                    <Card className="w-full h-full">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-xs md:text-sm font-medium">
                                 Điện nước tháng này

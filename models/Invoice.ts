@@ -4,6 +4,7 @@ import { BankAccount, bankAccountSchema } from "@/models/BankAccount";
 import { MonthPresence } from "./MonthPresence";
 import { count, sum } from "@/lib/utils";
 import { AppError } from "@/lib/errors";
+import { PresenceStatus } from "@/enums/presence";
 
 export const payInfoSchema = new Schema<IPayInfo>({
     paidBy: {
@@ -190,12 +191,12 @@ export async function calculateShare(invoice: IInvoice, userId: string) {
         for (let i = 0; i < presences.length; ++i) {
             const att = presences[i];
             const presentDays = count(att.presence, (availability) => {
-                if (availability === "undetermined") {
+                if (availability === PresenceStatus.UNDETERMINED) {
                     throw new AppError(
                         "Các thành viên chưa hoàn thành điểm danh, không thể tính toán được số tiền phải trả của bạn."
                     );
                 }
-                return availability === "present";
+                return availability === PresenceStatus.PRESENT;
             });
 
             totalPresentDays += presentDays;

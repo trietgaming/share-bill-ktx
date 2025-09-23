@@ -1,6 +1,7 @@
 import { queryClient, presenceQueryKey } from "@/lib/query-client";
 import { MarkPresenceBody } from "@/types/actions";
 import { PresenceReminderNotificationData } from "@/types/notification";
+import { PresenceStatus } from "@/enums/presence";
 
 export async function markAbsent(
     data: PresenceReminderNotificationData,
@@ -13,7 +14,7 @@ export async function markAbsent(
                 roomId: data.roomId,
                 month: data.month,
                 day: Number.parseInt(data.day),
-                status: "absent",
+                status: PresenceStatus.ABSENT,
             } as MarkPresenceBody),
         });
 
