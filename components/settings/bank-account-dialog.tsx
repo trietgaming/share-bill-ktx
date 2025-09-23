@@ -140,7 +140,6 @@ export function BankAccountDialog({
 
     const onSubmit = async (data: BankAccountFormData) => {
         try {
-            console.log(data);
             const updatedBankAccount = await handleAction(
                 createOrUpdateUserBankAccount(
                     isQrMode

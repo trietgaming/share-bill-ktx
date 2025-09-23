@@ -43,8 +43,6 @@ export function InvoiceCard({
     const { userData } = useAuth();
     const membership = useMembership();
 
-    console.log(invoice);
-
     const config = typeConfig[invoice.type]
     const Icon = config.icon
     const isOverdue = invoice.dueDate && invoice.dueDate < new Date()
