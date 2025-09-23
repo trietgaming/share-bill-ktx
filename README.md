@@ -1,4 +1,4 @@
-# share-bill-ktx
+# <img src="public/logo-128.jpg" alt="Logo" width="64" height="64" style="vertical-align:middle; border-radius: 4px"/> Share Bill KTX
 Chia tiền điện nước dễ dàng
 
 ## Setup
