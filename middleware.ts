@@ -31,7 +31,7 @@ export default async function middleware(req: NextRequest) {
 export const config = {
     matcher: [
         {
-            source: "/((?!api|firebase-messaging-sw.js|_next/static|_next/image|.*\\.(png|jpg|ico)$).*)",
+            source: "/((?!api|firebase-messaging-sw.js|_next/static|_next/image|.*\\.png$|.*\\.jpg$|.*\\.ico$).*)",
             missing: [
                 {
                     type: "header",
