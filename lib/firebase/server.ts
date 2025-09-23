@@ -158,7 +158,7 @@ export async function setAuthRefreshTokenCookie(refreshToken?: string | null) {
         const idToken = await exchangeRefreshTokenForIdToken(refreshToken);
 
         await requestCookies.set("__refreshToken", refreshToken, {
-            sameSite: "strict",
+            sameSite: "lax",
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             expires: Date.now() + 60 * 60 * 24 * 365 * 1000, // 1 year
