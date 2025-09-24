@@ -7,3 +7,5 @@ Fulfill all the properties in types/env.d.ts
 ## Todos
 - [ ] Handle overdue invoices
 - [ ] Handle data sync when multiple users mutate room data
+- [ ] Room notification settings
+- [ ] Add caching to avoid exceeding firebase limits
