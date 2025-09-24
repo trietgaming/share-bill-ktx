@@ -6,4 +6,5 @@ export const enum ErrorCode {
     FORBIDDEN = "FORBIDDEN",
     RATE_LIMITED = "RATE_LIMITED",
     SERVER_ERROR = "SERVER_ERROR",
+    USER_NOT_LOGGED_IN = "USER_NOT_LOGGED_IN",
 }

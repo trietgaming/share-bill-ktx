@@ -49,7 +49,7 @@ export function InvoicesManagement() {
         return (
             invoices
                 ?.filter((invoice) => {
-                    const createdAt = invoice.createdAt;
+                    const createdAt = new Date(invoice.createdAt);
                     return (
                         createdAt.getMonth() === now.getMonth() &&
                         createdAt.getFullYear() === now.getFullYear()

@@ -3,10 +3,12 @@ import { ErrorCode } from "@/enums/error";
 import type {
     ActionError,
     ErrorServerActionResult,
+    ServerActionResponse,
     SuccessServerActionResult,
 } from "@/types/actions";
 import mongoose from "mongoose";
 import { AppError, AppValidationError } from "./errors";
+import { unstable_cache } from "next/cache";
 
 export function createErrorResponse(
     error: ActionError
@@ -79,10 +81,76 @@ export function createSuccessResponse<T>(
 // }
 
 export function handleServerActionError(error: any): ErrorServerActionResult {
-    if (error instanceof mongoose.Error.ValidationError || error instanceof AppError) {
+    if (
+        error instanceof mongoose.Error.ValidationError ||
+        error instanceof AppError
+    ) {
         return createErrorResponse(error.message, ErrorCode.INVALID_INPUT);
     }
 
     console.error("Unhandled server action error:", error);
     return createErrorResponse("Đã có lỗi xảy ra", ErrorCode.UNKNOWN);
+}
+
+export type ServerActionDefinition<
+    ServerFunc extends (...args: any[]) => Promise<any>,
+    ArgsType extends any[] = Parameters<ServerFunc>
+> = {
+    /**
+     * Initialize context object, which will be passed to prechecks and main function
+     */
+    initContext?: (context: any, ...args: ArgsType) => any;
+    /**
+     * Prechecks to run before main function
+     * If any precheck throws an error, the main function will not be executed
+     * and the error will be returned to the client.
+     * Prechecks can access and modify the context object.
+     *
+     * Prechecks can be dependent on each other, so the order matters.
+     */
+    prechecks?: CallableFunction[];
+    /** Main server action function, must define context within this fn */
+    fn: (context: any, ...args: ArgsType) => ReturnType<ServerFunc>;
+    cache?: (context: any, ...args: ArgsType) => {
+        duration?: number;
+        tags?: string[];
+    };
+};
+
+type Awaited<T> = T extends Promise<infer U> ? U : T;
+
+/**
+ * Must define the generic ServerFunc explicitly when calling this function.
+ */
+export function serverAction<
+    ServerFunc extends (...args: any[]) => Promise<any>
+>(
+    definition: ServerActionDefinition<ServerFunc>
+): (
+    ...args: Parameters<ServerFunc>
+) => ServerActionResponse<Awaited<ReturnType<ServerFunc>>> {
+    const returnFn = async function (...args: Parameters<ServerFunc>) {
+        const context: any = {};
+        await definition.initContext?.(context, ...args);
+        try {
+            for (const check of definition.prechecks || []) {
+                await check(context);
+            }
+
+            return definition.cache
+                ? await unstable_cache(
+                      async () =>
+                          createSuccessResponse(
+                              await definition.fn(context, ...args)
+                          ),
+                      undefined,
+                      definition.cache(context, ...args)
+                  )()
+                : createSuccessResponse(await definition.fn(context, ...args));
+        } catch (error) {
+            return handleServerActionError(error) as ReturnType<ServerFunc>;
+        }
+    } as ServerFunc;
+
+    return returnFn;
 }

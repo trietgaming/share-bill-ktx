@@ -1,10 +1,17 @@
 "use server";
 
 import { IInvoice, IPayInfo } from "@/types/invoice";
-import { authenticate } from "@/lib/prechecks/auth";
+import { authenticate, _authenticate, UserCtx } from "@/lib/prechecks/auth";
 import { calculateShare, Invoice } from "@/models/Invoice";
 import { serializeDocument } from "@/lib/serializer";
-import { verifyMembership, verifyRoomPermission } from "@/lib/prechecks/room";
+import {
+    _verifyMembership,
+    _verifyRoomPermission,
+    verifyMembership,
+    VerifyMembershipCtx,
+    verifyRoomPermission,
+    VerifyRoomPermissionCtx,
+} from "@/lib/prechecks/room";
 import {
     sendDeleteInvoiceNotification,
     sendNewInvoiceNotification,
@@ -14,11 +21,16 @@ import {
     createErrorResponse,
     createSuccessResponse,
     handleServerActionError,
+    serverAction,
 } from "../actions-helper";
 import { ErrorCode } from "@/enums/error";
 import { ServerActionResponse } from "@/types/actions";
 import { MemberRole } from "@/enums/member-role";
-import { AppValidationError } from "../errors";
+import { AppError, AppValidationError } from "../errors";
+import { DecodedIdToken } from "@/types/auth";
+import { revalidateTag } from "next/cache";
+import { IMembership } from "@/types/membership";
+import mongoose from "mongoose";
 
 export interface CreateInvoiceFormData {
     roomId: string;
@@ -33,140 +45,141 @@ export interface CreateInvoiceFormData {
     payTo?: string;
 }
 
-export async function createNewInvoice(
-    data: CreateInvoiceFormData
-): ServerActionResponse<IInvoice> {
-    const user = await authenticate();
-    const [_, err] = await verifyMembership(user.uid, data.roomId);
-
-    if (err) return createErrorResponse(err);
-
-    try {
+export const createNewInvoice = serverAction<
+    (data: CreateInvoiceFormData) => Promise<IInvoice>
+>({
+    initContext: (ctx, data) => {
+        ctx.roomId = data.roomId;
+    },
+    prechecks: [_authenticate, _verifyMembership],
+    fn: async function (ctx: { user: DecodedIdToken }, data) {
         const invoice = await new Invoice({
             ...data,
             status: "pending",
-            createdBy: user.uid,
+            createdBy: ctx.user.uid,
         }).save();
 
         await sendNewInvoiceNotification(invoice);
 
-        return createSuccessResponse(serializeDocument<IInvoice>(invoice));
-    } catch (error) {
-        return handleServerActionError(error);
-    }
-}
+        revalidateTag(`invoices-${invoice.roomId}`);
+        return serializeDocument<IInvoice>(invoice);
+    },
+});
 
 export interface UpdateInvoiceFormData extends Partial<CreateInvoiceFormData> {
     invoiceId: string;
 }
 
-export async function updateInvoice(
-    data: UpdateInvoiceFormData
-): ServerActionResponse<IInvoice> {
-    const user = await authenticate();
-    const invoice = await Invoice.findById(data.invoiceId);
-    if (!invoice) {
-        return createErrorResponse(
-            "Không tìm thấy hóa đơn",
-            ErrorCode.NOT_FOUND
-        );
-    }
-    const [_, err] = await verifyMembership(user.uid, invoice!.roomId);
-    if (err) return createErrorResponse(err);
+export const updateInvoice = serverAction<
+    (data: UpdateInvoiceFormData) => Promise<IInvoice>
+>({
+    initContext: (ctx, data) => {
+        ctx.roomId = data.roomId;
+    },
+    prechecks: [_authenticate, _verifyMembership],
+    fn: async function (ctx: { user: DecodedIdToken }, data) {
+        const invoice = await Invoice.findById(data.invoiceId);
+        if (!invoice) {
+            throw new AppError("Không tìm thấy hóa đơn", ErrorCode.NOT_FOUND);
+        }
 
-    try {
         Object.assign(invoice, data);
         await invoice.save();
 
-        await sendUpdateInvoiceNotification(invoice, user.uid);
-        return createSuccessResponse(serializeDocument<IInvoice>(invoice));
-    } catch (error) {
-        return handleServerActionError(error);
-    }
-}
+        await sendUpdateInvoiceNotification(invoice, ctx.user.uid);
+
+        revalidateTag(`invoices-${invoice.roomId}`);
+        return serializeDocument<IInvoice>(invoice);
+    },
+});
 
 interface GetRoomInvoicesQuery {
     status?: IInvoice["status"];
 }
-export async function getInvoicesByRoom(
-    roomId: string,
-    query: GetRoomInvoicesQuery = { status: "pending" }
-): ServerActionResponse<IInvoice[]> {
-    const user = await authenticate();
+export const getInvoicesByRoom = serverAction<
+    (roomId: string, query?: GetRoomInvoicesQuery) => Promise<IInvoice[]>
+>({
+    initContext: (ctx, roomId) => {
+        ctx.roomId = roomId;
+    },
+    prechecks: [_authenticate, _verifyMembership],
+    fn: async function (_, roomId, query = { status: "pending" }) {
+        const invoices = await Invoice.find({
+            roomId: roomId,
+            status: query.status,
+        }).sort({ monthApplied: -1 });
 
-    const [_, err] = await verifyMembership(user.uid, roomId);
-    if (err) return createErrorResponse(err);
+        return serializeDocument<IInvoice[]>(invoices);
+    },
+    cache: (ctx, roomId) => ({
+        tags: [`invoices-${roomId}`],
+    }),
+});
 
-    const invoices = await Invoice.find({
-        roomId: roomId,
-        status: query.status,
-    }).sort({ monthApplied: -1 });
+export const deleteInvoice = serverAction<(invoiceId: string) => Promise<null>>(
+    {
+        initContext: (ctx) =>
+            (ctx.requiredRoles = [MemberRole.ADMIN, MemberRole.MODERATOR]),
 
-    return createSuccessResponse(serializeDocument<IInvoice[]>(invoices));
-}
+        prechecks: [_authenticate],
 
-export async function deleteInvoice(
-    invoiceId: string
-): ServerActionResponse<null> {
-    const user = await authenticate();
-    const invoice = await Invoice.findById(invoiceId);
+        fn: async function (
+            ctx: {
+                user: DecodedIdToken;
+                roomId: string;
+                membership: mongoose.Document & IMembership;
+                requiredRoles: MemberRole[];
+            },
+            invoiceId
+        ) {
+            const invoice = await Invoice.findById(invoiceId);
 
-    if (!invoice) {
-        return createErrorResponse(
-            "Không tìm thấy hóa đơn",
-            ErrorCode.NOT_FOUND
-        );
+            if (!invoice) {
+                throw new AppError(
+                    "Không tìm thấy hóa đơn",
+                    ErrorCode.NOT_FOUND
+                );
+            }
+
+            ctx.roomId = invoice.roomId;
+
+            await _verifyMembership(ctx);
+            _verifyRoomPermission(ctx);
+
+            await Invoice.findByIdAndDelete(invoiceId);
+
+            revalidateTag(`invoices-${invoice.roomId}`);
+
+            await sendDeleteInvoiceNotification(invoice, ctx.user.uid);
+
+            return null;
+        },
     }
+);
 
-    const [membership, membershipError] = await verifyMembership(
-        user.uid,
-        invoice.roomId
-    );
-    if (membershipError) return createErrorResponse(membershipError);
+export const payInvoice = serverAction<
+    (invoiceId: string, amount: number) => Promise<IInvoice>
+>({
+    prechecks: [_authenticate],
+    fn: async function (ctx: UserCtx & VerifyMembershipCtx, invoiceId, amount) {
+        const invoice = await Invoice.findById(invoiceId);
 
-    if (invoice.createdBy !== user.uid) {
-        const [_, err] = verifyRoomPermission(membership, [
-            MemberRole.ADMIN,
-            MemberRole.MODERATOR,
-        ]);
-        if (err) return createErrorResponse(err);
-    }
+        if (!invoice) {
+            throw new AppError("Không tìm thấy hóa đơn", ErrorCode.NOT_FOUND);
+        }
 
-    try {
-        await Invoice.findByIdAndDelete(invoiceId);
-        await sendDeleteInvoiceNotification(invoice, user.uid);
-        return createSuccessResponse(null);
-    } catch (error) {
-        return handleServerActionError(error);
-    }
-}
+        ctx.roomId = invoice.roomId;
 
-export async function payInvoice(
-    invoiceId: string,
-    amount: number
-): ServerActionResponse<IInvoice> {
-    const user = await authenticate();
-    const invoice = await Invoice.findById(invoiceId);
+        await _verifyMembership(ctx);
 
-    if (!invoice) {
-        return createErrorResponse(
-            "Không tìm thấy hóa đơn",
-            ErrorCode.NOT_FOUND
-        );
-    }
-
-    const [_, err] = await verifyMembership(user.uid, invoice.roomId);
-    if (err) return createErrorResponse(err);
-
-    try {
-        const totalAmountToPay = await calculateShare(invoice, user.uid);
+        const totalAmountToPay = await calculateShare(invoice, ctx.user.uid);
         const userPayInfo = invoice.payInfo?.find(
-            (pi) => pi.paidBy === user.uid
+            (pi) => pi.paidBy === ctx.user.uid
         );
 
         if (userPayInfo) {
             if (userPayInfo.amount >= totalAmountToPay) {
-                return createErrorResponse(
+                throw new AppError(
                     "Bạn đã thanh toán hóa đơn này rồi",
                     ErrorCode.FORBIDDEN
                 );
@@ -179,7 +192,7 @@ export async function payInvoice(
             userPayInfo.paidAt = new Date();
         } else {
             invoice.payInfo.push({
-                paidBy: user.uid,
+                paidBy: ctx.user.uid,
                 amount: Math.min(amount, Math.round(totalAmountToPay)),
                 paidAt: new Date(),
             });
@@ -187,8 +200,8 @@ export async function payInvoice(
 
         await invoice.save();
 
-        return createSuccessResponse(serializeDocument<IInvoice>(invoice));
-    } catch (error) {
-        return handleServerActionError(error);
-    }
-}
+        revalidateTag(`invoices-${invoice.roomId}`);
+
+        return serializeDocument<IInvoice>(invoice);
+    },
+});
