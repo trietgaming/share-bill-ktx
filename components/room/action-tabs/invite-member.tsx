@@ -7,7 +7,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useRoomQuery } from "../room-context";
+import { useRoomQuery } from "../contexts/room-context";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useRef, useState } from "react";

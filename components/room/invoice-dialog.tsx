@@ -6,7 +6,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { InvoiceForm } from "@/components/room/invoices/invoice-form";
-import { useInvoices } from "./invoices-context";
+import { useInvoices } from "./contexts/invoices-context";
 
 export function InvoiceDialog() {
     const {

@@ -5,10 +5,9 @@ import {
     CardContent,
 } from "@/components/ui/card";
 import {
-    useMembership,
-    useRoommatesQuery,
+    useRoommates,
     useRoomQuery,
-} from "@/components/room/room-context";
+} from "@/components/room/contexts/room-context";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
 import { RoleBadge } from "@/components/role-badge";
@@ -22,26 +21,22 @@ import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { hasPermission, isRolePrecedent } from "@/lib/permission";
 import { Roommate } from "@/types/roommate";
 import { useAuth } from "@/components/auth-context";
-import { MemberRole } from "@/enums/member-role";
 import { useState } from "react";
 import { kickMember } from "@/lib/actions/room";
 import { handleAction } from "@/lib/action-handler";
 import {
     invalidateAllRoomQuery,
-    invoicesQueryKey,
-    presenceQueryKey,
-    queryClient,
-    roommatesQueryKey,
 } from "@/lib/query-client";
-import { toYYYYMM } from "@/lib/utils";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/are-you-sure";
 
 export function ManageMembersTab() {
-    const { data: roommates } = useRoommatesQuery();
+    const {
+        roommatesQuery: { data: roommates },
+        membership,
+    } = useRoommates();
     const { data: room } = useRoomQuery();
     const { userData } = useAuth();
-    const membership = useMembership();
     const [isKicking, setIsKicking] = useState<string | null>(null);
 
     const canKick = (member: Roommate) => {

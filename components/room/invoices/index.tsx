@@ -20,7 +20,7 @@ import {
     Home,
 } from "lucide-react";
 import { InvoiceForm } from "@/components/room/invoices/invoice-form";
-import { useInvoices, useRoomQuery } from "../room-context";
+import { useInvoices, useRoomQuery } from "../contexts/room-context";
 import { IInvoice } from "@/types/invoice";
 import { useAuth } from "@/components/auth-context";
 import { formatCurrency } from "@/lib/utils";

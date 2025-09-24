@@ -19,9 +19,8 @@ import {
     useInvoices,
     useMonthPresenceQuery,
     useRoomQuery,
-    useRoommatesQuery,
-} from "@/components/room/room-context";
-import RoomateList from "./roomate-list";
+} from "@/components/room/contexts/room-context";
+import { RoommateList } from "@/components/roomate-list";
 import { useMemo } from "react";
 import { cn, formatCurrency, toYYYYMM } from "@/lib/utils";
 import Link from "next/link";
@@ -194,7 +193,7 @@ export function HomeDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-3 md:space-y-4">
-                            <RoomateList />
+                            <RoommateList />
                         </div>
                     </CardContent>
                 </Card>

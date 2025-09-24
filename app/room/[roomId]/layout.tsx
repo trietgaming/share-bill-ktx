@@ -1,4 +1,4 @@
-import { RoomProvider } from '@/components/room/room-context';
+import { RoomProvider } from '@/components/room/contexts/room-context';
 import { RoomLayout } from '@/components/room/room-layout';
 import { getAuthenticatedUser } from '@/lib/firebase/server';
 import { serializeDocument } from '@/lib/serializer';

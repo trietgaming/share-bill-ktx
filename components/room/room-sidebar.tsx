@@ -20,7 +20,11 @@ import {
     Key,
 } from "lucide-react";
 import { useConfirm } from "@/components/are-you-sure";
-import { useRoomQuery, useMembership, useInvoices } from "./room-context";
+import {
+    useRoomQuery,
+    useInvoices,
+    useRoommates,
+} from "./contexts/room-context";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { deleteRoom, leaveRoom } from "@/lib/actions/room";
@@ -85,7 +89,7 @@ function SidebarTabTrigger({
 export function RoomSidebar({ onClose, isSidebarOpen }: RoomSidebarProps) {
     const { data: room } = useRoomQuery();
     const { setAddInvoiceType } = useInvoices();
-    const membership = useMembership();
+    const { membership } = useRoommates();
 
     const router = useRouter();
 

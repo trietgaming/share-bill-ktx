@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import { UseQueryResult, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
-import { useRoomQuery, useRoommatesQuery } from "./room-context";
+import { useRoommates, useRoomQuery } from "./room-context";
 import { IInvoice, PersonalInvoice } from "@/types/invoice";
 import {
     invoicesQueryKey,
@@ -11,7 +11,7 @@ import {
 import { getInvoicesByRoom } from "@/lib/actions/invoice";
 import { getRoomMonthsPresence } from "@/lib/actions/month-presence";
 import { IMonthPresence } from "@/types/month-presence";
-import { InvoiceCheckoutDialog } from "./invoice-checkout-dialog";
+import { InvoiceCheckoutDialog } from "../invoice-checkout-dialog";
 import { handleAction } from "@/lib/action-handler";
 import { InvoiceDialog } from "@/components/room/invoice-dialog";
 import { PresenceStatus } from "@/enums/presence";
@@ -37,7 +37,9 @@ const InvoicesContext = createContext<InvoicesContextType>(
 export const InvoicesProvider = ({ children }: { children: any }) => {
     const { userData } = useAuth();
     const { data: room } = useRoomQuery();
-    const { data: roommates } = useRoommatesQuery();
+    const {
+        roommatesQuery: { data: roommates },
+    } = useRoommates();
 
     const pendingInvoicesQuery = useQuery<IInvoice[]>({
         queryKey: invoicesQueryKey(room._id),

@@ -3,7 +3,7 @@ import { ROOM_MAX_MEMBERS_LIMIT } from "@/lib/app-constants";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useRoomQuery } from "./room-context";
+import { useRoomQuery } from "./contexts/room-context";
 import {
     Form,
     FormControl,

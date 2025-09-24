@@ -15,7 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "../ui/form";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useRoommatesQuery } from "./room-context";
+import { useRoommates } from "./contexts/room-context";
 import { useMutation } from "@tanstack/react-query";
 import { IClientBankAccount } from "@/types/bank-account";
 import { Switch } from "@/components/ui/switch";
@@ -28,59 +28,21 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { useBanks } from "@/hooks/use-banks";
 import { handleAction } from "@/lib/action-handler";
+import { BankCard } from "./bank-card";
+import { RoommateBankTabs } from "./roommate-bank-tabs";
 
 const invoiceCheckoutFormSchema = z.object({
     invoiceId: z.string().min(1, "Invoice ID is required"),
     amount: z.coerce.number<number>().min(0, "Amount must be at least 0"),
 });
 
-export function PayQRCodeCard({ account }: { account: IClientBankAccount }) {
-    return (
-        <div className="border rounded-lg flex flex-col items-center">
-            <h3 className="text-center mb-2 mt-4">{account.bankName}</h3>
-            <img
-                src={account.qrCodeUrl}
-                alt="QR Code"
-                className="w-32 h-32 object-contain mb-4"
-            />
-        </div>
-    );
-}
-
-export function BankAccountCard({ account }: { account: IClientBankAccount }) {
-    const { getBankLogoByShortName } = useBanks();
-
-    return (
-        <div className="flex flex-col items-center gap-4 border rounded-lg p-4">
-            <div className="*:text-center">
-                <img
-                    alt="Bank logo"
-                    className="h-8 object-cover mx-auto"
-                    src={getBankLogoByShortName(account.bankName)}
-                />
-                <h3 className="font-medium">{account.bankName}</h3>
-                <p className="text-sm md:text-base text-foreground font-mono break-all">
-                    {account.accountNumber}
-                </p>
-                <p className="text-sm text-muted-foreground truncate">
-                    {account.accountName}
-                </p>
-            </div>
-            <img
-                src={`https://img.vietqr.io/image/${account.bankName}-${account.accountNumber}-qr_only.jpg}`}
-                alt="Mã QR thanh toán"
-                className="w-24 h-24 object-contain border rounded-lg bg-white"
-            />
-        </div>
-    );
-}
-
 export function InvoiceCheckoutDialog({
     invoice,
     ...props
 }: React.ComponentProps<typeof Dialog> & { invoice?: PersonalInvoice | null }) {
-    const { data: roommates, isLoading: isRoommatesLoading } =
-        useRoommatesQuery();
+    const {
+        roommatesQuery: { data: roommates, isLoading: isRoommatesLoading },
+    } = useRoommates();
 
     const receiver = roommates?.find((rm) => rm.userId === invoice?.payTo);
 
@@ -154,33 +116,7 @@ export function InvoiceCheckoutDialog({
                 <h4 className="font-bold mx-auto">
                     Số tiền: {formatCurrency(invoice?.personalAmount)}
                 </h4>
-                <Tabs defaultValue={receiver?.bankAccounts[0]?._id}>
-                    {receiver?.bankAccounts.length! > 1 && (
-                        <TabsList>
-                            {receiver?.bankAccounts.map((account, index) => (
-                                <TabsTrigger
-                                    key={account._id}
-                                    value={account._id}
-                                >
-                                    {account.bankName}
-                                </TabsTrigger>
-                            ))}
-                        </TabsList>
-                    )}
-                    {receiver?.bankAccounts.map((account) => (
-                        <TabsContent
-                            key={account._id}
-                            value={account._id}
-                            className="mt-2"
-                        >
-                            {account.qrCodeUrl ? (
-                                <PayQRCodeCard account={account} />
-                            ) : (
-                                <BankAccountCard account={account} />
-                            )}
-                        </TabsContent>
-                    ))}
-                </Tabs>
+                <RoommateBankTabs bankAccounts={receiver?.bankAccounts || []} />
                 <div className="flex items-center gap-4">
                     <Label htmlFor="isPaid" className="text-sm font-medium">
                         Tôi đã thanh toán

@@ -4,11 +4,7 @@ import {
     CardDescription,
     CardContent,
 } from "@/components/ui/card";
-import {
-    useMembership,
-    useRoommatesQuery,
-    useRoomQuery,
-} from "@/components/room/room-context";
+import { useRoommates, useRoomQuery } from "@/components/room/contexts/room-context";
 import { UserAvatar } from "@/components/user-avatar";
 import { RoleBadge } from "@/components/role-badge";
 import { isRolePrecedent, isRolePrecedentOrEqual } from "@/lib/permission";
@@ -38,10 +34,12 @@ import {
 const availableRoles = [MemberRole.MEMBER, MemberRole.MODERATOR];
 
 export function ManagePermissionsTab() {
-    const { data: roommates } = useRoommatesQuery();
+    const {
+        roommatesQuery: { data: roommates },
+        membership,
+    } = useRoommates();
     const { data: room } = useRoomQuery();
     const { userData } = useAuth();
-    const membership = useMembership();
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
     const canChangePermission = (member: Roommate) => {
@@ -132,15 +130,21 @@ export function ManagePermissionsTab() {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {availableRoles.map((selectableRole) => (
-                                                <SelectItem
-                                                    className="text-xs"
-                                                    key={selectableRole}
-                                                    value={selectableRole}
-                                                >
-                                                    {RoleLabelMap[selectableRole]}
-                                                </SelectItem>
-                                            ))}
+                                            {availableRoles.map(
+                                                (selectableRole) => (
+                                                    <SelectItem
+                                                        className="text-xs"
+                                                        key={selectableRole}
+                                                        value={selectableRole}
+                                                    >
+                                                        {
+                                                            RoleLabelMap[
+                                                                selectableRole
+                                                            ]
+                                                        }
+                                                    </SelectItem>
+                                                )
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 )}

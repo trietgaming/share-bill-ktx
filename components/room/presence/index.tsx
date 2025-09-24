@@ -20,9 +20,9 @@ import {
 import {
     useInvoices,
     useMonthPresenceQuery,
-    useRoommatesQuery,
+    useRoommates,
     useRoomQuery,
-} from "../room-context";
+} from "@/components/room/contexts/room-context";
 import { Roommate } from "@/types/roommate";
 import { IMonthPresence } from "@/types/month-presence";
 import { useAuth } from "@/components/auth-context";
@@ -36,8 +36,8 @@ import { PresenceStatus } from "@/enums/presence";
 
 export function PresenceCalendar() {
     const { data: room } = useRoomQuery();
-    const { data: roommates, isLoading: isRoommatesLoading } =
-        useRoommatesQuery();
+    const {roommatesQuery:{ data: roommates, isLoading: isRoommatesLoading }} =
+        useRoommates();
     const { monthlyInvoices } = useInvoices();
     const { userData } = useAuth();
 
