@@ -17,7 +17,7 @@ if (!process.env.FIRESTORE_CONNECTION_URI) {
     );
 }
 
-export async function connectToDb() {
+export async function ensureDbConnection() {
     if (cached.conn) {
         console.log("Connecting or Already connected to Firestore DB");
         return;

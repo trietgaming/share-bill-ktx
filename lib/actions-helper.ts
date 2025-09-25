@@ -9,6 +9,7 @@ import type {
 import mongoose from "mongoose";
 import { AppError, AppValidationError } from "./errors";
 import { unstable_cache } from "next/cache";
+import { ensureDbConnection } from "./db-connect";
 
 export function createErrorResponse(
     error: ActionError
@@ -96,8 +97,10 @@ export type ServerActionDefinition<
     ServerFunc extends (...args: any[]) => Promise<any>,
     ArgsType extends any[] = Parameters<ServerFunc>
 > = {
+    ensureDbConnection?: boolean;
     /**
-     * Initialize context object, which will be passed to prechecks and main function
+     * Initialize context object, which will be passed to prechecks and main function.
+     * Errors in this will not be caught and will result in 500 error.
      */
     initContext?: (context: any, ...args: ArgsType) => any;
     /**
@@ -133,6 +136,9 @@ export function serverAction<
         const context: any = {};
         await definition.initContext?.(context, ...args);
         try {
+            if (definition.ensureDbConnection !== false) {
+                await ensureDbConnection();
+            }
             for (const check of definition.prechecks || []) {
                 await check(context, ...args);
             }
