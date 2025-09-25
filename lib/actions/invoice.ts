@@ -15,13 +15,12 @@ import {
     sendNewInvoiceNotification,
     sendUpdateInvoiceNotification,
 } from "@/lib/messages/invoice";
-import {
-    serverAction,
-} from "../actions-helper";
+import { serverAction } from "../actions-helper";
 import { ErrorCode } from "@/enums/error";
 import { MemberRole } from "@/enums/member-role";
 import { AppError } from "../errors";
 import { revalidateTag } from "next/cache";
+import { RootFilterQuery } from "mongoose";
 
 export interface CreateInvoiceFormData {
     roomId: string;
@@ -88,17 +87,42 @@ export const updateInvoice = serverAction({
 
 interface GetRoomInvoicesQuery {
     status?: IInvoice["status"];
+    shouldLimit?: boolean;
+    sortBy?: "createdAt" | "monthApplied";
+    sortOrder?: "asc" | "desc";
+    cursor?: string | null;
 }
 export const getInvoicesByRoom = serverAction({
     fn: async function (
         _,
         roomId: string,
-        query: GetRoomInvoicesQuery = { status: "pending" }
+        query: GetRoomInvoicesQuery = {
+            status: "pending",
+            sortBy: "createdAt",
+            sortOrder: "desc",
+        }
     ): Promise<IInvoice[]> {
-        const invoices = await Invoice.find({
+        const filter: RootFilterQuery<IInvoice> = {
             roomId: roomId,
-            status: query.status,
-        }).sort({ monthApplied: -1 });
+            status: query.status
+        };
+
+        if (query.cursor) {
+            filter[query.sortBy || "createdAt"] =
+                query.sortOrder === "asc"
+                    ? { $gt: query.cursor }
+                    : { $lt: query.cursor };
+        }
+
+        if (query.sortBy) {
+            filter.sort = {
+                [query.sortBy]: query.sortOrder === "asc" ? 1 : -1,
+            };
+        }
+
+        const invoices = await Invoice.find(filter)
+            .limit(query.shouldLimit ? 20 : 0)
+            .sort(filter.sort);
 
         return serializeDocument<IInvoice[]>(invoices);
     },

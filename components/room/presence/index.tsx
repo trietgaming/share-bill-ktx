@@ -36,8 +36,9 @@ import { PresenceStatus } from "@/enums/presence";
 
 export function PresenceCalendar() {
     const { data: room } = useRoomQuery();
-    const {roommatesQuery:{ data: roommates, isLoading: isRoommatesLoading }} =
-        useRoommates();
+    const {
+        roommatesQuery: { data: roommates, isLoading: isRoommatesLoading },
+    } = useRoommates();
     const { monthlyInvoices } = useInvoices();
     const { userData } = useAuth();
 
@@ -95,7 +96,8 @@ export function PresenceCalendar() {
         for (let day = 0; day < totalDays; day++) {
             processed += roomPresence.every(
                 (roommatePresence) =>
-                    roommatePresence.presence[day] !== PresenceStatus.UNDETERMINED
+                    roommatePresence.presence[day] !==
+                    PresenceStatus.UNDETERMINED
             )
                 ? 1
                 : 0;
@@ -192,7 +194,8 @@ export function PresenceCalendar() {
 
     const userElectricCostPerDay = Math.round(
         (electricInvoice?.personalAmount || 0) /
-            (userPresenceMap.filter((a) => a !== PresenceStatus.ABSENT).length || 1)
+            (userPresenceMap.filter((a) => a !== PresenceStatus.ABSENT)
+                .length || 1)
     );
 
     // Generate calendar days
@@ -208,10 +211,10 @@ export function PresenceCalendar() {
         calendarDays.push(day);
     }
 
-    const toggleUserPresence = (day: number) => {
+    const toggleUserPresence = (day: number, isToggleAll: boolean = false) => {
         const currentAvailability = userPresenceMap[day];
 
-        const nextStatus = (currentAvailability + 1) % 3 // 3 is number of statuses
+        const nextStatus = (currentAvailability + 1) % 3; // 3 is number of statuses
 
         let snapshot: IMonthPresence;
         // Optimistically update UI
@@ -222,7 +225,9 @@ export function PresenceCalendar() {
 
                 return old.map((mp) => {
                     if (mp.userId === userData!._id) {
-                        const newPresence = [...mp.presence];
+                        const newPresence = isToggleAll
+                            ? Array(mp.presence.length).fill(nextStatus)
+                            : [...mp.presence];
                         newPresence[day] = nextStatus;
                         return (snapshot = { ...mp, presence: newPresence });
                     }
@@ -290,9 +295,40 @@ export function PresenceCalendar() {
 
     const dayNames = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 
+    const [pointerStatus, setPointerStatus] = useState({
+        isDown: false,
+        isDragging: false,
+    })
+
+    useEffect(() => {
+        const handlePointerUp = () => {
+            setPointerStatus({ isDown: false, isDragging: false });
+        };
+
+        // const handlePointerMove = () => {
+        //     if (pointerStatus.isDown) {
+        //         setPointerStatus((prev) => ({ ...prev, isDragging: true }));
+        //     }
+        // };
+
+        const handlePointerDown = () => {
+            setPointerStatus({ isDown: true, isDragging: false });
+        }
+
+        window.addEventListener("pointerdown", handlePointerDown);
+        window.addEventListener("pointerup", handlePointerUp);
+        // window.addEventListener("pointermove", handlePointerMove);
+        return () => {
+            window.removeEventListener("pointerup", handlePointerUp);
+            // window.removeEventListener("pointermove", handlePointerMove);
+            window.removeEventListener("pointerdown", handlePointerDown);
+        }
+    }, []);
+
     if (isRoommatesLoading || isRoomPresenceLoading) {
         return <PresenceSkeleton />;
     }
+
 
     return (
         <div className="space-y-6">
@@ -309,7 +345,8 @@ export function PresenceCalendar() {
                         <div className="text-2xl font-bold text-primary">
                             {
                                 userPresenceMap.filter(
-                                    (status) => status === PresenceStatus.PRESENT
+                                    (status) =>
+                                        status === PresenceStatus.PRESENT
                                 ).length
                             }
                             /{daysInMonth}
@@ -364,7 +401,10 @@ export function PresenceCalendar() {
                     <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
                             <Calendar className="h-5 w-5" />
-                            Lịch tích ngày ở
+                            <span>Lịch tích ngày ở</span>
+                            <Button className="ml-2" size="sm" onClick={() => toggleUserPresence(0, true)}>
+                                Tích tất cả
+                            </Button>
                         </CardTitle>
                         <div className="flex items-center gap-2">
                             <Button
@@ -419,7 +459,7 @@ export function PresenceCalendar() {
                     </div>
 
                     {/* Calendar Grid */}
-                    <div className="overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent px-2">
+                    <div className="select-none overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent px-2">
                         <div className="grid grid-cols-7 gap-1 min-w-[500px]">
                             {/* Day headers */}
                             {dayNames.map((day) => (
@@ -433,6 +473,7 @@ export function PresenceCalendar() {
 
                             {/* Calendar days */}
                             {calendarDays.map((day, index) => {
+                                let dragId = 0;
                                 if (day === null) {
                                     return (
                                         <div
@@ -447,10 +488,16 @@ export function PresenceCalendar() {
                                 return (
                                     <button
                                         key={day}
-                                        onClick={() => toggleUserPresence(day)}
+                                        onPointerEnter={() => {
+                                            if (pointerStatus.isDown ) {
+                                                toggleUserPresence(day);
+                                            }
+                                        }}
+                                        onPointerDown={() => toggleUserPresence(day)}
                                         className={cn(
                                             "p-2 h-20 border rounded-lg transition-colors hover:cursor-pointer flex flex-col items-center justify-start gap-1",
-                                            dayStatus.availability === PresenceStatus.PRESENT
+                                            dayStatus.availability ===
+                                                PresenceStatus.PRESENT
                                                 ? "bg-primary/10 border-primary text-primary"
                                                 : dayStatus.availability ===
                                                   PresenceStatus.ABSENT
@@ -494,7 +541,7 @@ export function PresenceCalendar() {
                     {/* Instructions */}
                     <div className="mt-4 p-4 bg-muted/50 rounded-lg">
                         <p className="text-sm text-muted-foreground">
-                            <strong>Hướng dẫn:</strong> Click vào ngày để chuyển
+                            <strong>Hướng dẫn:</strong> Click hoặc ấn và vuốt qua các ngày để chuyển
                             đổi trạng thái ở/không ở của bạn.
                         </p>
                     </div>

@@ -1,5 +1,9 @@
 import { createContext, useContext, useMemo, useState } from "react";
-import { UseQueryResult, useQuery } from "@tanstack/react-query";
+import {
+    UseQueryResult,
+    useInfiniteQuery,
+    useQuery,
+} from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
 import { useRoommates, useRoomQuery } from "./room-context";
 import { IInvoice, PersonalInvoice } from "@/types/invoice";
