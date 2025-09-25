@@ -112,8 +112,11 @@ export type ServerActionDefinition<
      * Prechecks can be dependent on each other, so the order matters.
      */
     prechecks?: Array<(context: any, ...args: ArgsType) => Promise<any> | any>;
-    /** Main server action function, must define context within this fn */
+    /** Main server action function, must not use cookies within this function */
     fn: (context: any, ...args: ArgsType) => ReturnType<ServerFunc>;
+    /**
+     * This context doesn't include context from fn.
+     */
     cache?: (context: any, ...args: ArgsType) => {
         duration?: number;
         tags?: string[];
@@ -124,14 +127,16 @@ type Awaited<T> = T extends Promise<infer U> ? U : T;
 
 /**
  * Must define the generic ServerFunc explicitly when calling this function.
+ * 
+ * Flow: initContext -> prechecks[0] -> prechecks[1] -> ... -> cache (init cache) -> fn
  */
 export function serverAction<
     ServerFunc extends (...args: any[]) => Promise<any>
 >(
     definition: ServerActionDefinition<ServerFunc>
-): (
+): ((
     ...args: Parameters<ServerFunc>
-) => ServerActionResponse<Awaited<ReturnType<ServerFunc>>> {
+) => ServerActionResponse<Awaited<ReturnType<ServerFunc>>>) {
     const returnFn = async function (...args: Parameters<ServerFunc>) {
         const context: any = {};
         await definition.initContext?.(context, ...args);
