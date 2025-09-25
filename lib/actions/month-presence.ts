@@ -67,9 +67,9 @@ export const getRoomMonthPresence = serverAction<
             return serializeDocument<IMonthPresence[]>(roomMonthPresences)
 
         },
-        cache: (ctx, roomId) => {
+        cache: (ctx, roomId, month) => {
             return {
-                tags: [`room-month-presence-${roomId}`, `room-${roomId}`],
+                tags: [`room-month-presence-${roomId}-${month}`,`room-month-presence-${roomId}`, `room-${roomId}`],
             };
         }
     }
