@@ -12,6 +12,7 @@ import {
     useContext,
     useEffect,
     useLayoutEffect,
+    useRef,
     useState,
 } from "react";
 
@@ -39,6 +40,8 @@ export const AuthProvider = ({
     const [userData, setUserData] = useState<IUserDataWithBankAccounts | null>(
         initialUserData
     );
+    const userDataRef = useRef(userData);
+    
     const pathname = usePathname();
     const router = useRouter();
 
@@ -52,7 +55,7 @@ export const AuthProvider = ({
                     setUserData(null);
                     return;
                 }
-                if (authUser?.uid !== userData?._id) {
+                if (authUser?.uid !== userDataRef.current?._id) {
                     const newUserData = await getAuthenticatedUserData(
                         await authUser?.getIdToken()
                     );
@@ -80,6 +83,7 @@ export const AuthProvider = ({
     }, []);
 
     useEffect(() => {
+        userDataRef.current = userData;
         if (isProtectedRoute && !userData && !isLoginRoute) {
             router.push(`${LOGIN_PATH}?cb=${pathname}`);
             return;

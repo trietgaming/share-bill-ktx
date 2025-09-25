@@ -522,9 +522,9 @@ export function InvoiceForm({
                     )}
                 />
 
-                <div className="flex items-center justify-between">
+                {/* <div className="flex items-center justify-between"> */}
                     {/* Due Date */}
-                    <FormField
+                    {/* <FormField
                         control={form.control}
                         name="dueDate"
                         render={({ field }) => (
@@ -565,8 +565,8 @@ export function InvoiceForm({
                                 <FormMessage />
                             </FormItem>
                         )}
-                    />
-                </div>
+                    /> */}
+                {/* </div> */}
 
                 {/* <div className="flex items-center justify-between rounded-lg border p-3">
                     <FormLabel htmlFor="hasAdvancePayer" className="mb-0">Ứng trước?</FormLabel>

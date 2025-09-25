@@ -98,17 +98,21 @@ export async function getAuthenticatedUser(_idToken?: string | null) {
     let user = await getAuthUserFromIdToken(idToken);
 
     if (!user) {
-        const refreshToken = requestCookies.get("__refreshToken")?.value;
+        try {
+            const refreshToken = requestCookies.get("__refreshToken")?.value;
 
-        if (refreshToken) {
-            const newIdToken = await exchangeRefreshTokenForIdToken(
-                refreshToken
-            );
+            if (refreshToken) {
+                const newIdToken = await exchangeRefreshTokenForIdToken(
+                    refreshToken
+                );
 
-            user = await getAuthUserFromIdToken(newIdToken);
+                user = await getAuthUserFromIdToken(newIdToken);
+            }
+        } catch (error) {
+            return null;
         }
     }
-
+    
     return user;
 }
 
