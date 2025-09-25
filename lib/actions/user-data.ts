@@ -11,9 +11,7 @@ import { UserData } from "@/models/UserData";
 import mongoose from "mongoose";
 import { IBankAccount, IClientBankAccount } from "@/types/bank-account";
 import { uploadFileToCloudinary } from "../cloudinary";
-import {
-    serverAction,
-} from "@/lib/actions-helper";
+import { serverAction } from "@/lib/actions-helper";
 import { ErrorCode } from "@/enums/error";
 import { AppError } from "../errors";
 import { revalidateTag } from "next/cache";
@@ -24,42 +22,63 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export const getAuthenticatedUserData = serverAction<
-    (_idToken?: string | null) => Promise<IUserDataWithBankAccounts | null>
->({
-    initContext: async (ctx, _idToken) => {
-        const user = await getAuthenticatedUser(_idToken);
-
-        ctx.user = user;
-    },
-    fn: async function (ctx: UserCtx,
+export const getAuthenticatedUserData = serverAction({
+    fn: async function (
+        ctx: UserCtx,
         _idToken?: string | null
-    ) {
+    ): Promise<IUserDataWithBankAccounts | null> {
         if (!ctx.user) return null;
 
         const userData = await (
             await getUserData(ctx.user)
         ).populate<{ bankAccounts: IBankAccount[] }>("bankAccounts");
 
-        return (
-            serializeDocument<IUserDataWithBankAccounts>(userData)
-        );
+        return serializeDocument<IUserDataWithBankAccounts>(userData);
+    },
+    initContext: async (ctx, _idToken) => {
+        const user = await getAuthenticatedUser(_idToken);
+
+        ctx.user = user!;
     },
     cache: (ctx) => {
-        if (!ctx.user) return null
+        if (!ctx.user) return null;
         return {
             tags: [`user-data-${ctx.user.uid}`],
+            duration: ctx.user.exp - Date.now() - 60, // cache until 1 minute before token expiration
         };
-    }
-})
+    },
+});
 
 const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 
-export const updateUserPhoto = serverAction<
-    (photo: File) => Promise<string>
->({
+export const updateUserPhoto = serverAction({
+    fn: async function (ctx: UserCtx, photo: File): Promise<string> {
+        const imageId = `user_photo_${ctx.user.uid}`;
+
+        // Upload an image
+        const uploadResult = await uploadFileToCloudinary(photo, {
+            folder: "share-bill-ktx",
+            public_id: imageId,
+            overwrite: true,
+            resource_type: "image",
+            upload_preset: "avatar_upload",
+        });
+
+        const photoURL = uploadResult?.url;
+        if (!photoURL) {
+            throw new AppError("Failed to upload image", ErrorCode.UNKNOWN);
+        }
+
+        const userData = await getUserData(ctx.user);
+        userData.photoURL = photoURL;
+
+        await userData.save();
+
+        revalidateTag(`user-data-${ctx.user.uid}`);
+        return photoURL;
+    },
     prechecks: [
         async (ctx, photo) => {
             // only support jpg, jpeg, png, webp
@@ -76,63 +95,28 @@ export const updateUserPhoto = serverAction<
                 );
             }
         },
-        _authenticate
+        _authenticate,
     ],
-    fn: async function (
-        ctx: UserCtx,
-        photo: File
-    ) {
-        const imageId = `user_photo_${ctx.user.uid}`;
-
-        // Upload an image
-        const uploadResult = await uploadFileToCloudinary(photo, {
-            folder: "share-bill-ktx",
-            public_id: imageId,
-            overwrite: true,
-            resource_type: "image",
-            upload_preset: "avatar_upload",
-        });
-
-        const photoURL = uploadResult?.url;
-        if (!photoURL) {
-            throw new AppError(
-                "Failed to upload image",
-                ErrorCode.UNKNOWN
-            );
-        }
-
-        const userData = await getUserData(ctx.user);
-        userData.photoURL = photoURL;
-
-        await userData.save();
-
-        revalidateTag(`user-data-${ctx.user.uid}`);
-        return photoURL;
-    }
-})
+});
 
 export interface UpdateUserDataFormData {
     displayName: string;
 }
 
-export const updateUserData = serverAction<
-    (data: UpdateUserDataFormData) => Promise<void>
->(
-    {
-        prechecks: [_authenticate],
-        fn: async function (
-            ctx: UserCtx,
-            data: UpdateUserDataFormData
-        ) {
-            const userData = await getUserData(ctx.user);
+export const updateUserData = serverAction({
+    fn: async function (
+        ctx: UserCtx,
+        data: UpdateUserDataFormData
+    ): Promise<void> {
+        const userData = await getUserData(ctx.user);
 
-            userData.displayName = data.displayName;
+        userData.displayName = data.displayName;
 
-            await userData.save();
-            revalidateTag(`user-data-${ctx.user.uid}`);
-        }
-    }
-)
+        await userData.save();
+        revalidateTag(`user-data-${ctx.user.uid}`);
+    },
+    prechecks: [_authenticate],
+});
 
 export interface CreateOrUpdateUserBankAccountFormData {
     id?: string;
@@ -142,32 +126,11 @@ export interface CreateOrUpdateUserBankAccountFormData {
     qrCodeFile?: File;
 }
 
-export const createOrUpdateUserBankAccount = serverAction<
-    (data: CreateOrUpdateUserBankAccountFormData) => Promise<IClientBankAccount>
->({
-    prechecks: [
-        async (ctx, data) => {
-            if (data.qrCodeFile) {
-                if (!SUPPORTED_IMAGE_TYPES.includes(data.qrCodeFile.type)) {
-                    throw new AppError(
-                        "Định dạng file không hợp lệ",
-                        ErrorCode.INVALID_INPUT
-                    );
-                }
-                if (data.qrCodeFile.size > MAX_FILE_SIZE) {
-                    throw new AppError(
-                        "Tệp phải nhỏ hơn 1MB",
-                        ErrorCode.INVALID_INPUT
-                    );
-                }
-            }
-        },
-        _authenticate
-    ],
+export const createOrUpdateUserBankAccount = serverAction({
     fn: async function (
         ctx: UserCtx,
         data: CreateOrUpdateUserBankAccountFormData
-    ) {
+    ): Promise<IClientBankAccount> {
         const userData = await getUserData(ctx.user);
 
         if (
@@ -220,23 +183,38 @@ export const createOrUpdateUserBankAccount = serverAction<
 
         revalidateTag(`user-data-${ctx.user.uid}`);
 
-        return (
-            serializeDocument<IClientBankAccount>(newBankAccount)
-        );
-    }
-})
+        return serializeDocument<IClientBankAccount>(newBankAccount);
+    },
+    prechecks: [
+        async (ctx, data) => {
+            if (data.qrCodeFile) {
+                if (!SUPPORTED_IMAGE_TYPES.includes(data.qrCodeFile.type)) {
+                    throw new AppError(
+                        "Định dạng file không hợp lệ",
+                        ErrorCode.INVALID_INPUT
+                    );
+                }
+                if (data.qrCodeFile.size > MAX_FILE_SIZE) {
+                    throw new AppError(
+                        "Tệp phải nhỏ hơn 1MB",
+                        ErrorCode.INVALID_INPUT
+                    );
+                }
+            }
+        },
+        _authenticate,
+    ],
+});
 
-export const deleteUserBankAccount = serverAction<
-    (bankAccountId: string) => Promise<void>
->({
-    prechecks: [_authenticate],
-    fn: async function (
-        ctx: UserCtx,
-        bankAccountId: string
-    ) {
+export const deleteUserBankAccount = serverAction({
+    fn: async function (ctx: UserCtx, bankAccountId: string): Promise<void> {
         const userData = await getUserData(ctx.user);
 
-        if (!userData.bankAccounts.some((bankId) => bankId.equals(bankAccountId))) {
+        if (
+            !userData.bankAccounts.some((bankId) =>
+                bankId.equals(bankAccountId)
+            )
+        ) {
             throw new AppError(
                 "Không tìm thấy tài khoản ngân hàng",
                 ErrorCode.NOT_FOUND
@@ -262,5 +240,6 @@ export const deleteUserBankAccount = serverAction<
         });
 
         revalidateTag(`user-data-${ctx.user.uid}`);
-    }
-})
+    },
+    prechecks: [_authenticate],
+});

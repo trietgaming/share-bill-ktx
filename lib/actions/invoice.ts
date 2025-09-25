@@ -1,15 +1,13 @@
 "use server";
 
 import { IInvoice, IPayInfo } from "@/types/invoice";
-import { authenticate, _authenticate, UserCtx } from "@/lib/prechecks/auth";
+import { _authenticate, UserCtx } from "@/lib/prechecks/auth";
 import { calculateShare, Invoice } from "@/models/Invoice";
 import { serializeDocument } from "@/lib/serializer";
 import {
     _verifyMembership,
     _verifyRoomPermission,
-    verifyMembership,
     VerifyMembershipCtx,
-    verifyRoomPermission,
     VerifyRoomPermissionCtx,
 } from "@/lib/prechecks/room";
 import {
@@ -18,19 +16,12 @@ import {
     sendUpdateInvoiceNotification,
 } from "@/lib/messages/invoice";
 import {
-    createErrorResponse,
-    createSuccessResponse,
-    handleServerActionError,
     serverAction,
 } from "../actions-helper";
 import { ErrorCode } from "@/enums/error";
-import { ServerActionResponse } from "@/types/actions";
 import { MemberRole } from "@/enums/member-role";
-import { AppError, AppValidationError } from "../errors";
-import { DecodedIdToken } from "@/types/auth";
+import { AppError } from "../errors";
 import { revalidateTag } from "next/cache";
-import { IMembership } from "@/types/membership";
-import mongoose from "mongoose";
 
 export interface CreateInvoiceFormData {
     roomId: string;
@@ -45,14 +36,11 @@ export interface CreateInvoiceFormData {
     payTo?: string;
 }
 
-export const createNewInvoice = serverAction<
-    (data: CreateInvoiceFormData) => Promise<IInvoice>
->({
-    initContext: (ctx, data) => {
-        ctx.roomId = data.roomId;
-    },
-    prechecks: [_authenticate, _verifyMembership],
-    fn: async function (ctx: { user: DecodedIdToken }, data) {
+export const createNewInvoice = serverAction({
+    fn: async function (
+        ctx: VerifyMembershipCtx,
+        data: CreateInvoiceFormData
+    ): Promise<IInvoice> {
         const invoice = await new Invoice({
             ...data,
             status: "pending",
@@ -64,20 +52,21 @@ export const createNewInvoice = serverAction<
         revalidateTag(`invoices-${invoice.roomId}`);
         return serializeDocument<IInvoice>(invoice);
     },
+    initContext: (ctx, data) => {
+        ctx.roomId = data.roomId;
+    },
+    prechecks: [_authenticate, _verifyMembership],
 });
 
 export interface UpdateInvoiceFormData extends Partial<CreateInvoiceFormData> {
     invoiceId: string;
 }
 
-export const updateInvoice = serverAction<
-    (data: UpdateInvoiceFormData) => Promise<IInvoice>
->({
-    initContext: (ctx, data) => {
-        ctx.roomId = data.roomId;
-    },
-    prechecks: [_authenticate, _verifyMembership],
-    fn: async function (ctx: { user: DecodedIdToken }, data) {
+export const updateInvoice = serverAction({
+    fn: async function (
+        ctx: VerifyMembershipCtx,
+        data: UpdateInvoiceFormData
+    ): Promise<IInvoice> {
         const invoice = await Invoice.findById(data.invoiceId);
         if (!invoice) {
             throw new AppError("Không tìm thấy hóa đơn", ErrorCode.NOT_FOUND);
@@ -91,19 +80,21 @@ export const updateInvoice = serverAction<
         revalidateTag(`invoices-${invoice.roomId}`);
         return serializeDocument<IInvoice>(invoice);
     },
+    initContext: (ctx, data) => {
+        ctx.roomId = data.roomId!;
+    },
+    prechecks: [_authenticate, _verifyMembership],
 });
 
 interface GetRoomInvoicesQuery {
     status?: IInvoice["status"];
 }
-export const getInvoicesByRoom = serverAction<
-    (roomId: string, query?: GetRoomInvoicesQuery) => Promise<IInvoice[]>
->({
-    initContext: (ctx, roomId) => {
-        ctx.roomId = roomId;
-    },
-    prechecks: [_authenticate, _verifyMembership],
-    fn: async function (_, roomId, query = { status: "pending" }) {
+export const getInvoicesByRoom = serverAction({
+    fn: async function (
+        _,
+        roomId: string,
+        query: GetRoomInvoicesQuery = { status: "pending" }
+    ): Promise<IInvoice[]> {
         const invoices = await Invoice.find({
             roomId: roomId,
             status: query.status,
@@ -111,57 +102,52 @@ export const getInvoicesByRoom = serverAction<
 
         return serializeDocument<IInvoice[]>(invoices);
     },
+    initContext: (ctx, roomId) => {
+        ctx.roomId = roomId;
+    },
+    prechecks: [_authenticate, _verifyMembership],
     cache: (ctx, roomId) => ({
         tags: [`invoices-${roomId}`],
     }),
 });
 
-export const deleteInvoice = serverAction<(invoiceId: string) => Promise<null>>(
-    {
-        initContext: (ctx) =>
-            (ctx.requiredRoles = [MemberRole.ADMIN, MemberRole.MODERATOR]),
+export const deleteInvoice = serverAction({
+    fn: async function (
+        ctx: VerifyRoomPermissionCtx,
+        invoiceId: string
+    ): Promise<null> {
+        const invoice = await Invoice.findById(invoiceId);
 
-        prechecks: [_authenticate],
+        if (!invoice) {
+            throw new AppError("Không tìm thấy hóa đơn", ErrorCode.NOT_FOUND);
+        }
 
-        fn: async function (
-            ctx: {
-                user: DecodedIdToken;
-                roomId: string;
-                membership: mongoose.Document & IMembership;
-                requiredRoles: MemberRole[];
-            },
-            invoiceId
-        ) {
-            const invoice = await Invoice.findById(invoiceId);
+        ctx.roomId = invoice.roomId;
 
-            if (!invoice) {
-                throw new AppError(
-                    "Không tìm thấy hóa đơn",
-                    ErrorCode.NOT_FOUND
-                );
-            }
+        await _verifyMembership(ctx);
+        _verifyRoomPermission(ctx);
 
-            ctx.roomId = invoice.roomId;
+        await Invoice.findByIdAndDelete(invoiceId);
 
-            await _verifyMembership(ctx);
-            _verifyRoomPermission(ctx);
+        revalidateTag(`invoices-${invoice.roomId}`);
 
-            await Invoice.findByIdAndDelete(invoiceId);
+        await sendDeleteInvoiceNotification(invoice, ctx.user.uid);
 
-            revalidateTag(`invoices-${invoice.roomId}`);
+        return null;
+    },
+    initContext(ctx) {
+        ctx.requiredRoles = [MemberRole.ADMIN, MemberRole.MODERATOR];
+    },
 
-            await sendDeleteInvoiceNotification(invoice, ctx.user.uid);
-
-            return null;
-        },
-    }
-);
-
-export const payInvoice = serverAction<
-    (invoiceId: string, amount: number) => Promise<IInvoice>
->({
     prechecks: [_authenticate],
-    fn: async function (ctx: UserCtx & VerifyMembershipCtx, invoiceId, amount) {
+});
+
+export const payInvoice = serverAction({
+    fn: async function (
+        ctx: UserCtx & VerifyMembershipCtx,
+        invoiceId: string,
+        amount: number
+    ): Promise<IInvoice> {
         const invoice = await Invoice.findById(invoiceId);
 
         if (!invoice) {
@@ -204,4 +190,5 @@ export const payInvoice = serverAction<
 
         return serializeDocument<IInvoice>(invoice);
     },
+    prechecks: [_authenticate],
 });

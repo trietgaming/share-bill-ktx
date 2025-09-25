@@ -8,7 +8,7 @@ import type {
 } from "@/types/actions";
 import mongoose from "mongoose";
 import { AppError, AppValidationError } from "./errors";
-import { unstable_cache } from "next/cache";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { ensureDbConnection } from "./db-connect";
 
 export function createErrorResponse(
@@ -30,9 +30,9 @@ export function createErrorResponse(
         error:
             typeof message == "string"
                 ? {
-                    message,
-                    code: code as ErrorCode,
-                }
+                      message,
+                      code: code as ErrorCode,
+                  }
                 : message,
     };
 }
@@ -94,15 +94,16 @@ export function handleServerActionError(error: any): ErrorServerActionResult {
 }
 
 export type ServerActionDefinition<
-    ServerFunc extends (...args: any[]) => Promise<any>,
-    ArgsType extends any[] = Parameters<ServerFunc>
+    ServerFunc extends (...args: any[]) => Promise<any>
 > = {
+    /** Main server action function, must not use cookies within this function */
+    fn: ServerFunc;
     ensureDbConnection?: boolean;
     /**
      * Initialize context object, which will be passed to prechecks and main function.
      * Errors in this will not be caught and will result in 500 error.
      */
-    initContext?: (context: any, ...args: ArgsType) => any;
+    initContext?: (...args: Parameters<ServerFunc>) => any;
     /**
      * Prechecks to run before main function
      * If any precheck throws an error, the main function will not be executed
@@ -111,62 +112,82 @@ export type ServerActionDefinition<
      *
      * Prechecks can be dependent on each other, so the order matters.
      */
-    prechecks?: Array<(context: any, ...args: ArgsType) => Promise<any> | any>;
-    /** Main server action function, must not use cookies within this function */
-    fn: (context: any, ...args: ArgsType) => ReturnType<ServerFunc>;
+    prechecks?: ((...args: Parameters<ServerFunc>) => Promise<any> | any)[];
     /**
      * This context doesn't include context from fn.
      */
-    cache?: (context: any, ...args: ArgsType) => {
+    cache?: (...args: Parameters<ServerFunc>) => {
         duration?: number;
         tags?: string[];
     } | null;
 };
 
 type Awaited<T> = T extends Promise<infer U> ? U : T;
+type TailParams<T extends (...args: any) => any> = T extends (
+    _: any,
+    ...args: infer P
+) => any
+    ? P
+    : never;
 
 /**
- * Must define the generic ServerFunc explicitly when calling this function.
- * 
+ * Must define fn first for type inference to work.
+ *
  * Flow: initContext -> prechecks[0] -> prechecks[1] -> ... -> cache (init cache) -> fn
  */
 export function serverAction<
     ServerFunc extends (...args: any[]) => Promise<any>
 >(
     definition: ServerActionDefinition<ServerFunc>
-): ((
-    ...args: Parameters<ServerFunc>
-) => ServerActionResponse<Awaited<ReturnType<ServerFunc>>>) {
-    const returnFn = async function (...args: Parameters<ServerFunc>) {
+): (
+    ...args: TailParams<ServerFunc>
+) => ServerActionResponse<Awaited<ReturnType<ServerFunc>>> {
+    const returnFn = async function (...args: any[]) {
         const context: any = {};
+        /// @ts-ignore
         await definition.initContext?.(context, ...args);
         try {
             if (definition.ensureDbConnection !== false) {
                 await ensureDbConnection();
             }
             for (const check of definition.prechecks || []) {
+                /// @ts-ignore
                 await check(context, ...args);
             }
 
+            /// @ts-ignore
             const cache = definition.cache?.(context, ...args);
 
             return cache
                 ? await unstable_cache(
-                    async () =>
-                        createSuccessResponse(
-                            await definition.fn(context, ...args)
-                        ),
-                    cache.tags,
-                    {
-                        tags: cache.tags,
-                        revalidate: cache.duration || 60 * 60, // default 1 hour
-                    }
-                )()
+                      async () =>
+                          createSuccessResponse(
+                              await definition.fn(context, ...args)
+                          ),
+                      cache.tags,
+                      {
+                          tags: cache.tags,
+                          revalidate:
+                              cache.duration && cache.duration > 0
+                                  ? cache.duration
+                                  : 60 * 60, // default 1 hour
+                      }
+                  )()
                 : createSuccessResponse(await definition.fn(context, ...args));
         } catch (error) {
             return handleServerActionError(error) as ReturnType<ServerFunc>;
         }
-    } as ServerFunc;
+    };
 
-    return returnFn;
+    return returnFn as any;
+}
+
+export function revalidateTags(tags: string | string[]) {
+    if (Array.isArray(tags)) {
+        for (const tag of tags) {
+            revalidateTag(tag);
+        }
+    } else {
+        revalidateTag(tags);
+    }
 }

@@ -17,11 +17,19 @@ import {
     createErrorResponse,
     createSuccessResponse,
     handleServerActionError,
+    revalidateTags,
     serverAction,
 } from "@/lib/actions-helper";
 import { ServerActionResponse } from "@/types/actions";
 import { ErrorCode } from "@/enums/error";
-import { _verifyMembership, _verifyRoomPermission, verifyMembership, VerifyMembershipCtx, verifyRoomPermission, VerifyRoomPermissionCtx } from "../prechecks/room";
+import {
+    _verifyMembership,
+    _verifyRoomPermission,
+    verifyMembership,
+    VerifyMembershipCtx,
+    verifyRoomPermission,
+    VerifyRoomPermissionCtx,
+} from "../prechecks/room";
 import { hasPermission, isRolePrecedent } from "../permission";
 import { MemberRole } from "@/enums/member-role";
 import {
@@ -34,66 +42,60 @@ import { IClientBankAccount } from "@/types/bank-account";
 import { AppError } from "../errors";
 import { revalidateTag } from "next/cache";
 
-export const createNewRoom = serverAction<
-    (data: {
-        name: string;
-        maxMembers: number;
-        isPrivate: boolean;
-    }) => Promise<string>>({
-        prechecks: [_authenticate],
-        fn: async function (ctx, data) {
-            const user = ctx.user;
-            // Create the new room
-            const session = await mongoose.startSession();
-            const newRoom = await session.withTransaction(async () => {
-                const newRoom = new Room({
-                    name: data.name,
-                    maxMembers: data.maxMembers,
-                    members: [user.uid],
-                    isPrivate: data.isPrivate,
-                });
-
-                await newRoom.save({ session });
-
-                await new Membership({
-                    user: user.uid,
-                    room: newRoom._id,
-                    joinedAt: new Date(),
-                    role: "admin",
-                }).save({ session });
-
-                await UserData.findByIdAndUpdate(
-                    user.uid,
-                    {
-                        $push: {
-                            roomsJoined: newRoom._id,
-                        },
-                    },
-                    { session, runValidators: true }
-                );
-
-                return newRoom;
-            });
-
-            revalidateTag(`user-rooms-${user.uid}`)
-            return (newRoom._id.toString());
-        }
-    })
-
-export const joinRoom = serverAction<
-    (
-        roomId: string,
-        token?: string | null
-    ) => Promise<boolean>
->({
-    prechecks: [_authenticate],
+export const createNewRoom = serverAction({
     fn: async function (
         ctx: UserCtx,
-        roomId,
-        token
-    ) {
-        // TODO: check permission to join the room
+        data: {
+            name: string;
+            maxMembers: number;
+            isPrivate: boolean;
+        }
+    ): Promise<string> {
+        const user = ctx.user;
+        // Create the new room
+        const session = await mongoose.startSession();
+        const newRoom = await session.withTransaction(async () => {
+            const newRoom = new Room({
+                name: data.name,
+                maxMembers: data.maxMembers,
+                members: [user.uid],
+                isPrivate: data.isPrivate,
+            });
 
+            await newRoom.save({ session });
+
+            await new Membership({
+                user: user.uid,
+                room: newRoom._id,
+                joinedAt: new Date(),
+                role: "admin",
+            }).save({ session });
+
+            await UserData.findByIdAndUpdate(
+                user.uid,
+                {
+                    $push: {
+                        roomsJoined: newRoom._id,
+                    },
+                },
+                { session, runValidators: true }
+            );
+
+            return newRoom;
+        });
+
+        revalidateTag(`user-rooms-${user.uid}`);
+        return newRoom._id.toString();
+    },
+    prechecks: [_authenticate],
+});
+
+export const joinRoom = serverAction({
+    fn: async function (
+        ctx: UserCtx,
+        roomId: string,
+        token?: string | null
+    ): Promise<boolean> {
         const targetRoom = await Room.findById(roomId);
 
         if (!targetRoom) {
@@ -105,7 +107,7 @@ export const joinRoom = serverAction<
         }
 
         if (targetRoom.members.includes(ctx.user.uid)) {
-            return (true);
+            return true;
         }
 
         if (targetRoom.isPrivate && token !== targetRoom.inviteToken) {
@@ -140,24 +142,21 @@ export const joinRoom = serverAction<
 
         await sendRoomJoinedNotification(roomId, ctx.user.uid);
 
-        revalidateTag(`room-${roomId}`)
-        targetRoom.members.forEach(memberId => {
+        revalidateTag(`room-${roomId}`);
+        targetRoom.members.forEach((memberId) => {
             revalidateTag(`user-rooms-${memberId}`);
         });
 
-        return (true);
-    }
-})
-
-export const deleteRoom = serverAction<
-    (roomId: string) => Promise<void>
->({
-    initContext(ctx, roomId) {
-        ctx.roomId = roomId;
+        return true;
     },
-    prechecks: [_authenticate, _verifyMembership],
-    fn: async function (ctx: UserCtx & VerifyMembershipCtx, roomId) {
+    prechecks: [_authenticate],
+});
 
+export const deleteRoom = serverAction({
+    fn: async function (
+        ctx: UserCtx & VerifyMembershipCtx,
+        roomId: string
+    ): Promise<void> {
         if (ctx.membership.role !== MemberRole.ADMIN) {
             throw new AppError(
                 "Bạn không có quyền xóa phòng này",
@@ -186,96 +185,96 @@ export const deleteRoom = serverAction<
             // Finally, delete the room
             const room = await Room.findByIdAndDelete(roomId, { session });
             console.log("deleted room", room);
-            room?.members.forEach(memberId => revalidateTag(`user-rooms-${memberId}`));
+            room?.members.forEach((memberId) =>
+                revalidateTag(`user-rooms-${memberId}`)
+            );
         });
 
-        revalidateTag(`room-${roomId}`)
+        revalidateTag(`room-${roomId}`);
         await sendRoomDeletedNotification(ctx.user.uid, roomId);
-        return (void 0);
-    }
-})
+        return void 0;
+    },
+    initContext(ctx, roomId) {
+        ctx.roomId = roomId;
+    },
+    prechecks: [_authenticate, _verifyMembership],
+});
 
-export const leaveRoom = serverAction<
-    (roomId: string) => Promise<void>>({
-        initContext(ctx, roomId) {
-            ctx.roomId = roomId;
-        },
-        prechecks: [_authenticate, _verifyMembership],
-        fn: async function (ctx: VerifyMembershipCtx, roomId) {
-            if (ctx.membership.role === MemberRole.ADMIN) {
-                throw new AppError(
-                    "Quản trị viên không thể rời phòng. Vui lòng chuyển quyền quản trị hoặc xóa phòng.",
-                    ErrorCode.FORBIDDEN
-                );
-            }
-
-            const pendingInvoice = await Invoice.findOne({
-                roomId: roomId,
-                applyTo: ctx.user.uid,
-                status: "pending",
-            });
-
-            if (pendingInvoice) {
-                throw new AppError(
-                    "Bạn có hóa đơn chưa thanh toán trong phòng này. Vui lòng giải quyết trước khi rời phòng.",
-                    ErrorCode.FORBIDDEN
-                );
-            }
-
-            const session = await mongoose.startSession();
-            await session.withTransaction(async () => {
-                // Remove membership
-                await Membership.deleteOne(
-                    { room: roomId, user: ctx.user.uid },
-                    { session }
-                );
-
-                // Remove user's presence records in the room
-                await MonthPresence.deleteMany(
-                    { roomId: roomId, userId: ctx.user.uid },
-                    { session }
-                );
-
-                // Remove the user from the room's members
-                await Room.findByIdAndUpdate(
-                    roomId,
-                    {
-                        $pull: { members: ctx.user.uid },
-                    },
-                    { session, runValidators: true }
-                );
-
-                // Remove the room from user's roomsJoined
-                await UserData.findByIdAndUpdate(
-                    ctx.user.uid,
-                    {
-                        $pull: { roomsJoined: roomId },
-                    },
-                    { session, runValidators: true }
-                );
-            });
-
-            revalidateTag(`room-${roomId}`)
-            revalidateTag(`user-rooms-${ctx.user.uid}`)
-
-            await sendRoomLeftNotification(roomId, ctx.user.uid);
+export const leaveRoom = serverAction({
+    fn: async function (
+        ctx: VerifyMembershipCtx,
+        roomId: string
+    ): Promise<void> {
+        if (ctx.membership.role === MemberRole.ADMIN) {
+            throw new AppError(
+                "Quản trị viên không thể rời phòng. Vui lòng chuyển quyền quản trị hoặc xóa phòng.",
+                ErrorCode.FORBIDDEN
+            );
         }
-    })
+
+        const pendingInvoice = await Invoice.findOne({
+            roomId: roomId,
+            applyTo: ctx.user.uid,
+            status: "pending",
+        });
+
+        if (pendingInvoice) {
+            throw new AppError(
+                "Bạn có hóa đơn chưa thanh toán trong phòng này. Vui lòng giải quyết trước khi rời phòng.",
+                ErrorCode.FORBIDDEN
+            );
+        }
+
+        const session = await mongoose.startSession();
+        await session.withTransaction(async () => {
+            // Remove membership
+            await Membership.deleteOne(
+                { room: roomId, user: ctx.user.uid },
+                { session }
+            );
+
+            // Remove user's presence records in the room
+            await MonthPresence.deleteMany(
+                { roomId: roomId, userId: ctx.user.uid },
+                { session }
+            );
+
+            // Remove the user from the room's members
+            await Room.findByIdAndUpdate(
+                roomId,
+                {
+                    $pull: { members: ctx.user.uid },
+                },
+                { session, runValidators: true }
+            );
+
+            // Remove the room from user's roomsJoined
+            await UserData.findByIdAndUpdate(
+                ctx.user.uid,
+                {
+                    $pull: { roomsJoined: roomId },
+                },
+                { session, runValidators: true }
+            );
+        });
+
+        revalidateTag(`room-${roomId}`);
+        revalidateTag(`user-rooms-${ctx.user.uid}`);
+
+        await sendRoomLeftNotification(roomId, ctx.user.uid);
+    },
+    initContext(ctx, roomId) {
+        ctx.roomId = roomId;
+    },
+    prechecks: [_authenticate, _verifyMembership],
+});
 
 /**
  * @param roomId The ID of the room to get roommates for
  * @returns Roommates in the room including the caller himself
  */
-export const getRoommates = serverAction<
-    (
-        roomId: string
-    ) => Promise<Roommate[]>
->({
-    prechecks: [_authenticate],
-    fn: async function (
-        ctx: UserCtx,
-        roomId
-    ) {
+export const getRoommates = serverAction({
+    fn: async function (ctx: UserCtx, roomId: string): Promise<Roommate[]> {
         const userData = await getUserData(ctx.user);
 
         if (!userData.roomsJoined.includes(roomId)) {
@@ -316,39 +315,39 @@ export const getRoommates = serverAction<
 
         return roommates;
     },
+    prechecks: [_authenticate],
     cache(ctx, roomId) {
         return {
             tags: [`room-${roomId}`],
         };
-    }
-})
+    },
+});
 
-export const getUserRooms = serverAction<() => Promise<IRoom[]>>({
-    prechecks: [_authenticate],
-    fn: async function (ctx: UserCtx & { roomsJoined: IRoom[] }) {
-
+export const getUserRooms = serverAction({
+    fn: async function (
+        ctx: UserCtx & { roomsJoined: IRoom[] }
+    ): Promise<IRoom[]> {
         const userData = await getUserData(ctx.user);
         const populatedUserData = await userData.populate<{
             roomsJoined: HydratedDocument<IRoom>[];
         }>("roomsJoined");
 
-        const roomsJoined = serializeDocument<IRoom[]>(populatedUserData.roomsJoined);
+        const roomsJoined = serializeDocument<IRoom[]>(
+            populatedUserData.roomsJoined
+        );
 
-        return (roomsJoined);
+        return roomsJoined;
     },
-    cache(ctx: UserCtx) {
+    prechecks: [_authenticate],
+    cache(ctx) {
         return {
             tags: [`user-rooms-${ctx.user.uid}`],
         };
-    }
-})
+    },
+});
 
-export const getRoomById = serverAction<
-    (roomId: string) => Promise<IRoom>
->({
-    prechecks: [_authenticate],
-    fn: async function (ctx: UserCtx, roomId) {
-
+export const getRoomById = serverAction({
+    fn: async function (ctx: UserCtx, roomId: string): Promise<IRoom> {
         if (!roomId) {
             throw new AppError(
                 "Bạn cần cung cấp ID phòng",
@@ -370,29 +369,22 @@ export const getRoomById = serverAction<
             );
         }
 
-        return (membership.room);
+        return membership.room;
     },
+    prechecks: [_authenticate],
     cache(ctx, roomId) {
         return {
             tags: [`room-${roomId}`],
-        }
-    }
-})
+        };
+    },
+});
 
-export const kickMember = serverAction<
-    (
+export const kickMember = serverAction({
+    fn: async function (
+        ctx: VerifyMembershipCtx,
         roomId: string,
         memberId: string
-    ) => Promise<void>
->({
-    initContext(ctx, roomId) {
-        ctx.roomId = roomId;
-    },
-    prechecks: [_authenticate, _verifyMembership],
-    fn: async function (ctx: VerifyMembershipCtx,
-        roomId,
-        memberId
-    ) {
+    ): Promise<void> {
         if (ctx.user.uid === memberId) {
             throw new AppError(
                 "Bạn không thể tự xóa mình ra khỏi phòng",
@@ -473,12 +465,13 @@ export const kickMember = serverAction<
         await sendNotificationToKickedMember(memberId, roomId);
         await sendRoomLeftNotification(roomId, memberId);
 
-        revalidateTag(`room-${roomId}`)
-        revalidateTag(`user-rooms-${memberId}`)
-
-        return (void 0);
-    }
-})
+        revalidateTags([`room-${roomId}`, `user-rooms-${memberId}`]);
+    },
+    initContext(ctx, roomId) {
+        ctx.roomId = roomId;
+    },
+    prechecks: [_authenticate, _verifyMembership],
+});
 
 interface UpdateRoomFormData {
     name: string;
@@ -486,21 +479,12 @@ interface UpdateRoomFormData {
     isPrivate: boolean;
 }
 
-export const updateRoomData = serverAction<
-    (
+export const updateRoomData = serverAction({
+    fn: async function (
+        ctx: VerifyRoomPermissionCtx,
         roomId: string,
         data: UpdateRoomFormData
-    ) => Promise<void>
->({
-    initContext(ctx, roomId) {
-        ctx.roomId = roomId;
-        ctx.requiredRoles = [MemberRole.ADMIN, MemberRole.MODERATOR];
-    },
-    prechecks: [_authenticate, _verifyMembership, _verifyRoomPermission],
-    fn: async function (ctx: VerifyRoomPermissionCtx,
-        roomId,
-        data
-    ) {
+    ): Promise<void> {
         const room = await Room.findById(roomId);
         if (!room) {
             throw new AppError("Phòng không tồn tại", ErrorCode.NOT_FOUND);
@@ -510,20 +494,33 @@ export const updateRoomData = serverAction<
 
         await room.save();
 
-        revalidateTag(`room-${roomId}`);
-        revalidateTag(`user-rooms-${ctx.user.uid}`);
+        revalidateTags([`room-${roomId}`, `user-rooms-${ctx.user.uid}`]);
         // TODO: send notification to room members about the update
         return void 0;
-    }
-})
+    },
+    initContext(ctx, roomId) {
+        ctx.roomId = roomId;
+        ctx.requiredRoles = [MemberRole.ADMIN, MemberRole.MODERATOR];
+    },
+    prechecks: [_authenticate, _verifyMembership, _verifyRoomPermission],
+});
 
-export const updateUserRole = serverAction<
-    (
+export const updateUserRole = serverAction({
+    fn: async function (
+        ctx: VerifyRoomPermissionCtx & {
+            targetMembership: HydratedDocument<IMembership>;
+        },
         roomId: string,
         memberId: string,
         targetRole: MemberRole
-    ) => Promise<void>
->({
+    ): Promise<void> {
+        ctx.targetMembership.role = targetRole;
+
+        await ctx.targetMembership.save();
+
+        // TODO: send notification to room members about the update
+        revalidateTag(`room-${roomId}`);
+    },
     initContext: (ctx, roomId) => {
         ctx.roomId = roomId;
         ctx.requiredRoles = [MemberRole.ADMIN];
@@ -539,31 +536,22 @@ export const updateUserRole = serverAction<
                     ErrorCode.FORBIDDEN
                 );
             }
-            ctx.targetMembership = await Membership.findOne({ room: roomId, user: memberId });
-            if (ctx.targetMembership == null) {
+            const targetMembership = await Membership.findOne({
+                room: roomId,
+                user: memberId,
+            });
+
+            if (targetMembership == null) {
                 throw new AppError(
                     "Thành viên không tồn tại trong phòng",
                     ErrorCode.NOT_FOUND
                 );
             }
+
+            ctx.targetMembership = targetMembership;
         },
         _authenticate,
         _verifyMembership,
-        _verifyRoomPermission
+        _verifyRoomPermission,
     ],
-    fn: async function (
-        ctx: UserCtx & {
-            targetMembership: HydratedDocument<IMembership>;
-        },
-        roomId: string,
-        memberId: string,
-        targetRole: MemberRole
-    ) {
-        ctx.targetMembership.role = targetRole;
-
-        await ctx.targetMembership.save();
-
-        // TODO: send notification to room members about the update
-        revalidateTag(`room-${roomId}`);
-    }
-})
+});

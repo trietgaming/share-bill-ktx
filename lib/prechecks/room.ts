@@ -1,3 +1,4 @@
+import { HydratedDocument } from 'mongoose';
 import { Membership } from "@/models/Membership";
 import { IMembership, MembershipDocument } from "@/types/membership";
 import { ErrorCode } from "@/enums/error";
@@ -28,10 +29,13 @@ export async function verifyMembership(
 
 export interface VerifyMembershipCtx extends UserCtx {
     roomId: string;
-    membership: IMembership;
+    membership: HydratedDocument<IMembership>;
 }
 
 export async function _verifyMembership(context: VerifyMembershipCtx) {
+    if (!context.roomId) {
+        throw new PrecheckError("Vui lòng cung cấp ID phòng");
+    }
     const membership = await Membership.findOne({
         user: context.user.uid,
         room: context.roomId,
@@ -42,7 +46,7 @@ export async function _verifyMembership(context: VerifyMembershipCtx) {
         );
     }
 
-    (context as any).membership = membership;
+    context.membership = membership;
 }
 
 export function verifyRoomPermission(
