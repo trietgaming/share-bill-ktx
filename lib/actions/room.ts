@@ -318,7 +318,7 @@ export const getRoommates = serverAction({
     prechecks: [_authenticate],
     cache(ctx, roomId) {
         return {
-            tags: [`room-${roomId}`],
+            tags: [`room-${roomId}`, `roommates-${roomId}`],
         };
     },
 });

@@ -30,8 +30,6 @@ export const RoommatesProvider = ({ children }: { children: any }) => {
     });
 
     const membership = useMemo<IClientMembership | undefined>(() => {
-        console.log(roommatesQuery.data);
-        if (roommatesQuery.isLoading) return void 0;
         const me = roommatesQuery.data?.find((r) => r.userId === userData?._id);
 
         if (!me) return void 0;
