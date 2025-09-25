@@ -1,35 +1,35 @@
 "use server";
 
-import { ServerActionResponse } from "@/types/actions";
-import { authenticate } from "@/lib/prechecks/auth";
+import { _authenticate, UserCtx } from "@/lib/prechecks/auth";
 import { getUserData } from "@/lib/user-data";
 import {
-    createSuccessResponse,
-    handleServerActionError,
+    serverAction,
 } from "@/lib/actions-helper";
 import { MAX_FCM_TOKENS } from "@/models/UserData";
 
-export async function subscribeToNotification(
+export const subscribeToNotification = serverAction<(
     fcmToken: string
-): ServerActionResponse<void> {
-    const user = await authenticate();
+) => Promise<void>>({
+    prechecks: [_authenticate],
+    fn: async function
+        (ctx: UserCtx,
+            fcmToken: string
+        ) {
 
-    const userData = await getUserData(user);
-    
-    if (userData.fcmTokens.includes(fcmToken)) {
-        return createSuccessResponse(void 0);
-    }
+        const userData = await getUserData(ctx.user);
 
-    if (userData.fcmTokens.length >= MAX_FCM_TOKENS) {
-        userData.fcmTokens.shift();
-    }
-    userData.fcmTokens.push(fcmToken);
+        if (userData.fcmTokens.includes(fcmToken)) {
+            return;
+        }
 
-    try {
+        if (userData.fcmTokens.length >= MAX_FCM_TOKENS) {
+            userData.fcmTokens.shift();
+        }
+        userData.fcmTokens.push(fcmToken);
+
         await userData.save();
-    } catch (err) {
-        return handleServerActionError(err);
+
+        return (void 0);
     }
 
-    return createSuccessResponse(void 0);
-}
+})

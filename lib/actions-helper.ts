@@ -29,9 +29,9 @@ export function createErrorResponse(
         error:
             typeof message == "string"
                 ? {
-                      message,
-                      code: code as ErrorCode,
-                  }
+                    message,
+                    code: code as ErrorCode,
+                }
                 : message,
     };
 }
@@ -88,7 +88,7 @@ export function handleServerActionError(error: any): ErrorServerActionResult {
         return createErrorResponse(error.message, ErrorCode.INVALID_INPUT);
     }
 
-    console.error("Unhandled server action error:", error);
+    console.error("Unexpected server action error:", error);
     return createErrorResponse("Đã có lỗi xảy ra", ErrorCode.UNKNOWN);
 }
 
@@ -108,13 +108,13 @@ export type ServerActionDefinition<
      *
      * Prechecks can be dependent on each other, so the order matters.
      */
-    prechecks?: CallableFunction[];
+    prechecks?: Array<(context: any, ...args: ArgsType) => Promise<any> | any>;
     /** Main server action function, must define context within this fn */
     fn: (context: any, ...args: ArgsType) => ReturnType<ServerFunc>;
     cache?: (context: any, ...args: ArgsType) => {
         duration?: number;
         tags?: string[];
-    };
+    } | null;
 };
 
 type Awaited<T> = T extends Promise<infer U> ? U : T;
@@ -134,18 +134,23 @@ export function serverAction<
         await definition.initContext?.(context, ...args);
         try {
             for (const check of definition.prechecks || []) {
-                await check(context);
+                await check(context, ...args);
             }
 
-            return definition.cache
+            const cache = definition.cache?.(context, ...args);
+
+            return cache
                 ? await unstable_cache(
-                      async () =>
-                          createSuccessResponse(
-                              await definition.fn(context, ...args)
-                          ),
-                      undefined,
-                      definition.cache(context, ...args)
-                  )()
+                    async () =>
+                        createSuccessResponse(
+                            await definition.fn(context, ...args)
+                        ),
+                    cache.tags,
+                    {
+                        tags: cache.tags,
+                        revalidate: cache.duration || 60 * 60, // default 1 hour
+                    }
+                )()
                 : createSuccessResponse(await definition.fn(context, ...args));
         } catch (error) {
             return handleServerActionError(error) as ReturnType<ServerFunc>;
