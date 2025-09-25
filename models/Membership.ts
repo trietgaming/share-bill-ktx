@@ -11,4 +11,6 @@ export const membershipSchema = new Schema<IMembership>({
     role: { type: String, enum: [MemberRole.ADMIN, MemberRole.MEMBER, MemberRole.MODERATOR], required: true }
 })
 
+membershipSchema.index({ user: 1, room: 1 }, { unique: true });
+
 export const Membership: mongoose.Model<IMembership> = mongoose.models.Membership || mongoose.model<IMembership>('Membership', membershipSchema);

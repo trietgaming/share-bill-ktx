@@ -42,7 +42,8 @@ const monthPresenceSchema = new mongoose.Schema<IMonthPresence>({
     roomId: { type: String, ref: "Room", required: true },
     userId: { type: String, ref: "UserData", required: true },
 });
-monthPresenceSchema.index({ month: 1, room: 1, user: 1 }, { unique: true });
+monthPresenceSchema.index({ month: 1, roomId: 1, userId: 1 }, { unique: true });
+monthPresenceSchema.index({ roomId: 1, userId: 1 }, { unique: false });
 
 export const MonthPresence: mongoose.Model<IMonthPresence> =
     mongoose.models.MonthPresence ||

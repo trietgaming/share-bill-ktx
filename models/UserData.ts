@@ -4,72 +4,85 @@ import type { IUserData } from "@/types/user-data";
 
 export const MAX_FCM_TOKENS = 5;
 
-export const userDataSchema = new Schema<IUserData>({
-    _id: {
-        type: String,
-        required: true,
-        trim: true
-    },
+export const userDataSchema = new Schema<IUserData>(
+    {
+        _id: {
+            type: String,
+            required: true,
+            trim: true,
+        },
 
-    displayName: {
-        type: String,
-        trim: true,
-        maxLength: [100, 'Display name can not be more than 100 characters'],
-        default: 'Noname'
-    },
+        displayName: {
+            type: String,
+            trim: true,
+            maxLength: [
+                100,
+                "Display name can not be more than 100 characters",
+            ],
+            default: "Noname",
+        },
 
-    email: {
-        type: String,
-        required: true,
-        trim: true,
-        maxLength: [100, 'Email can not be more than 100 characters'],
-    },
+        email: {
+            type: String,
+            required: true,
+            trim: true,
+            maxLength: [100, "Email can not be more than 100 characters"],
+        },
 
-    photoURL: {
-        type: String,
-        trim: true,
-    },
+        photoURL: {
+            type: String,
+            trim: true,
+        },
 
-    phoneNumber: {
-        type: String,
-        trim: true,
-        maxLength: [20, 'Phone number can not be more than 20 characters'],
-    },
+        phoneNumber: {
+            type: String,
+            trim: true,
+            maxLength: [20, "Phone number can not be more than 20 characters"],
+        },
 
-    bankAccounts: {
-        type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'BankAccount', }],
-        validate: {
-            validator: function (v: mongoose.Types.ObjectId[]) {
-                return v.length <= 5;
+        bankAccounts: {
+            type: [
+                { type: mongoose.Schema.Types.ObjectId, ref: "BankAccount" },
+            ],
+            validate: {
+                validator: function (v: mongoose.Types.ObjectId[]) {
+                    return v.length <= 5;
+                },
+                message: "Cannot have more than 5 bank accounts",
             },
-            message: 'Cannot have more than 5 bank accounts'
+        },
+
+        roomsJoined: {
+            type: [
+                {
+                    type: String,
+                    ref: "Room",
+                },
+            ],
+            validate: {
+                validator: function (v: string[]) {
+                    return v.length <= 10;
+                },
+                message: "Cannot join more than 10 rooms",
+            },
+        },
+        fcmTokens: {
+            type: [String],
+            validate: {
+                validator: function (v: string[]) {
+                    return v.length <= MAX_FCM_TOKENS;
+                },
+                message: `Cannot have more than ${MAX_FCM_TOKENS} FCM tokens`,
+            },
         },
     },
-
-    roomsJoined: {
-        type: [{
-            type: String,
-            ref: 'Room'
-        }],
-        validate: {
-            validator: function (v: string[]) {
-                return v.length <= 10;
-            },
-            message: 'Cannot join more than 10 rooms'
-        }
-    },
-    fcmTokens: {
-        type: [String],
-        validate: {
-            validator: function (v: string[]) {
-                return v.length <= MAX_FCM_TOKENS;
-            },
-            message: `Cannot have more than ${MAX_FCM_TOKENS} FCM tokens`
-        }
+    {
+        timestamps: true,
+        _id: false,
     }
-}, {
-    timestamps: true,
-    _id: false
-})
+);
 
-export const UserData: mongoose.Model<IUserData> = mongoose.models.UserData || mongoose.model("UserData", userDataSchema);
+userDataSchema.index({ roomsJoined: 1 });
+
+export const UserData: mongoose.Model<IUserData> =
+    mongoose.models.UserData || mongoose.model("UserData", userDataSchema);
