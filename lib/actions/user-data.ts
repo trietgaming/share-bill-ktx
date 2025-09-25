@@ -27,11 +27,11 @@ cloudinary.config({
 export const getAuthenticatedUserData = serverAction<
     (_idToken?: string | null) => Promise<IUserDataWithBankAccounts | null>
 >({
-    prechecks: [async (ctx, _idToken) => {
+    initContext: async (ctx, _idToken) => {
         const user = await getAuthenticatedUser(_idToken);
 
         ctx.user = user;
-    }],
+    },
     fn: async function (ctx: UserCtx,
         _idToken?: string | null
     ) {
