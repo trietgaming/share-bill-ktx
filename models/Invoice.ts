@@ -6,6 +6,7 @@ import { count, sum } from "@/lib/utils";
 import { AppError } from "@/lib/errors";
 import { PresenceStatus } from "@/enums/presence";
 import { ErrorCode } from "@/enums/error";
+import { InvoiceSplitMethod } from "@/enums/invoice";
 
 export const payInfoSchema = new Schema<IPayInfo>({
     paidBy: {
@@ -123,6 +124,35 @@ export const invoiceSchema = new Schema<IInvoice>(
                 message:
                     "Pay to info must be a valid bank account JSON, user ID or QR code URL",
             },
+        },
+
+        splitMethod: {
+            type: String,
+            default: function (this: IInvoice) {
+                return this.type === "other"
+                    ? InvoiceSplitMethod.BY_EQUALLY
+                    : InvoiceSplitMethod.BY_PRESENCE;
+            },
+            enum: Object.values(InvoiceSplitMethod),
+        },
+
+        splitMap: {
+            type: Map,
+            of: Number,
+            default: {},
+            validate: {
+                validator: function (this: IInvoice, v: Map<string, number>) {
+                    if (this.splitMethod === InvoiceSplitMethod.BY_FIXED_AMOUNT) {
+                        const total = sum(Array.from(v.values()));
+                        return total === this.amount;
+                    } 
+                    if (this.splitMethod === InvoiceSplitMethod.BY_PERCENTAGE) {
+                        const total = sum(Array.from(v.values()));
+                        return total === 100;
+                    }
+                    return true;
+                }
+            }
         },
 
         applyTo: {

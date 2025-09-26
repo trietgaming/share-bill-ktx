@@ -11,6 +11,7 @@ import { Room } from "@/models/Room";
 import { IRoomDocument } from "@/types/room";
 import { MonthPresence } from "@/models/MonthPresence";
 import { PresenceStatus } from "@/enums/presence";
+import { ensureDbConnection } from "../db-connect";
 
 type PopulatedRoom = Omit<IRoomDocument, "members"> & {
     members: { _id: string; fcmTokens: string[] }[];
@@ -20,6 +21,7 @@ const delayBetweenRooms = 500; // milliseconds
 
 // Run with cursor like 20 membership per call, support next cursor
 export async function remindRoomsPresence() {
+    await ensureDbConnection();
     // TODO: needs rewritten
 
     let lastId: string | null = null;

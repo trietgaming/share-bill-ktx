@@ -21,6 +21,7 @@ import { MemberRole } from "@/enums/member-role";
 import { AppError } from "../errors";
 import { revalidateTag } from "next/cache";
 import { RootFilterQuery } from "mongoose";
+import { InvoiceSplitMethod } from "@/enums/invoice";
 
 export interface CreateInvoiceFormData {
     roomId: string;
@@ -33,6 +34,8 @@ export interface CreateInvoiceFormData {
     applyTo: string[];
     advancePayer?: IPayInfo;
     payTo?: string;
+    splitMethod: InvoiceSplitMethod;
+    splitMap: Record<string, number>;
 }
 
 export const createNewInvoice = serverAction({
@@ -117,7 +120,8 @@ export const getInvoicesByRoom = serverAction({
         const invoices = await Invoice.find(filter)
             .limit(query.shouldLimit ? 20 : 0)
             .sort({
-                [query.sortBy || "createdAt"]: query.sortOrder === "asc" ? 1 : -1,
+                [query.sortBy || "createdAt"]:
+                    query.sortOrder === "asc" ? 1 : -1,
             });
 
         return serializeDocument<IInvoice[]>(invoices);
@@ -145,7 +149,7 @@ export const deleteInvoice = serverAction({
         ctx.roomId = invoice.roomId;
 
         await _verifyMembership(ctx);
-        _verifyRoomPermission(ctx);
+        if (ctx.user.uid !== invoice.createdBy) _verifyRoomPermission(ctx);
 
         await Invoice.findByIdAndDelete(invoiceId);
 

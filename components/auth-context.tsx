@@ -35,13 +35,13 @@ const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({
     children,
-    initialUserData
+    initialUserData,
 }: AuthProviderProps) => {
     const [userData, setUserData] = useState<IUserDataWithBankAccounts | null>(
         initialUserData
     );
     const userDataRef = useRef(userData);
-    
+
     const pathname = usePathname();
     const router = useRouter();
 
@@ -56,14 +56,14 @@ export const AuthProvider = ({
                     return;
                 }
                 if (authUser?.uid !== userDataRef.current?._id) {
-                    const newUserData = await getAuthenticatedUserData(
-                        await authUser?.getIdToken()
+                    const newUserData = await handleAction(
+                        getAuthenticatedUserData(await authUser?.getIdToken())
                     );
                     console.log(
                         "Auth state changed, new user data:",
                         newUserData
                     );
-                    setUserData(newUserData.data);
+                    setUserData(newUserData);
                 }
             });
 

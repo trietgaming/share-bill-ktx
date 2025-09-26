@@ -1,3 +1,4 @@
+import { InvoiceSplitMethod } from "@/enums/invoice";
 import { IBankAccount } from "./bank-account";
 
 export interface IPayInfo {
@@ -17,7 +18,7 @@ export interface IInvoice {
     /**
      * walec - water and electricity bill
      */
-    type: 'walec' | 'roomCost' | 'other';
+    type: "walec" | "roomCost" | "other";
     /**
      * For walec and roomCost type invoice, format: YYYY-MM
      */
@@ -31,8 +32,19 @@ export interface IInvoice {
      * Maybe user ID, or bank account info in stringified JSON format, or QR code URL
      */
     payTo?: string;
+    splitMethod: InvoiceSplitMethod;
+    /**
+     * if splitMethod is by_fixed_amount, the value is the fixed amount
+     *
+     * if splitMethod is by_percentage, the value is the percentage (0-100)
+     *
+     * This value is ignored for other split methods
+     */
+    splitMap: {
+        [userId: string]: number;
+    };
     advancePayer?: IPayInfo;
-    status: 'pending' | 'paid' | 'overdue';
+    status: "pending" | "paid" | "overdue";
     /**
      * list of user IDs
      */

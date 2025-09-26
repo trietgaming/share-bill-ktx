@@ -44,27 +44,6 @@ export function InvoicesManagement() {
         setEditingInvoice,
     } = useInvoices();
 
-    const thisMonthInvoicesAmount = useMemo(() => {
-        const now = new Date();
-        return (
-            invoices
-                ?.filter((invoice) => {
-                    const createdAt = new Date(invoice.createdAt);
-                    return (
-                        createdAt.getMonth() === now.getMonth() &&
-                        createdAt.getFullYear() === now.getFullYear()
-                    );
-                })
-                .reduce(
-                    (sum, invoice) =>
-                        invoice.status === "pending"
-                            ? sum + invoice.amount
-                            : sum,
-                    0
-                ) || 0
-        );
-    }, [invoices]);
-
     const deleteInvoiceMutation = useMutation({
         mutationKey: ["delete-invoice"],
         mutationFn: async (invoice: IInvoice) => {
@@ -104,13 +83,13 @@ export function InvoicesManagement() {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
-                                Hóa đơn tạo tháng này
+                                Tổng hóa đơn đang chờ
                             </CardTitle>
                             <DollarSign className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold text-destructive">
-                                {formatCurrency(thisMonthInvoicesAmount)}
+                                {formatCurrency(invoices.reduce((sum, inv) => sum + inv.amount, 0))}
                             </div>
                         </CardContent>
                     </Card>
@@ -118,7 +97,7 @@ export function InvoicesManagement() {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
-                                Phần của bạn
+                                Tổng thanh toán của bạn
                             </CardTitle>
                             <User className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>

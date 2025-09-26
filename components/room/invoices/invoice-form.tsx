@@ -56,6 +56,9 @@ import { toast } from "sonner";
 import { invoicesQueryKey, queryClient } from "@/lib/query-client";
 import { RoommateItem } from "./roomate-item";
 import { handleAction } from "@/lib/action-handler";
+import { UserAvatar } from "@/components/user-avatar";
+import { Badge } from "@/components/ui/badge";
+import { InvoiceSplitMethod } from "@/enums/invoice";
 
 const payInfoSchema = z.object({
     paidBy: z.string().min(1, "Người trả trước là bắt buộc"),
@@ -83,6 +86,8 @@ const invoiceFormSchema = z.object({
     dueDate: z.date().optional(),
     applyTo: z.array(z.string()).min(1, "Phải chọn ít nhất một người"),
     payTo: z.string().optional(),
+    splitMethod: z.enum(Object.values(InvoiceSplitMethod)),
+    splitMap: z.record(z.string(), z.number()),
     advancePayer: payInfoSchema.optional(),
 });
 
@@ -135,6 +140,8 @@ export function InvoiceForm({
             applyTo: roommates.map((r) => r.userId),
             advancePayer: undefined,
             payTo: "",
+            splitMethod: InvoiceSplitMethod.BY_EQUALLY,
+            splitMap: {},
         },
     });
 
@@ -155,6 +162,9 @@ export function InvoiceForm({
                 applyTo: invoice?.applyTo || roommates.map((r) => r.userId),
                 advancePayer: invoice?.advancePayer || undefined,
                 payTo: invoice?.payTo || "",
+                splitMethod:
+                    invoice?.splitMethod || InvoiceSplitMethod.BY_PRESENCE,
+                splitMap: invoice?.splitMap || {},
             });
         } else {
             form.reset({
@@ -168,6 +178,9 @@ export function InvoiceForm({
                 applyTo: invoice?.applyTo || roommates.map((r) => r.userId),
                 advancePayer: invoice?.advancePayer || undefined,
                 payTo: invoice?.payTo || "",
+                splitMethod:
+                    invoice?.splitMethod || InvoiceSplitMethod.BY_EQUALLY,
+                splitMap: invoice?.splitMap || {},
             });
         }
     }, [invoice, type, room, roommates]);
@@ -225,6 +238,8 @@ export function InvoiceForm({
     async function onSubmit(values: InvoiceFormValues) {
         return await mutateAsync(values);
     }
+
+    const splitMethod = form.watch("splitMethod")
 
     return (
         <Form {...form}>
@@ -395,27 +410,85 @@ export function InvoiceForm({
                                                     roommates.length
                                                         ? "Cả phòng"
                                                         : field.value
-                                                              ?.map(
-                                                                  (r) =>
+                                                              .slice(0, 2)
+                                                              ?.map((r) => {
+                                                                  const user =
                                                                       roommates.find(
                                                                           (
                                                                               roommate
                                                                           ) =>
                                                                               roommate.userId ===
                                                                               r
-                                                                      )
-                                                                          ?.displayName
-                                                              )
-                                                              .join(", ") ||
+                                                                      );
+
+                                                                  return (
+                                                                      <>
+                                                                          <UserAvatar
+                                                                              key={
+                                                                                  r
+                                                                              }
+                                                                              user={
+                                                                                  user!
+                                                                              }
+                                                                              className="h-5 w-5"
+                                                                          />
+                                                                          <div className="text-xs max-w-10 sm:max-w-full truncate">
+                                                                              {
+                                                                                  user?.displayName
+                                                                              }
+                                                                          </div>
+                                                                      </>
+                                                                  );
+                                                              })
+                                                              .concat([
+                                                                  field.value
+                                                                      .length >
+                                                                  2 ? (
+                                                                      <Badge variant="secondary">
+                                                                          +
+                                                                          {field
+                                                                              .value
+                                                                              .length -
+                                                                              2}
+                                                                      </Badge>
+                                                                  ) : null,
+                                                              ] as any[]) ||
                                                           "Chọn những người áp dụng"}
                                                     <ChevronDown className="ml-2 h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
                                         </FormControl>
-                                        <DropdownMenuContent className="w-56">
-                                            <DropdownMenuLabel>
-                                                Chọn một hoặc nhiều người
-                                            </DropdownMenuLabel>
+                                        <DropdownMenuContent className="w-[320px]">
+                                            <div className="flex items-center justify-between">
+                                                <DropdownMenuLabel className="text-xs">
+                                                    Chọn những người áp dụng
+                                                </DropdownMenuLabel>
+                                                <div className="space-x-2 *:text-xs">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            field.onChange(
+                                                                roommates.map(
+                                                                    (r) =>
+                                                                        r.userId
+                                                                )
+                                                            )
+                                                        }
+                                                    >
+                                                        Chọn tất cả
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            field.onChange([])
+                                                        }
+                                                    >
+                                                        Xóa
+                                                    </Button>
+                                                </div>
+                                            </div>
                                             <DropdownMenuSeparator />
                                             {roommates.map((r) => (
                                                 <DropdownMenuCheckboxItem
@@ -465,66 +538,128 @@ export function InvoiceForm({
                     />
                 )}
 
-                <FormField
-                    control={form.control}
-                    name="payTo"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Thanh toán cho</FormLabel>
-                            <FormControl>
-                                <Select
-                                    /** Set key to fix onValueChange bug */
-                                    key={
-                                        field.value
-                                            ? `status-${field.value}`
-                                            : "status-initial"
-                                    }
-                                    disabled={hasAdvancePayer}
-                                    value={field.value}
-                                    onValueChange={(value) => {
-                                        console.log(
-                                            "Selected payTo value:",
-                                            value
-                                        );
-                                        // if (value === "bank_account") {
-                                        //     return;
-                                        // }
-                                        // if (value === "qr_code") {
-                                        //     return;
-                                        // }
-                                        field.onChange(value);
-                                    }}
-                                >
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Chọn một" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {roommates.map((r) => (
-                                            <SelectItem
-                                                key={r.userId}
-                                                value={r.userId}
-                                            >
-                                                <RoommateItem
-                                                    roommate={r}
-                                                    myselfId={userData?._id}
-                                                />
-                                            </SelectItem>
-                                        ))}
-                                        {/* <SelectItem value="bank_account">Tài khoản ngân hàng</SelectItem>
+                <div className="flex justify-between items-center">
+                    <FormField
+                        control={form.control}
+                        name="payTo"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Thanh toán cho</FormLabel>
+                                <FormControl>
+                                    <Select
+                                        /** Set key to fix onValueChange bug */
+                                        key={
+                                            field.value
+                                                ? `status-${field.value}`
+                                                : "status-initial"
+                                        }
+                                        disabled={hasAdvancePayer}
+                                        value={field.value}
+                                        onValueChange={(value) => {
+                                            console.log(
+                                                "Selected payTo value:",
+                                                value
+                                            );
+                                            // if (value === "bank_account") {
+                                            //     return;
+                                            // }
+                                            // if (value === "qr_code") {
+                                            //     return;
+                                            // }
+                                            field.onChange(value);
+                                        }}
+                                    >
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Chọn một" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {roommates.map((r) => (
+                                                <SelectItem
+                                                    key={r.userId}
+                                                    value={r.userId}
+                                                >
+                                                    <RoommateItem
+                                                        roommate={r}
+                                                        myselfId={userData?._id}
+                                                    />
+                                                </SelectItem>
+                                            ))}
+                                            {/* <SelectItem value="bank_account">Tài khoản ngân hàng</SelectItem>
                                         <SelectItem value="qr_code">Mã QR</SelectItem> */}
-                                    </SelectContent>
-                                </Select>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                                        </SelectContent>
+                                    </Select>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="splitMethod"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Cách chia tiền</FormLabel>
+                                <FormControl>
+                                    <Select
+                                        key={
+                                            field.value
+                                                ? `status-${field.value}`
+                                                : "status-initial"
+                                        }
+                                        value={field.value}
+                                        onValueChange={field.onChange}
+                                    >
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Chọn cách chia" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem
+                                                value={
+                                                    InvoiceSplitMethod.BY_EQUALLY
+                                                }
+                                            >
+                                                Chia đều
+                                            </SelectItem>
+                                            <SelectItem
+                                                value={
+                                                    InvoiceSplitMethod.BY_FIXED_AMOUNT
+                                                }
+                                            >
+                                                Chia theo số tiền
+                                            </SelectItem>
+                                            <SelectItem
+                                                value={
+                                                    InvoiceSplitMethod.BY_PERCENTAGE
+                                                }
+                                            >
+                                                Chia theo phần trăm
+                                            </SelectItem>
+                                            <SelectItem
+                                                value={
+                                                    InvoiceSplitMethod.BY_PRESENCE
+                                                }
+                                            >
+                                                Chia theo ngày ở
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+
+                {splitMethod !== InvoiceSplitMethod.BY_EQUALLY && splitMethod !== InvoiceSplitMethod.BY_PRESENCE && (<></>)}
 
                 {/* <div className="flex items-center justify-between"> */}
-                    {/* Due Date */}
-                    {/* <FormField
+                {/* Due Date */}
+                {/* <FormField
                         control={form.control}
                         name="dueDate"
                         render={({ field }) => (
