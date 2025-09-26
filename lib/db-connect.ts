@@ -18,7 +18,7 @@ if (!process.env.FIRESTORE_CONNECTION_URI) {
 }
 
 export async function ensureDbConnection() {
-    if (cached.conn) {
+    if (cached.conn || cached.promise) {
         return;
     }
 

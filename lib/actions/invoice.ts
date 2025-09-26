@@ -104,7 +104,7 @@ export const getInvoicesByRoom = serverAction({
     ): Promise<IInvoice[]> {
         const filter: RootFilterQuery<IInvoice> = {
             roomId: roomId,
-            status: query.status
+            status: query.status,
         };
 
         if (query.cursor) {
@@ -114,15 +114,11 @@ export const getInvoicesByRoom = serverAction({
                     : { $lt: query.cursor };
         }
 
-        if (query.sortBy) {
-            filter.sort = {
-                [query.sortBy]: query.sortOrder === "asc" ? 1 : -1,
-            };
-        }
-
         const invoices = await Invoice.find(filter)
             .limit(query.shouldLimit ? 20 : 0)
-            .sort(filter.sort);
+            .sort({
+                [query.sortBy || "createdAt"]: query.sortOrder === "asc" ? 1 : -1,
+            });
 
         return serializeDocument<IInvoice[]>(invoices);
     },
