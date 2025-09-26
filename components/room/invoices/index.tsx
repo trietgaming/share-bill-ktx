@@ -18,6 +18,10 @@ import {
     ChevronDown,
     Zap,
     Home,
+    PlusIcon,
+    Menu,
+    Ellipsis,
+    CircleCheck,
 } from "lucide-react";
 import { InvoiceForm } from "@/components/room/invoices/invoice-form";
 import { useInvoices, useRoomQuery } from "../contexts/room-context";
@@ -31,7 +35,12 @@ import { InvoiceSkeleton } from "./skeleton";
 import { InvoiceCard } from "./invoice-card";
 import { toast } from "sonner";
 import { handleAction } from "@/lib/action-handler";
-import { AddInvoiceButton } from "../add-invoice-button";
+import {
+    AddInvoiceButton,
+    AddOtherInvoiceButton,
+    AddRoomCostInvoiceButton,
+    AddWalecInvoiceButton,
+} from "../add-invoice-button";
 
 export function InvoicesManagement() {
     const { userData } = useAuth();
@@ -78,6 +87,27 @@ export function InvoicesManagement() {
     return (
         <div className="space-y-6">
             {/* Header with Summary and Add Button */}
+            <div className="flex gap-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="outline">
+                            <Ellipsis className="w-5 h-5" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="*:w-full *:flex *:gap-4 *:items-center">
+                        <DropdownMenuItem asChild>
+                            <Button
+                                variant="ghost"
+                                className="w-full"
+                            >
+                                <CircleCheck className="w-5 h-5"/>
+                                <span>Xem hóa đơn đã hoàn thành</span>
+                            </Button>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <AddInvoiceButton />
+            </div>
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
                     <Card>
@@ -89,7 +119,12 @@ export function InvoicesManagement() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold text-destructive">
-                                {formatCurrency(invoices.reduce((sum, inv) => sum + inv.amount, 0))}
+                                {formatCurrency(
+                                    invoices.reduce(
+                                        (sum, inv) => sum + inv.amount,
+                                        0
+                                    )
+                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -124,9 +159,6 @@ export function InvoicesManagement() {
                         </CardContent>
                     </Card>
                 </div>
-
-                {/* Add Invoice Dropdown */}
-                <AddInvoiceButton />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -87,7 +87,7 @@ const invoiceFormSchema = z.object({
     applyTo: z.array(z.string()).min(1, "Phải chọn ít nhất một người"),
     payTo: z.string().optional(),
     splitMethod: z.enum(Object.values(InvoiceSplitMethod)),
-    splitMap: z.record(z.string(), z.number()),
+    splitMap: z.object(),
     advancePayer: payInfoSchema.optional(),
 });
 
@@ -165,7 +165,7 @@ export function InvoiceForm({
                 splitMethod:
                     invoice?.splitMethod || InvoiceSplitMethod.BY_PRESENCE,
                 splitMap: invoice?.splitMap || {},
-            });
+            } as InvoiceFormValues);
         } else {
             form.reset({
                 type: invoice?.type || type,
@@ -181,7 +181,7 @@ export function InvoiceForm({
                 splitMethod:
                     invoice?.splitMethod || InvoiceSplitMethod.BY_EQUALLY,
                 splitMap: invoice?.splitMap || {},
-            });
+            } as InvoiceFormValues);
         }
     }, [invoice, type, room, roommates]);
 
@@ -211,6 +211,7 @@ export function InvoiceForm({
 
     const { mutateAsync } = useMutation({
         mutationFn: async (values: CreateInvoiceFormData) => {
+            console.log("Creating/updating invoice with values:", values);
             const updatedInvoice = isEditMode
                 ? await handleAction(
                       updateInvoice({ invoiceId: invoice!._id, ...values })
@@ -236,10 +237,10 @@ export function InvoiceForm({
     });
 
     async function onSubmit(values: InvoiceFormValues) {
-        return await mutateAsync(values);
+        return await mutateAsync(values as CreateInvoiceFormData);
     }
 
-    const splitMethod = form.watch("splitMethod")
+    const splitMethod = form.watch("splitMethod");
 
     return (
         <Form {...form}>
@@ -655,7 +656,8 @@ export function InvoiceForm({
                     />
                 </div>
 
-                {splitMethod !== InvoiceSplitMethod.BY_EQUALLY && splitMethod !== InvoiceSplitMethod.BY_PRESENCE && (<></>)}
+                {splitMethod !== InvoiceSplitMethod.BY_EQUALLY &&
+                    splitMethod !== InvoiceSplitMethod.BY_PRESENCE && <></>}
 
                 {/* <div className="flex items-center justify-between"> */}
                 {/* Due Date */}

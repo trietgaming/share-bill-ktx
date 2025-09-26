@@ -298,7 +298,7 @@ export function PresenceCalendar() {
     const [pointerStatus, setPointerStatus] = useState({
         isDown: false,
         isDragging: false,
-    })
+    });
 
     useEffect(() => {
         const handlePointerUp = () => {
@@ -313,7 +313,7 @@ export function PresenceCalendar() {
 
         const handlePointerDown = () => {
             setPointerStatus({ isDown: true, isDragging: false });
-        }
+        };
 
         window.addEventListener("pointerdown", handlePointerDown);
         window.addEventListener("pointerup", handlePointerUp);
@@ -322,13 +322,12 @@ export function PresenceCalendar() {
             window.removeEventListener("pointerup", handlePointerUp);
             // window.removeEventListener("pointermove", handlePointerMove);
             window.removeEventListener("pointerdown", handlePointerDown);
-        }
+        };
     }, []);
 
     if (isRoommatesLoading || isRoomPresenceLoading) {
         return <PresenceSkeleton />;
     }
-
 
     return (
         <div className="space-y-6">
@@ -402,7 +401,11 @@ export function PresenceCalendar() {
                         <CardTitle className="flex items-center gap-2">
                             <Calendar className="h-5 w-5" />
                             <span>Lịch tích ngày ở</span>
-                            <Button className="ml-2" size="sm" onClick={() => toggleUserPresence(0, true)}>
+                            <Button
+                                className="ml-2"
+                                size="sm"
+                                onClick={() => toggleUserPresence(0, true)}
+                            >
                                 Tích tất cả
                             </Button>
                         </CardTitle>
@@ -489,11 +492,13 @@ export function PresenceCalendar() {
                                     <button
                                         key={day}
                                         onPointerEnter={() => {
-                                            if (pointerStatus.isDown ) {
+                                            if (pointerStatus.isDown) {
                                                 toggleUserPresence(day);
                                             }
                                         }}
-                                        onPointerDown={() => toggleUserPresence(day)}
+                                        onPointerDown={() =>
+                                            toggleUserPresence(day)
+                                        }
                                         className={cn(
                                             "p-2 h-20 border rounded-lg transition-colors hover:cursor-pointer flex flex-col items-center justify-start gap-1",
                                             dayStatus.availability ===
@@ -541,8 +546,9 @@ export function PresenceCalendar() {
                     {/* Instructions */}
                     <div className="mt-4 p-4 bg-muted/50 rounded-lg">
                         <p className="text-sm text-muted-foreground">
-                            <strong>Hướng dẫn:</strong> Click hoặc ấn và vuốt qua các ngày để chuyển
-                            đổi trạng thái ở/không ở của bạn.
+                            <strong>Hướng dẫn:</strong> Click hoặc ấn và vuốt
+                            qua các ngày để chuyển đổi trạng thái ở/không ở của
+                            bạn.
                         </p>
                     </div>
                 </CardContent>
