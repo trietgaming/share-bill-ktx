@@ -41,14 +41,6 @@ export function HomeDashboard() {
         );
     }, [monthlyInvoices]);
 
-    const thisMonthInvoices = useMemo(() => {
-        return monthlyInvoices?.filter(
-            (invoice) =>
-                invoice.monthApplied === toYYYYMM(new Date()) &&
-                invoice.personalAmount
-        );
-    }, [monthlyInvoices]);
-
     const { data: thisMonthPresence } = useMonthPresenceQuery();
 
     const presenceStatus = useMemo(() => {
@@ -207,7 +199,7 @@ export function HomeDashboard() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 md:space-y-4">
-                        {thisMonthInvoices.map((invoice) => (
+                        {monthlyInvoices.map((invoice) => (
                             <div
                                 key={invoice._id}
                                 className="p-3 md:p-4 border border-destructive/30 bg-destructive/15 rounded-lg"
