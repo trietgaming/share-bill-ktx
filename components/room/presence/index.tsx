@@ -300,30 +300,30 @@ export function PresenceCalendar() {
         isDragging: false,
     });
 
-    useEffect(() => {
-        const handlePointerUp = () => {
-            setPointerStatus({ isDown: false, isDragging: false });
-        };
+    // useEffect(() => {
+    //     const handlePointerUp = () => {
+    //         setPointerStatus({ isDown: false, isDragging: false });
+    //     };
 
-        // const handlePointerMove = () => {
-        //     if (pointerStatus.isDown) {
-        //         setPointerStatus((prev) => ({ ...prev, isDragging: true }));
-        //     }
-        // };
+    //     // const handlePointerMove = () => {
+    //     //     if (pointerStatus.isDown) {
+    //     //         setPointerStatus((prev) => ({ ...prev, isDragging: true }));
+    //     //     }
+    //     // };
 
-        const handlePointerDown = () => {
-            setPointerStatus({ isDown: true, isDragging: false });
-        };
+    //     const handlePointerDown = () => {
+    //         setPointerStatus({ isDown: true, isDragging: false });
+    //     };
 
-        window.addEventListener("pointerdown", handlePointerDown);
-        window.addEventListener("pointerup", handlePointerUp);
-        // window.addEventListener("pointermove", handlePointerMove);
-        return () => {
-            window.removeEventListener("pointerup", handlePointerUp);
-            // window.removeEventListener("pointermove", handlePointerMove);
-            window.removeEventListener("pointerdown", handlePointerDown);
-        };
-    }, []);
+    //     window.addEventListener("pointerdown", handlePointerDown);
+    //     window.addEventListener("pointerup", handlePointerUp);
+    //     // window.addEventListener("pointermove", handlePointerMove);
+    //     return () => {
+    //         window.removeEventListener("pointerup", handlePointerUp);
+    //         // window.removeEventListener("pointermove", handlePointerMove);
+    //         window.removeEventListener("pointerdown", handlePointerDown);
+    //     };
+    // }, []);
 
     if (isRoommatesLoading || isRoomPresenceLoading) {
         return <PresenceSkeleton />;
@@ -491,12 +491,15 @@ export function PresenceCalendar() {
                                 return (
                                     <button
                                         key={day}
-                                        onPointerEnter={() => {
-                                            if (pointerStatus.isDown) {
-                                                toggleUserPresence(day);
-                                            }
-                                        }}
-                                        onPointerDown={() =>
+                                        // onPointerEnter={() => {
+                                        //     if (pointerStatus.isDown) {
+                                        //         toggleUserPresence(day);
+                                        //     }
+                                        // }}
+                                        // onPointerDown={() =>
+                                        //     toggleUserPresence(day)
+                                        // }
+                                        onClick={() =>
                                             toggleUserPresence(day)
                                         }
                                         className={cn(

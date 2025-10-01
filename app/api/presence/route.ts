@@ -1,11 +1,13 @@
-import { isYYYYMM } from '@/lib/utils';
+import { isYYYYMM } from "@/lib/utils";
 import { getAuthenticatedUser } from "@/lib/firebase/server";
 import { Membership } from "@/models/Membership";
 import { MonthPresence } from "@/models/MonthPresence";
 import { MarkPresenceBody } from "@/types/actions";
 import { NextResponse } from "next/server";
+import { ensureDbConnection } from "@/lib/db-connect";
 
 export async function POST(request: Request) {
+    ensureDbConnection();
     const user = await getAuthenticatedUser();
 
     if (!user) {
@@ -18,7 +20,14 @@ export async function POST(request: Request) {
     const body: MarkPresenceBody = await request.json();
 
     // Validate the request body
-    if (!isYYYYMM(body.month) || !Number.isInteger(body.day) || body.day < 0 || body.day > 31 || !body.status || !body.roomId) {
+    if (
+        !isYYYYMM(body.month) ||
+        !Number.isInteger(body.day) ||
+        body.day < 0 ||
+        body.day > 31 ||
+        !body.status ||
+        !body.roomId
+    ) {
         return NextResponse.json(
             { success: false, message: "Invalid request body" },
             { status: 400 }
@@ -41,7 +50,7 @@ export async function POST(request: Request) {
         userId: user.uid,
         roomId: body.roomId,
         month: body.month,
-    })
+    });
 
     if (!monthPresence) {
         monthPresence = new MonthPresence({
@@ -51,7 +60,7 @@ export async function POST(request: Request) {
         });
     }
     monthPresence.presence[body.day] = body.status;
-    
+
     try {
         await monthPresence.save();
     } catch {
