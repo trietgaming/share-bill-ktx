@@ -270,7 +270,6 @@ export function InvoiceForm({
                         </FormItem>
                     )}
                 />
-
                 {/* Name */}
                 <FormField
                     control={form.control}
@@ -288,7 +287,6 @@ export function InvoiceForm({
                         </FormItem>
                     )}
                 />
-
                 {/* Description */}
                 <FormField
                     control={form.control}
@@ -306,7 +304,6 @@ export function InvoiceForm({
                         </FormItem>
                     )}
                 />
-
                 {/* Month Applied */}
                 {currentFormType !== "other" && (
                     <FormField
@@ -393,152 +390,147 @@ export function InvoiceForm({
                         )}
                     />
                 )}
-
                 {/* Apply To*/}
-                {currentFormType === "other" && (
-                    <FormField
-                        control={form.control}
-                        name="applyTo"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Áp dụng cho</FormLabel>
-                                <FormControl>
-                                    <DropdownMenu>
-                                        <FormControl>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="outline">
-                                                    {field.value?.length ===
-                                                    roommates.length
-                                                        ? "Cả phòng"
-                                                        : field.value
-                                                              .slice(0, 2)
-                                                              ?.map((r) => {
-                                                                  const user =
-                                                                      roommates.find(
-                                                                          (
-                                                                              roommate
-                                                                          ) =>
-                                                                              roommate.userId ===
-                                                                              r
-                                                                      );
-
-                                                                  return (
-                                                                      <>
-                                                                          <UserAvatar
-                                                                              key={
-                                                                                  r
-                                                                              }
-                                                                              user={
-                                                                                  user!
-                                                                              }
-                                                                              className="h-5 w-5"
-                                                                          />
-                                                                          <div className="text-xs max-w-10 sm:max-w-full truncate">
-                                                                              {
-                                                                                  user?.displayName
-                                                                              }
-                                                                          </div>
-                                                                      </>
+                
+                <FormField
+                    control={form.control}
+                    name="applyTo"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Áp dụng cho</FormLabel>
+                            <FormControl>
+                                <DropdownMenu>
+                                    <FormControl>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline">
+                                                {field.value?.length ===
+                                                roommates.length
+                                                    ? "Cả phòng"
+                                                    : field.value
+                                                          .slice(0, 2)
+                                                          ?.map((r) => {
+                                                              const user =
+                                                                  roommates.find(
+                                                                      (
+                                                                          roommate
+                                                                      ) =>
+                                                                          roommate.userId ===
+                                                                          r
                                                                   );
-                                                              })
-                                                              .concat([
-                                                                  field.value
-                                                                      .length >
-                                                                  2 ? (
-                                                                      <Badge variant="secondary">
-                                                                          +
-                                                                          {field
-                                                                              .value
-                                                                              .length -
-                                                                              2}
-                                                                      </Badge>
-                                                                  ) : null,
-                                                              ] as any[]) ||
-                                                          "Chọn những người áp dụng"}
-                                                    <ChevronDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                        </FormControl>
-                                        <DropdownMenuContent className="w-[320px]">
-                                            <div className="flex items-center justify-between">
-                                                <DropdownMenuLabel className="text-xs">
-                                                    Chọn những người áp dụng
-                                                </DropdownMenuLabel>
-                                                <div className="space-x-2 *:text-xs">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            field.onChange(
-                                                                roommates.map(
-                                                                    (r) =>
-                                                                        r.userId
-                                                                )
+
+                                                              return (
+                                                                  <>
+                                                                      <UserAvatar
+                                                                          key={
+                                                                              r
+                                                                          }
+                                                                          user={
+                                                                              user!
+                                                                          }
+                                                                          className="h-5 w-5"
+                                                                      />
+                                                                      <div className="text-xs max-w-10 sm:max-w-full truncate">
+                                                                          {
+                                                                              user?.displayName
+                                                                          }
+                                                                      </div>
+                                                                  </>
+                                                              );
+                                                          })
+                                                          .concat([
+                                                              field.value
+                                                                  .length >
+                                                              2 ? (
+                                                                  <Badge variant="secondary">
+                                                                      +
+                                                                      {field
+                                                                          .value
+                                                                          .length -
+                                                                          2}
+                                                                  </Badge>
+                                                              ) : null,
+                                                          ] as any[]) ||
+                                                      "Chọn những người áp dụng"}
+                                                <ChevronDown className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                    </FormControl>
+                                    <DropdownMenuContent className="w-[320px]">
+                                        <div className="flex items-center justify-between">
+                                            <DropdownMenuLabel className="text-xs">
+                                                Chọn những người áp dụng
+                                            </DropdownMenuLabel>
+                                            <div className="space-x-2 *:text-xs">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        field.onChange(
+                                                            roommates.map(
+                                                                (r) => r.userId
                                                             )
-                                                        }
-                                                    >
-                                                        Chọn tất cả
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            field.onChange([])
-                                                        }
-                                                    >
-                                                        Xóa
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                            <DropdownMenuSeparator />
-                                            {roommates.map((r) => (
-                                                <DropdownMenuCheckboxItem
-                                                    key={r.userId}
-                                                    checked={field.value?.includes(
-                                                        r.userId
-                                                    )}
-                                                    onCheckedChange={(
-                                                        checked
-                                                    ) => {
-                                                        if (checked) {
-                                                            field.onChange([
-                                                                ...(field.value ||
-                                                                    []),
-                                                                r.userId,
-                                                            ]);
-                                                        } else {
-                                                            field.onChange(
-                                                                field.value?.filter(
-                                                                    (v) =>
-                                                                        v !==
-                                                                        r.userId
-                                                                )
-                                                            );
-                                                        }
-                                                    }}
-                                                    onSelect={(e) =>
-                                                        e.preventDefault()
+                                                        )
                                                     }
                                                 >
-                                                    <RoommateItem
-                                                        roommate={r}
-                                                        myselfId={userData?._id}
-                                                    />
-                                                </DropdownMenuCheckboxItem>
-                                            ))}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </FormControl>
-                                <FormDescription>
-                                    Đã chọn {field.value?.length || 0} người
-                                    chia hóa đơn
-                                </FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                )}
-
+                                                    Chọn tất cả
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        field.onChange([])
+                                                    }
+                                                >
+                                                    Xóa
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <DropdownMenuSeparator />
+                                        {roommates.map((r) => (
+                                            <DropdownMenuCheckboxItem
+                                                key={r.userId}
+                                                checked={field.value?.includes(
+                                                    r.userId
+                                                )}
+                                                onCheckedChange={(checked) => {
+                                                    if (checked) {
+                                                        field.onChange([
+                                                            ...(field.value ||
+                                                                []),
+                                                            r.userId,
+                                                        ]);
+                                                    } else {
+                                                        field.onChange(
+                                                            field.value?.filter(
+                                                                (v) =>
+                                                                    v !==
+                                                                    r.userId
+                                                            )
+                                                        );
+                                                    }
+                                                }}
+                                                onSelect={(e) =>
+                                                    e.preventDefault()
+                                                }
+                                            >
+                                                <RoommateItem
+                                                    roommate={r}
+                                                    myselfId={userData?._id}
+                                                />
+                                            </DropdownMenuCheckboxItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </FormControl>
+                            <FormDescription>
+                                Đã chọn {field.value?.length || 0} người chia
+                                hóa đơn
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                
                 <div className="flex justify-between items-center">
                     <FormField
                         control={form.control}
@@ -655,10 +647,8 @@ export function InvoiceForm({
                         )}
                     />
                 </div>
-
                 {splitMethod !== InvoiceSplitMethod.BY_EQUALLY &&
                     splitMethod !== InvoiceSplitMethod.BY_PRESENCE && <></>}
-
                 {/* <div className="flex items-center justify-between"> */}
                 {/* Due Date */}
                 {/* <FormField
@@ -704,7 +694,6 @@ export function InvoiceForm({
                         )}
                     /> */}
                 {/* </div> */}
-
                 {/* <div className="flex items-center justify-between rounded-lg border p-3">
                     <FormLabel htmlFor="hasAdvancePayer" className="mb-0">Ứng trước?</FormLabel>
                     <Switch id="hasAdvancePayer" checked={hasAdvancePayer} onCheckedChange={setHasAdvancePayer} />
@@ -793,7 +782,6 @@ export function InvoiceForm({
                         />
                     </div>
                 )} */}
-
                 <Button disabled={form.formState.isSubmitting} type="submit">
                     {isEditMode ? "Sửa" : "Thêm"} hóa đơn
                 </Button>
