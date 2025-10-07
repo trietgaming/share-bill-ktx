@@ -107,7 +107,7 @@ export function InvoiceCheckoutDialog({
         <Dialog {...props}>
             <DialogContent className="sm:max-w-lg space-y-4">
                 <DialogHeader>
-                    <DialogTitle>Thanh toán hóa đơn</DialogTitle>
+                    <DialogTitle>Thanh toán hóa đơn: {invoice?.name}</DialogTitle>
                     <DialogDescription>
                         Chuyển khoản vào một trong các tài khoản bên dưới, khi
                         chuyển xong, tích xác nhận và gửi.

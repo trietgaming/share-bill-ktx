@@ -17,6 +17,7 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
+import { InvoiceSplitMethod } from "@/enums/invoice";
 
 const typeConfig = {
     walec: {
@@ -242,14 +243,18 @@ export function InvoiceCard({
                             </div>
                         ) : (
                             <Button
-                                disabled={!invoice.payTo}
+                                disabled={!invoice.isPayable}
                                 onClick={handlePayInvoice}
                                 size="sm"
                                 className="flex-1 text-primary"
                                 variant="outline"
                             >
                                 {invoice.payTo
-                                    ? "Thanh toán"
+                                    ? invoice.splitMethod ===
+                                          InvoiceSplitMethod.BY_PRESENCE &&
+                                      !invoice.isPayable
+                                        ? "Chưa tích đủ ngày ở"
+                                        : "Thanh toán"
                                     : "Không có người nhận"}
                             </Button>
                         )}

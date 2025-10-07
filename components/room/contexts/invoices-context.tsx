@@ -104,7 +104,7 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
                     ...inv,
                     personalAmount,
                     isPaidByMe: personalAmount <= 0,
-                    isPayable: isPayable && personalAmount > 0,
+                    isPayable: isPayable && personalAmount > 0 && !!inv.payTo,
                     myPayInfo: inv.payInfo?.find(
                         (p) => p.paidBy === userData!._id
                     ),
@@ -154,7 +154,7 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
                 ...inv,
                 personalAmount,
                 isPaidByMe: personalAmount <= 0,
-                isPayable: isPayable && personalAmount > 0,
+                isPayable: isPayable && personalAmount > 0 && !!inv.payTo,
                 myPayInfo: inv.payInfo?.find((p) => p.paidBy === userData!._id),
             };
         });

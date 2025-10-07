@@ -76,6 +76,14 @@ export function HomeDashboard() {
             .join("/")
             .concat("/" + tab);
 
+    const unpaidOtherInvoices = useMemo(() => {
+        return otherInvoices.filter((invoice) => !invoice.isPaidByMe);
+    }, [otherInvoices]);
+
+    const unpaidMonthlyInvoices = useMemo(() => {
+        return monthlyInvoices.filter((invoice) => !invoice.isPaidByMe);
+    }, [monthlyInvoices]);
+
     return (
         <div className="space-y-4 md:space-y-6">
             {/* Overview Stats */}
@@ -195,11 +203,11 @@ export function HomeDashboard() {
                     <CardHeader>
                         <CardTitle className="text-base md:text-lg flex items-center gap-2">
                             <Receipt className="h-4 md:h-5 w-4 md:w-5" />
-                            Tình trạng hóa đơn của bạn
+                            Hóa đơn chưa thanh toán
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 md:space-y-4">
-                        {monthlyInvoices.map((invoice) => (
+                        {unpaidMonthlyInvoices.map((invoice) => (
                             <div
                                 key={invoice._id}
                                 className="p-3 md:p-4 border border-destructive/30 bg-destructive/15 rounded-lg"
@@ -228,9 +236,13 @@ export function HomeDashboard() {
                                         {formatCurrency(invoice.personalAmount)}
                                     </span>
                                     <Button
+                                        hidden={!invoice.isPayable}
                                         size="sm"
                                         variant="default"
                                         className="text-xs"
+                                        onClick={() =>
+                                            openInvoiceCheckoutDialog(invoice)
+                                        }
                                     >
                                         <DollarSign className="h-3 w-3 mr-1" />
                                         Thanh toán
@@ -248,12 +260,12 @@ export function HomeDashboard() {
                         ))}
 
                         {/* Other Invoices */}
-                        {!!otherInvoices.length && (
+                        {!!unpaidOtherInvoices.length && (
                             <div className="space-y-2">
                                 <h4 className="text-sm font-medium text-muted-foreground">
                                     Hóa đơn khác
                                 </h4>
-                                {otherInvoices.map((invoice) => (
+                                {unpaidOtherInvoices.map((invoice) => (
                                     <div
                                         key={invoice._id}
                                         className="flex items-center justify-between p-2 md:p-3 border rounded-lg"
@@ -270,6 +282,7 @@ export function HomeDashboard() {
                                                 )}
                                             </span>
                                             <Button
+                                                hidden={!invoice.isPayable}
                                                 onClick={() =>
                                                     openInvoiceCheckoutDialog(
                                                         invoice
