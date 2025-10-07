@@ -1,5 +1,5 @@
 "use client";
-import { useForm } from "react-hook-form";
+import { ControllerRenderProps, useForm, UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -21,14 +21,7 @@ import {
     SelectItem,
     SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-import { CalendarIcon, ChevronDown } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { ChevronDown } from "lucide-react";
 import {
     CreateInvoiceFormData,
     createNewInvoice,
@@ -44,13 +37,11 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CurrencyInput } from "@/components/currency-input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/components/auth-context";
-import { useState } from "react";
-import { Roommate } from "@/types/roommate";
-import { formatDate, toYYYYMM } from "@/lib/utils";
+import { ChangeEvent, useState } from "react";
+import { formatCurrency, sum, toYYYYMM } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect } from "react";
 import { IInvoice } from "@/types/invoice";
 import { toast } from "sonner";
 import { invoicesQueryKey, queryClient } from "@/lib/query-client";
@@ -87,7 +78,22 @@ const invoiceFormSchema = z.object({
     applyTo: z.array(z.string()).min(1, "Phải chọn ít nhất một người"),
     payTo: z.string().optional(),
     splitMethod: z.enum(Object.values(InvoiceSplitMethod)),
-    splitMap: z.object(),
+    // splitMap: z.looseObject<Record<string, number>>({}).refine(
+    //     (val) => {
+    //         const num = z.coerce.number();
+    //         return Object.values(val).every(
+    //             (v) => num.parse(v) >= 0
+    //         );
+    //     },
+    //     {
+    //         message:
+    //             "Số tiền/Phần trăm trong cấu hình chia tiền phải là số dương",
+    //     }
+    // ),
+    splitMap: z.record(
+        z.string(),
+        z.coerce.number<number>("Giá trị chia phải là một số").min(0)
+    ),
     advancePayer: payInfoSchema.optional(),
 });
 
@@ -102,6 +108,184 @@ const getInvoiceNamesByType = (type: string, monthYear: string) => {
         return `Tiền phòng ${month}/${year}`;
     }
     return "Tiền tháng " + month + "/" + year;
+};
+
+const SplitConfig = ({
+    form,
+    field,
+}: {
+    form: UseFormReturn<InvoiceFormValues>;
+    field: ControllerRenderProps<InvoiceFormValues, "splitMap">;
+}) => {
+    const {
+        roommatesQuery: { data: roommates },
+    } = useRoommates();
+
+    const { userData } = useAuth();
+    const splitMethod = form.watch("splitMethod");
+
+    const autoFill = () => {
+        const total =
+            form.getValues("splitMethod") === InvoiceSplitMethod.BY_FIXED_AMOUNT
+                ? form.getValues("amount")
+                : 100;
+        let acc = form
+            .getValues("applyTo")
+            .reduce(
+                (acc, key) =>
+                    (Number.parseFloat(field.value[key] as unknown as string) || 0) +
+                    (acc || 0),
+                0
+            );
+        const remainning = total - acc;
+
+        const countEmpty = form
+            .getValues("applyTo")
+            .filter((v) => !field.value[v]).length;
+
+        const fieldValue = {
+            ...field.value,
+        };
+        const splitted =
+            remainning > 0
+                ? splitMethod === InvoiceSplitMethod.BY_PERCENTAGE
+                    ? +(remainning / countEmpty).toFixed(2)
+                    : Math.round(remainning / countEmpty)
+                : 0;
+        for (const key of form.getValues("applyTo")) {
+            if (field.value[key]) continue;
+            console.log(acc + splitted - total);
+            if (Math.abs(acc + splitted - total) <= 1)
+                fieldValue[key] = total - acc;
+            else fieldValue[key] = splitted;
+
+            acc += splitted;
+        }
+        field.onChange(fieldValue);
+        console.log(total, remainning, countEmpty, field.value);
+    };
+
+    const total = sum(
+        Object.values(field.value || []).map((v) =>
+            Number.parseFloat((v as unknown as string) || "0")
+        ) as number[]
+    );
+
+    const amount = form.watch("amount");
+
+    return (
+        <FormItem>
+            <FormLabel>Cấu hình chia tiền</FormLabel>
+            <FormDescription>
+                {splitMethod === InvoiceSplitMethod.BY_FIXED_AMOUNT &&
+                    `Nhập số tiền cho từng người (Đã nhập ${formatCurrency(
+                        total
+                    )}/${formatCurrency(amount)})`}
+                {splitMethod === InvoiceSplitMethod.BY_PERCENTAGE &&
+                    `Nhập phần trăm cho từng người (Đã nhập ${total}%/100%)`}
+            </FormDescription>
+
+            <FormControl>
+                <div className="space-y-4 h-full">
+                    <div className="space-x-2">
+                        <Button onClick={autoFill} type="button">
+                            Tự động điền
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => field.onChange({})}
+                        >
+                            Xóa
+                        </Button>
+                    </div>
+                    {form.watch("applyTo").map((userId) => {
+                        const roommate = roommates?.find(
+                            (r) => r.userId === userId
+                        );
+                        if (!roommate) return null;
+                        const onValueChange = (
+                            e:
+                                | string
+                                | ChangeEvent<HTMLInputElement>
+                                | undefined
+                        ) => {
+                            const value =
+                                typeof e === "object" ? e.target.value : e;
+                            field.onChange({
+                                ...field.value,
+                                [userId]: value,
+                            });
+                        };
+                        return (
+                            <div
+                                key={userId}
+                                className="flex flex-col gap-2 p-2 border rounded-md"
+                            >
+                                <RoommateItem
+                                    roommate={roommate}
+                                    myselfId={userData?._id}
+                                />
+                                <div className="flex gap-2">
+                                    {splitMethod ===
+                                        InvoiceSplitMethod.BY_FIXED_AMOUNT && (
+                                        <CurrencyInput
+                                            placeholder="Nhập số tiền"
+                                            value={field.value?.[userId] ?? ""}
+                                            min={0}
+                                            allowNegativeValue={false}
+                                            allowDecimals={false}
+                                            onValueChange={onValueChange}
+                                        />
+                                    )}
+                                    {splitMethod ===
+                                        InvoiceSplitMethod.BY_PERCENTAGE && (
+                                        <>
+                                            <span className="inline-flex items-center">
+                                                %
+                                            </span>
+                                            <Input
+                                                type="number"
+                                                placeholder="Phần trăm"
+                                                onChange={onValueChange}
+                                                max={100}
+                                                value={
+                                                    field.value?.[userId] ?? ""
+                                                }
+                                            />
+                                        </>
+                                    )}
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() =>
+                                            field.onChange({
+                                                ...field.value,
+                                                [userId]: undefined,
+                                            })
+                                        }
+                                    >
+                                        Xóa
+                                    </Button>
+                                </div>
+                                {splitMethod ===
+                                    InvoiceSplitMethod.BY_PERCENTAGE &&
+                                    field.value?.[userId] && (
+                                        <div className="text-xs text-muted-foreground">
+                                            {`${formatCurrency(
+                                                (field.value[userId]! / 100) *
+                                                    (amount || 0)
+                                            )}/${formatCurrency(amount)}`}
+                                        </div>
+                                    )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </FormControl>
+            <FormMessage />
+        </FormItem>
+    );
 };
 
 export function InvoiceForm({
@@ -237,6 +421,32 @@ export function InvoiceForm({
     });
 
     async function onSubmit(values: InvoiceFormValues) {
+        console.log(values);
+        if (values.splitMethod === InvoiceSplitMethod.BY_FIXED_AMOUNT) {
+            const total = sum(Object.values(values.splitMap || {}) as number[]);
+            if (Math.abs(total - values.amount) > 1) {
+                form.setError("splitMap", {
+                    message: `Tổng số tiền trong cấu hình chia tiền (${total.toLocaleString(
+                        "vi-VN"
+                    )} VND) không khớp với tổng số tiền hóa đơn (${values.amount.toLocaleString(
+                        "vi-VN"
+                    )} VND). Vui lòng kiểm tra lại.`,
+                });
+                return;
+            }
+        }
+
+        if (values.splitMethod === InvoiceSplitMethod.BY_PERCENTAGE) {
+            const total = sum(Object.values(values.splitMap || {}) as number[]);
+            if (Math.abs(total - 100) > 0.1) {
+                form.setError("splitMap", {
+                    message: `Tổng phần trăm trong cấu hình chia tiền (${total.toLocaleString(
+                        "vi-VN"
+                    )}%) không khớp với 100%. Vui lòng kiểm tra lại.`,
+                });
+                return;
+            }
+        }
         return await mutateAsync(values as CreateInvoiceFormData);
     }
 
@@ -255,10 +465,6 @@ export function InvoiceForm({
                             <FormControl>
                                 <CurrencyInput
                                     className=""
-                                    intlConfig={{
-                                        locale: "vi-VN",
-                                        currency: "VND",
-                                    }}
                                     placeholder="Nhập số tiền"
                                     value={field.value}
                                     onValueChange={(
@@ -391,7 +597,7 @@ export function InvoiceForm({
                     />
                 )}
                 {/* Apply To*/}
-                
+
                 <FormField
                     control={form.control}
                     name="applyTo"
@@ -530,7 +736,7 @@ export function InvoiceForm({
                         </FormItem>
                     )}
                 />
-                
+
                 <div className="flex justify-between items-center">
                     <FormField
                         control={form.control}
@@ -632,13 +838,15 @@ export function InvoiceForm({
                                             >
                                                 Chia theo phần trăm
                                             </SelectItem>
-                                            <SelectItem
-                                                value={
-                                                    InvoiceSplitMethod.BY_PRESENCE
-                                                }
-                                            >
-                                                Chia theo ngày ở
-                                            </SelectItem>
+                                            {type !== "other" && (
+                                                <SelectItem
+                                                    value={
+                                                        InvoiceSplitMethod.BY_PRESENCE
+                                                    }
+                                                >
+                                                    Chia theo ngày ở
+                                                </SelectItem>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 </FormControl>
@@ -648,7 +856,16 @@ export function InvoiceForm({
                     />
                 </div>
                 {splitMethod !== InvoiceSplitMethod.BY_EQUALLY &&
-                    splitMethod !== InvoiceSplitMethod.BY_PRESENCE && <></>}
+                    splitMethod !== InvoiceSplitMethod.BY_PRESENCE && (
+                        <FormField
+                            control={form.control}
+                            name="splitMap"
+                            render={({ field }) => (
+                                <SplitConfig form={form} field={field} />
+                            )}
+                        />
+                    )}
+
                 {/* <div className="flex items-center justify-between"> */}
                 {/* Due Date */}
                 {/* <FormField

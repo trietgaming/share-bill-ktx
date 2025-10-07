@@ -2,7 +2,7 @@
 
 import { IInvoice, IPayInfo } from "@/types/invoice";
 import { _authenticate, UserCtx } from "@/lib/prechecks/auth";
-import { calculateShare, Invoice } from "@/models/Invoice";
+import { Invoice } from "@/models/Invoice";
 import { serializeDocument } from "@/lib/serializer";
 import {
     _verifyMembership,
@@ -22,6 +22,8 @@ import { AppError } from "../errors";
 import { revalidateTag } from "next/cache";
 import { RootFilterQuery } from "mongoose";
 import { InvoiceSplitMethod } from "@/enums/invoice";
+import { calculateShare } from "@/lib/utils";
+import { MonthPresence } from "@/models/MonthPresence";
 
 export interface CreateInvoiceFormData {
     roomId: string;
@@ -124,7 +126,10 @@ export const getInvoicesByRoom = serverAction({
                     query.sortOrder === "asc" ? 1 : -1,
             });
 
-        return serializeDocument<IInvoice[]>(invoices);
+        return serializeDocument<IInvoice[]>(invoices, {
+            // Disabled because the bug of splitMap contains unexpected $* key
+            schemaFieldsOnly: false,
+        });
     },
     initContext: (ctx, roomId) => {
         ctx.roomId = roomId;
@@ -182,7 +187,24 @@ export const payInvoice = serverAction({
 
         await _verifyMembership(ctx);
 
-        const totalAmountToPay = await calculateShare(invoice, ctx.user.uid);
+        const [totalAmountToPay, isPayable] = calculateShare(
+            invoice,
+            ctx.user.uid,
+            invoice.splitMethod === InvoiceSplitMethod.BY_PRESENCE
+                ? await MonthPresence.find({
+                      roomId: invoice.roomId,
+                      month: invoice.monthApplied,
+                  })
+                : []
+        );
+
+        if (!isPayable) {
+            throw new AppError(
+                "Bạn hoặc các thành viên chưa hoàn thành điểm danh, không thể thanh toán hóa đơn này.",
+                ErrorCode.FORBIDDEN
+            );
+        }
+
         const userPayInfo = invoice.payInfo?.find(
             (pi) => pi.paidBy === ctx.user.uid
         );

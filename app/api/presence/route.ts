@@ -5,6 +5,7 @@ import { MonthPresence } from "@/models/MonthPresence";
 import { MarkPresenceBody } from "@/types/actions";
 import { NextResponse } from "next/server";
 import { ensureDbConnection } from "@/lib/db-connect";
+import { revalidateTag } from "next/cache";
 
 export async function POST(request: Request) {
     ensureDbConnection();
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
 
     try {
         await monthPresence.save();
+        revalidateTag(`room-month-presence-${body.roomId}`);
     } catch {
         return NextResponse.json(
             { success: false, message: "Invalid request body" },

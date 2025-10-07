@@ -1,7 +1,10 @@
-import { cn } from "@/lib/utils"
-import ReactCurrencyInputField from "react-currency-input-field"
+import { cn } from "@/lib/utils";
+import ReactCurrencyInputField from "react-currency-input-field";
 
-function CurrencyInput({ className, ...props }: React.ComponentProps<typeof ReactCurrencyInputField>) {
+function CurrencyInput({
+    className,
+    ...props
+}: React.ComponentProps<typeof ReactCurrencyInputField>) {
     return (
         <ReactCurrencyInputField
             data-slot="input"
@@ -11,9 +14,15 @@ function CurrencyInput({ className, ...props }: React.ComponentProps<typeof Reac
                 "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
                 className
             )}
+            intlConfig={{
+                locale: "vi-VN",
+                currency: "VND",
+            }}
+            decimalSeparator=","
+            groupSeparator="."
             {...props}
         />
-    )
+    );
 }
 
-export { CurrencyInput }
+export { CurrencyInput };

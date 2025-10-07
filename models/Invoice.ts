@@ -1,11 +1,7 @@
 import { IInvoice, IPayInfo } from "@/types/invoice";
 import mongoose, { Schema } from "mongoose";
-import { BankAccount, bankAccountSchema } from "@/models/BankAccount";
-import { MonthPresence } from "./MonthPresence";
-import { count, sum } from "@/lib/utils";
-import { AppError } from "@/lib/errors";
-import { PresenceStatus } from "@/enums/presence";
-import { ErrorCode } from "@/enums/error";
+import { BankAccount } from "@/models/BankAccount";
+import { sum } from "@/lib/utils";
 import { InvoiceSplitMethod } from "@/enums/invoice";
 
 export const payInfoSchema = new Schema<IPayInfo>({
@@ -142,17 +138,19 @@ export const invoiceSchema = new Schema<IInvoice>(
             default: {},
             validate: {
                 validator: function (this: IInvoice, v: Map<string, number>) {
-                    if (this.splitMethod === InvoiceSplitMethod.BY_FIXED_AMOUNT) {
+                    if (
+                        this.splitMethod === InvoiceSplitMethod.BY_FIXED_AMOUNT
+                    ) {
                         const total = sum(Array.from(v.values()));
                         return total === this.amount;
-                    } 
+                    }
                     if (this.splitMethod === InvoiceSplitMethod.BY_PERCENTAGE) {
                         const total = sum(Array.from(v.values()));
                         return total === 100;
                     }
                     return true;
-                }
-            }
+                },
+            },
         },
 
         applyTo: {
@@ -161,9 +159,6 @@ export const invoiceSchema = new Schema<IInvoice>(
     },
     {
         timestamps: true,
-        methods: {
-            calculateShare,
-        },
     }
 );
 
@@ -201,44 +196,64 @@ invoiceSchema.index({ roomId: 1, applyTo: 1, status: 1 });
 export const Invoice: mongoose.Model<IInvoice> =
     mongoose.models.Invoice || mongoose.model("Invoice", invoiceSchema);
 
-export async function calculateShare(invoice: IInvoice, userId: string) {
-    if (invoice.type === "other") {
-        return invoice.amount / invoice.applyTo.length;
-    } else {
-        const presences = await MonthPresence.find({
-            roomId: invoice.roomId,
-            month: invoice.monthApplied,
-        });
+// export async function calculateShare(invoice: IInvoice, userId: string) {
 
-        if (presences.length < invoice.applyTo.length) {
-            throw new AppError(
-                "Chưa có đủ dữ liệu điểm danh cho tháng này, không thể tính toán được số tiền phải trả của bạn.",
-                ErrorCode.FORBIDDEN
-            );
-        }
+//     if (invoice.splitMethod === InvoiceSplitMethod.BY_EQUALLY) {
+//         return invoice.amount / invoice.applyTo.length;
+//     } else if (invoice.splitMethod === InvoiceSplitMethod.BY_PRESENCE) {
+//         const presences = await MonthPresence.find({
+//             roomId: invoice.roomId,
+//             month: invoice.monthApplied,
+//         });
 
-        let totalPresentDays = 0;
-        let userPresentDays = 0;
+//         if (presences.length < invoice.applyTo.length) {
+//             throw new AppError(
+//                 "Chưa có đủ dữ liệu điểm danh cho tháng này, không thể tính toán được số tiền phải trả của bạn.",
+//                 ErrorCode.FORBIDDEN
+//             );
+//         }
 
-        for (let i = 0; i < presences.length; ++i) {
-            const att = presences[i];
-            const presentDays = count(att.presence, (availability) => {
-                if (availability === PresenceStatus.UNDETERMINED) {
-                    throw new AppError(
-                        "Các thành viên chưa hoàn thành điểm danh, không thể tính toán được số tiền phải trả của bạn.",
-                        ErrorCode.FORBIDDEN
-                    );
-                }
-                return availability === PresenceStatus.PRESENT;
-            });
+//         let totalPresentDays = 0;
+//         let userPresentDays = 0;
 
-            totalPresentDays += presentDays;
+//         for (let i = 0; i < presences.length; ++i) {
+//             const att = presences[i];
+//             const presentDays = count(att.presence, (availability) => {
+//                 if (availability === PresenceStatus.UNDETERMINED) {
+//                     throw new AppError(
+//                         "Các thành viên chưa hoàn thành điểm danh, không thể tính toán được số tiền phải trả của bạn.",
+//                         ErrorCode.FORBIDDEN
+//                     );
+//                 }
+//                 return availability === PresenceStatus.PRESENT;
+//             });
 
-            if (att.userId === userId) {
-                userPresentDays = presentDays;
-            }
-        }
+//             totalPresentDays += presentDays;
 
-        return userPresentDays * (invoice.amount / totalPresentDays);
-    }
-}
+//             if (att.userId === userId) {
+//                 userPresentDays = presentDays;
+//             }
+//         }
+
+//         return userPresentDays * (invoice.amount / totalPresentDays);
+//     } else if (invoice.splitMethod === InvoiceSplitMethod.BY_FIXED_AMOUNT) {
+//         const share = invoice.splitMap[userId];
+//         if (!share) {
+//             throw new AppError(
+//                 "Không tìm thấy thông tin chia tiền cho bạn.",
+//                 ErrorCode.FORBIDDEN
+//             );
+//         }
+//         return share;
+//     }
+//     else if (invoice.splitMethod === InvoiceSplitMethod.BY_PERCENTAGE) {
+//         const percentage = invoice.splitMap[userId];
+//         if (!percentage) {
+//             throw new AppError(
+//                 "Không tìm thấy thông tin chia tiền cho bạn.",
+//                 ErrorCode.FORBIDDEN
+//             );
+//         }
+//         return (percentage / 100) * invoice.amount;
+//     }
+// }

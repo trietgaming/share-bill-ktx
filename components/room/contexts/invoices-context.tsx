@@ -19,6 +19,7 @@ import { InvoiceCheckoutDialog } from "../invoice-checkout-dialog";
 import { handleAction } from "@/lib/action-handler";
 import { InvoiceDialog } from "@/components/room/invoice-dialog";
 import { PresenceStatus } from "@/enums/presence";
+import { calculateShare } from "@/lib/utils";
 
 interface InvoicesContextType {
     pendingInvoicesQuery: UseQueryResult<IInvoice[], Error>;
@@ -90,14 +91,20 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
                     inv.payInfo
                         ?.filter((p) => p.paidBy === userData!._id)
                         .reduce((sum, p) => sum + p.amount, 0) || 0;
-                const personalAmount = Math.round(
-                    (inv.amount || 0) / (inv.applyTo.length || 1) -
-                        userPaidAmount
+
+                const [share, isPayable] = calculateShare(
+                    inv,
+                    userData!._id,
+                    []
                 );
+
+                const personalAmount = Math.round(share - userPaidAmount);
+
                 return {
                     ...inv,
                     personalAmount,
                     isPaidByMe: personalAmount <= 0,
+                    isPayable: isPayable && personalAmount > 0,
                     myPayInfo: inv.payInfo?.find(
                         (p) => p.paidBy === userData!._id
                     ),
@@ -125,20 +132,7 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
             const roomMonthPresence = monthsPresenceQuery.data.filter(
                 (a) => a.month === inv.monthApplied
             );
-            if (roomMonthPresence.length < roommates.length) {
-                const existingUserIds = roomMonthPresence.map((a) => a.userId);
-                const missingRoommates = roommates.filter(
-                    (r) => !existingUserIds.includes(r.userId)
-                );
-                missingRoommates.forEach((r) => {
-                    roomMonthPresence.push({
-                        month: inv.monthApplied!,
-                        roomId: room._id,
-                        userId: r.userId,
-                        presence: Array(31).fill(PresenceStatus.UNDETERMINED),
-                    });
-                });
-            }
+
             roomPresenceMap[inv.monthApplied] = roomMonthPresence;
         });
 
@@ -147,61 +141,20 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
                 inv.payInfo
                     ?.filter((p) => p.paidBy === userData!._id)
                     .reduce((sum, p) => sum + p.amount, 0) || 0;
-            const roomPresence = roomPresenceMap[inv.monthApplied!];
-            const myPresence = roomPresence?.find(
-                (a) => a.userId === userData!._id
+
+            const [share, isPayable] = calculateShare(
+                inv,
+                userData!._id,
+                roomPresenceMap[inv.monthApplied!] || []
             );
 
-            if (!roomPresence || !myPresence) {
-                const personalAmount = Math.round(
-                    (inv.amount || 0) / (inv.applyTo.length || 1) -
-                        userPaidAmount
-                );
-
-                return {
-                    ...inv,
-                    personalAmount,
-                    isPaidByMe: inv.payInfo?.some(
-                        (p) =>
-                            p.paidBy === userData!._id &&
-                            Math.round(p.amount) >= personalAmount
-                    ),
-                    myPayInfo: inv.payInfo?.find(
-                        (p) => p.paidBy === userData!._id
-                    ),
-                };
-            }
-
-            const calculatePresentDays = (
-                presence: IMonthPresence["presence"]
-            ) =>
-                presence.reduce(
-                    (acc, availability) =>
-                        acc +
-                        (availability === PresenceStatus.PRESENT ||
-                        availability === PresenceStatus.UNDETERMINED
-                            ? 1
-                            : 0),
-                    0
-                );
-
-            const totalPresentDays = roomPresence.reduce(
-                (acc, att) => acc + calculatePresentDays(att.presence),
-                0
-            );
-
-            const costPerDay = inv.amount / totalPresentDays;
-
-            const myPresentDays = calculatePresentDays(myPresence.presence);
-
-            const personalAmount = Math.round(
-                costPerDay * myPresentDays - userPaidAmount
-            );
+            const personalAmount = Math.round(share - userPaidAmount);
 
             return {
                 ...inv,
                 personalAmount,
                 isPaidByMe: personalAmount <= 0,
+                isPayable: isPayable && personalAmount > 0,
                 myPayInfo: inv.payInfo?.find((p) => p.paidBy === userData!._id),
             };
         });
