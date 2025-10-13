@@ -532,11 +532,11 @@ export function PresenceCalendar() {
                                                         />
                                                     </div>
                                                 ))}
-                                            {dayStatus.attendees.length > 3 && (
+                                            {dayStatus.attendees.length > 4 && (
                                                 <Badge className="text-[10px] px-1 py-0 bg-gray-500 text-white h-4">
                                                     +
                                                     {dayStatus.attendees
-                                                        .length - 3}
+                                                        .length - 4}
                                                 </Badge>
                                             )}
                                         </div>
