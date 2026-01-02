@@ -22,7 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "../ui/label";
 import { payInvoice } from "@/lib/actions/invoice";
 import { toast } from "sonner";
-import { invoicesQueryKey, queryClient } from "@/lib/query-client";
+import { invoicesQueryKey, paidInvoicesQueryKey, queryClient } from "@/lib/query-client";
 import { formatCurrency } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
@@ -71,6 +71,9 @@ export function InvoiceCheckoutDialog({
             await handleAction(payInvoice(data.invoiceId, data.amount));
             queryClient.invalidateQueries({
                 queryKey: invoicesQueryKey(invoice!.roomId),
+            });
+            queryClient.invalidateQueries({
+                queryKey: paidInvoicesQueryKey(invoice!.roomId),
             });
         },
         onSuccess: () => {

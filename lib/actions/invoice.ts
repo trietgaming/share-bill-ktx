@@ -135,8 +135,8 @@ export const getInvoicesByRoom = serverAction({
         ctx.roomId = roomId;
     },
     prechecks: [_authenticate, _verifyMembership],
-    cache: (ctx, roomId) => ({
-        tags: [`invoices-${roomId}`],
+    cache: (ctx, roomId,query) => ({
+        tags: [`invoices-${roomId}`, `invoices-${query?.status}-${roomId}`],
     }),
 });
 

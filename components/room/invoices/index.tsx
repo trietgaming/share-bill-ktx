@@ -23,6 +23,7 @@ import {
     Ellipsis,
     CircleCheck,
 } from "lucide-react";
+import Link from "next/link";
 import { InvoiceForm } from "@/components/room/invoices/invoice-form";
 import { useInvoices, useRoomQuery } from "../contexts/room-context";
 import { IInvoice } from "@/types/invoice";
@@ -96,13 +97,13 @@ export function InvoicesManagement() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="*:w-full *:flex *:gap-4 *:items-center">
                         <DropdownMenuItem asChild>
-                            <Button
-                                variant="ghost"
-                                className="w-full"
+                            <Link
+                                href={`/room/${room._id}/invoices/paid`}
+                                className="w-full flex gap-4 items-center"
                             >
                                 <CircleCheck className="w-5 h-5"/>
                                 <span>Xem hóa đơn đã hoàn thành</span>
-                            </Button>
+                            </Link>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
