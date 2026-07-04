@@ -82,6 +82,24 @@ export function createSuccessResponse<T>(
 //     };
 // }
 
+/**
+ * Next.js signals internal control flow (redirect(), notFound(), and the
+ * "this route reads cookies()/headers() so it can't be statically rendered"
+ * bailout) by throwing an error tagged with a special `.digest`. Those must
+ * propagate past this function's try/catch untouched - swallowing them into
+ * a normal ErrorServerActionResult hides the signal from Next's own
+ * rendering machinery, which (for the dynamic-usage case in particular)
+ * turns into a hard build failure instead of the route just being marked
+ * dynamic.
+ */
+function isNextInternalControlFlowError(error: unknown): boolean {
+    const digest = (error as { digest?: unknown } | null)?.digest;
+    return (
+        typeof digest === "string" &&
+        (digest === "DYNAMIC_SERVER_USAGE" || digest.startsWith("NEXT_"))
+    );
+}
+
 export function handleServerActionError(error: any): ErrorServerActionResult {
     if (
         error instanceof mongoose.Error.ValidationError ||
@@ -205,6 +223,9 @@ export function serverAction<
                   )()
                 : createSuccessResponse(await definition.fn(context, ...args));
         } catch (error) {
+            if (isNextInternalControlFlowError(error)) {
+                throw error;
+            }
             return handleServerActionError(error) as ReturnType<ServerFunc>;
         }
     };
