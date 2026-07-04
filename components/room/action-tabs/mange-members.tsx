@@ -48,7 +48,6 @@ export function ManageMembersTab() {
     };
 
     const handleKick = async (member: Roommate) => {
-        console.log("Kicking member", member);
         if (isKicking) return;
         setIsKicking(member.userId);
         try {

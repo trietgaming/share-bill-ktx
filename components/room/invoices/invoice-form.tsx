@@ -154,7 +154,6 @@ const SplitConfig = ({
                 : 0;
         for (const key of form.getValues("applyTo")) {
             if (field.value[key]) continue;
-            console.log(acc + splitted - total);
             if (Math.abs(acc + splitted - total) <= 1)
                 fieldValue[key] = total - acc;
             else fieldValue[key] = splitted;
@@ -162,7 +161,6 @@ const SplitConfig = ({
             acc += splitted;
         }
         field.onChange(fieldValue);
-        console.log(total, remainning, countEmpty, field.value);
     };
 
     const total = sum(
@@ -329,8 +327,6 @@ export function InvoiceForm({
         },
     });
 
-    console.log(form.formState.errors);
-
     useEffect(() => {
         if (type !== "other") {
             form.reset({
@@ -395,7 +391,6 @@ export function InvoiceForm({
 
     const { mutateAsync } = useMutation({
         mutationFn: async (values: CreateInvoiceFormData) => {
-            console.log("Creating/updating invoice with values:", values);
             const updatedInvoice = isEditMode
                 ? await handleAction(
                       updateInvoice({ invoiceId: invoice!._id, ...values })
@@ -421,7 +416,6 @@ export function InvoiceForm({
     });
 
     async function onSubmit(values: InvoiceFormValues) {
-        console.log(values);
         if (values.splitMethod === InvoiceSplitMethod.BY_FIXED_AMOUNT) {
             const total = sum(Object.values(values.splitMap || {}) as number[]);
             if (Math.abs(total - values.amount) > 1) {
@@ -755,16 +749,6 @@ export function InvoiceForm({
                                         disabled={hasAdvancePayer}
                                         value={field.value}
                                         onValueChange={(value) => {
-                                            console.log(
-                                                "Selected payTo value:",
-                                                value
-                                            );
-                                            // if (value === "bank_account") {
-                                            //     return;
-                                            // }
-                                            // if (value === "qr_code") {
-                                            //     return;
-                                            // }
                                             field.onChange(value);
                                         }}
                                     >

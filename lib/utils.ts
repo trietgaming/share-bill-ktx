@@ -88,16 +88,58 @@ export async function delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Splits an integer `total` across `weights` proportionally, using the
+ * largest-remainder method so the results always sum to exactly `total`
+ * (unlike naively rounding each `weight/sumWeights * total` independently,
+ * which can drift the sum away from `total` by a few units and, applied to
+ * invoice shares, meant paid-in-full invoices could never reach a summed
+ * remainder of exactly 0). Falls back to an equal split if every weight is 0,
+ * avoiding a division by zero.
+ */
+function allocateIntegerShares(weights: number[], total: number): number[] {
+    const roundedTotal = Math.round(total);
+    const sumWeights = sum(weights);
+
+    if (sumWeights <= 0) {
+        return allocateIntegerShares(weights.map(() => 1), roundedTotal);
+    }
+
+    const rawShares = weights.map((w) => (w / sumWeights) * roundedTotal);
+    const shares = rawShares.map(Math.floor);
+    const remainder = roundedTotal - sum(shares);
+
+    const indexesByRemainderDesc = shares
+        .map((_, i) => i)
+        .sort(
+            (a, b) =>
+                rawShares[b] - shares[b] - (rawShares[a] - shares[a])
+        );
+
+    for (let i = 0; i < remainder; i++) {
+        shares[indexesByRemainderDesc[i]] += 1;
+    }
+
+    return shares;
+}
+
 export function calculateShare(
     invoice: IInvoice,
     userId: string,
     monthPresences: IMonthPresence[]
 ): [shareAmount: number, isPayable: boolean] {
-    switch (invoice.splitMethod) {
-        case InvoiceSplitMethod.BY_EQUALLY:
-            return [invoice.amount / invoice.applyTo.length, true];
+    const userIndex = invoice.applyTo.indexOf(userId);
 
-        case InvoiceSplitMethod.BY_PRESENCE:
+    switch (invoice.splitMethod) {
+        case InvoiceSplitMethod.BY_EQUALLY: {
+            const shares = allocateIntegerShares(
+                invoice.applyTo.map(() => 1),
+                invoice.amount
+            );
+            return [shares[userIndex] ?? 0, true];
+        }
+
+        case InvoiceSplitMethod.BY_PRESENCE: {
             if (!invoice.monthApplied) {
                 throw new Error(
                     "Month applied is required for presence-based split"
@@ -105,43 +147,37 @@ export function calculateShare(
             }
 
             if (monthPresences.length === 0) {
-                return [invoice.amount / invoice.applyTo.length, false];
+                const equalShares = allocateIntegerShares(
+                    invoice.applyTo.map(() => 1),
+                    invoice.amount
+                );
+                return [equalShares[userIndex] ?? 0, false];
             }
 
-            let isPayable = true;
-            let totalPresentDays = 0;
+            // Not payable yet if some applyTo members haven't recorded
+            // presence at all, or any recorded day is still undetermined.
+            let isPayable = monthPresences.length >= invoice.applyTo.length;
 
-            if (monthPresences.length < invoice.applyTo.length) {
-                isPayable = false;
-                totalPresentDays =
-                    monthPresences[0].presence.length *
-                    (invoice.applyTo.length - monthPresences.length);
-            }
-
-            let userPresentDays = 0;
-
-            for (let i = 0; i < monthPresences.length; ++i) {
-                const att = monthPresences[i];
+            const presentDaysByUser = new Map<string, number>();
+            for (const att of monthPresences) {
                 const presentDays = count(att.presence, (availability) => {
                     if (availability === PresenceStatus.UNDETERMINED) {
                         isPayable = false;
                     }
                     return availability === PresenceStatus.PRESENT;
                 });
-
-                totalPresentDays += presentDays;
-
-                if (att.userId === userId) {
-                    userPresentDays = presentDays;
-                }
+                presentDaysByUser.set(att.userId, presentDays);
             }
 
-            return [
-                userPresentDays * (invoice.amount / totalPresentDays),
-                isPayable,
-            ];
+            const weights = invoice.applyTo.map(
+                (uid) => presentDaysByUser.get(uid) ?? 0
+            );
+            const shares = allocateIntegerShares(weights, invoice.amount);
 
-        case InvoiceSplitMethod.BY_FIXED_AMOUNT:
+            return [shares[userIndex] ?? 0, isPayable];
+        }
+
+        case InvoiceSplitMethod.BY_FIXED_AMOUNT: {
             const share =
                 "get" in invoice.splitMap
                     ? /// @ts-ignore (server-side Map type)
@@ -151,16 +187,29 @@ export function calculateShare(
                 throw new Error("Không tìm thấy thông tin chia tiền cho bạn.");
             }
             return [share, true];
+        }
 
-        case InvoiceSplitMethod.BY_PERCENTAGE:
-            const percentage =
+        case InvoiceSplitMethod.BY_PERCENTAGE: {
+            const getPercentage = (uid: string): number | undefined =>
                 "get" in invoice.splitMap
                     ? /// @ts-ignore (server-side Map type)
-                      invoice.splitMap.get(userId)
-                    : invoice.splitMap[userId];
-            if (percentage == undefined) {
+                      invoice.splitMap.get(uid)
+                    : invoice.splitMap[uid];
+
+            const callerPercentage = getPercentage(userId);
+            if (callerPercentage == undefined) {
                 throw new Error("Không tìm thấy thông tin chia tiền cho bạn.");
             }
-            return [(percentage / 100) * invoice.amount, true];
+
+            // Other applyTo members missing an entry contribute 0 weight
+            // rather than aborting the whole computation - callers should
+            // still be able to pay their own (known) share.
+            const weights = invoice.applyTo.map(
+                (uid) => getPercentage(uid) ?? 0
+            );
+            const shares = allocateIntegerShares(weights, invoice.amount);
+
+            return [shares[userIndex] ?? 0, true];
+        }
     }
 }

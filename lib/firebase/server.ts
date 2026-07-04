@@ -1,5 +1,8 @@
 // Edge runtime
-"use server";
+// NOTE: deliberately not "use server" - this module holds cookie/token
+// internals that must stay unreachable as public Server Action endpoints.
+// Client-callable wrappers live in ./auth-actions.ts.
+import "server-only";
 import { cookies } from "next/headers";
 import * as jose from "jose";
 import type { DecodedIdToken } from "@/types/auth";

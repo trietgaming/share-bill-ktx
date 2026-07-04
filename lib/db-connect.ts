@@ -18,7 +18,7 @@ if (!process.env.FIRESTORE_CONNECTION_URI) {
 }
 
 export async function ensureDbConnection() {
-    if (cached.conn || cached.promise) {
+    if (cached.conn) {
         return;
     }
 
@@ -30,6 +30,9 @@ export async function ensureDbConnection() {
             });
     }
 
+    // A connection attempt may already be in flight from a concurrent
+    // request; awaiting it here (instead of returning early) is what
+    // actually makes concurrent callers wait for a ready connection.
     try {
         cached.conn = await cached.promise;
         console.log("Connected to Firestore DB");

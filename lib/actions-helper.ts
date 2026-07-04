@@ -7,6 +7,7 @@ import type {
     SuccessServerActionResult,
 } from "@/types/actions";
 import mongoose from "mongoose";
+import { ZodError } from "zod";
 import { AppError, AppValidationError } from "./errors";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { ensureDbConnection } from "./db-connect";
@@ -81,12 +82,37 @@ export function createSuccessResponse<T>(
 //     };
 // }
 
+/**
+ * Next.js signals internal control flow (redirect(), notFound(), and the
+ * "this route reads cookies()/headers() so it can't be statically rendered"
+ * bailout) by throwing an error tagged with a special `.digest`. Those must
+ * propagate past this function's try/catch untouched - swallowing them into
+ * a normal ErrorServerActionResult hides the signal from Next's own
+ * rendering machinery, which (for the dynamic-usage case in particular)
+ * turns into a hard build failure instead of the route just being marked
+ * dynamic.
+ */
+function isNextInternalControlFlowError(error: unknown): boolean {
+    const digest = (error as { digest?: unknown } | null)?.digest;
+    return (
+        typeof digest === "string" &&
+        (digest === "DYNAMIC_SERVER_USAGE" || digest.startsWith("NEXT_"))
+    );
+}
+
 export function handleServerActionError(error: any): ErrorServerActionResult {
     if (
         error instanceof mongoose.Error.ValidationError ||
         error instanceof AppError
     ) {
         return createErrorResponse(error.message, ErrorCode.INVALID_INPUT);
+    }
+
+    if (error instanceof ZodError) {
+        return createErrorResponse(
+            error.issues[0]?.message || "Dữ liệu không hợp lệ",
+            ErrorCode.INVALID_INPUT
+        );
     }
 
     console.error("Unexpected server action error:", error);
@@ -100,8 +126,18 @@ export type ServerActionDefinition<
     fn: ServerFunc;
     ensureDbConnection?: boolean;
     /**
+     * Validates and/or narrows the raw arguments received over the wire, before
+     * initContext or any precheck runs. Server actions are public HTTP endpoints:
+     * the TypeScript parameter types are not enforced at runtime, so a caller can
+     * send any JSON-serializable shape regardless of what ServerFunc declares.
+     * Throw (e.g. a Zod parse, or `new AppError(msg, ErrorCode.INVALID_INPUT)`) to
+     * reject malformed input, especially fields that must never be client-settable
+     * (status, createdBy, payInfo, etc.) before they reach mass-assignment-prone
+     * code like `Object.assign(doc, data)` or `new Model({...data})`.
+     */
+    input?: (...args: TailParams<ServerFunc>) => void;
+    /**
      * Initialize context object, which will be passed to prechecks and main function.
-     * Errors in this will not be caught and will result in 500 error.
      */
     initContext?: (...args: Parameters<ServerFunc>) => any;
     /**
@@ -144,9 +180,10 @@ export function serverAction<
 ) => ServerActionResponse<Awaited<ReturnType<ServerFunc>>> {
     const returnFn = async function (...args: any[]) {
         const context: any = {};
-        /// @ts-ignore
-        await definition.initContext?.(context, ...args);
         try {
+            definition.input?.(...(args as TailParams<ServerFunc>));
+            /// @ts-ignore
+            await definition.initContext?.(context, ...args);
             if (definition.ensureDbConnection !== false) {
                 await ensureDbConnection();
             }
@@ -158,13 +195,24 @@ export function serverAction<
             /// @ts-ignore
             const cache = definition.cache?.(context, ...args);
 
+            // `cache.tags` alone is NOT enough to key the cache: it is only
+            // used by unstable_cache/revalidateTag for invalidation. The
+            // lookup key is `keyParts` (2nd arg) + the wrapped closure's own
+            // arguments (none, here). Without folding the call's actual args
+            // into keyParts, two calls sharing tags but differing in e.g.
+            // pagination cursor or sort order would collide on the same
+            // cache entry and return each other's data.
+            const cacheKeyParts = cache
+                ? [...(cache.tags || []), JSON.stringify(args)]
+                : undefined;
+
             return cache
                 ? await unstable_cache(
                       async () =>
                           createSuccessResponse(
                               await definition.fn(context, ...args)
                           ),
-                      cache.tags,
+                      cacheKeyParts,
                       {
                           tags: cache.tags,
                           revalidate:
@@ -175,6 +223,9 @@ export function serverAction<
                   )()
                 : createSuccessResponse(await definition.fn(context, ...args));
         } catch (error) {
+            if (isNextInternalControlFlowError(error)) {
+                throw error;
+            }
             return handleServerActionError(error) as ReturnType<ServerFunc>;
         }
     };
