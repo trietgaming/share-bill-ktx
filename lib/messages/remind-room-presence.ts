@@ -67,14 +67,20 @@ export async function remindRoomsPresence() {
                         presence: 1,
                     }
                 ).lean();
+                // A member with no presence doc at all for this month hasn't
+                // marked anything yet, which is equivalent to UNDETERMINED -
+                // they should still be reminded, not silently skipped.
+                const dayStatus =
+                    userPresence?.presence[dayInt] ??
+                    PresenceStatus.UNDETERMINED;
+
                 // Only send if presence is still undetermined
-                if (
-                    userPresence?.presence[dayInt] !==
-                    PresenceStatus.UNDETERMINED
-                ) {
+                if (dayStatus !== PresenceStatus.UNDETERMINED) {
                     return;
                 }
-                sendRemindNotification({
+                // Awaited: this runs inside a cron route handler, which must
+                // not return before the send is actually attempted.
+                await sendRemindNotification({
                     roomId: room._id,
                     roomName: room.name,
                     month: month,

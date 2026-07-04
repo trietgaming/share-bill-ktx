@@ -11,6 +11,7 @@ import {
 } from "@/types/notification";
 import { IUserData } from "@/types/user-data";
 import { UserData } from "@/models/UserData";
+import { delay } from "./utils";
 
 export async function notifyUser<T extends NotificationData>(
     user: Pick<IUserData, "_id" | "fcmTokens">,
@@ -34,10 +35,14 @@ export async function notifyUser<T extends NotificationData>(
 
                     return;
                 }
-                // Exponential backoff retry
+                // Exponential backoff retry. Awaited (not setTimeout) because
+                // this whole chain must resolve before the caller - typically
+                // a serverless function handler - returns; a fire-and-forget
+                // setTimeout callback can be dropped once the instance freezes
+                // after the response is sent.
                 if (attempts < 3) {
-                    setTimeout(retry, (1 << attempts) * 1000, attempts + 1);
-                    return;
+                    await delay((1 << attempts) * 1000);
+                    return retry();
                 }
             }
             console.error(
@@ -58,30 +63,43 @@ export async function notify<T extends NotificationData>(
         attempts: number
     ) => any
 ) {
-    for (const token of tokens) {
-        const retry = (attempts: number = 0) =>
-            getMessaging(adminApp)
-                .send({
-                    token,
-                    notification: sendOptions.notification,
-                    data: sendOptions.data as unknown as {
-                        [key: string]: string;
-                    },
-                    android: sendOptions.android,
-                    apns: sendOptions.apns,
-                    webpush: sendOptions.webpush,
-                    fcmOptions: sendOptions.fcmOptions,
-                })
-                .catch((error) =>
-                    onError
-                        ? onError(token, error, retry, attempts + 1)
-                        : console.error(
-                              `Error sending notification to token ${token}:`,
-                              error
-                          )
-                );
-        retry();
-    }
+    // Every token's send (and any retries) is awaited via Promise.all so the
+    // caller can rely on `notify()` not resolving until delivery is actually
+    // attempted end-to-end - previously each send was fired without being
+    // awaited, so `notify()` returned almost immediately regardless of
+    // whether the underlying FCM calls had completed.
+    await Promise.all(
+        tokens.map((token) => {
+            const send = (attempts: number): Promise<any> =>
+                getMessaging(adminApp)
+                    .send({
+                        token,
+                        notification: sendOptions.notification,
+                        data: sendOptions.data as unknown as {
+                            [key: string]: string;
+                        },
+                        android: sendOptions.android,
+                        apns: sendOptions.apns,
+                        webpush: sendOptions.webpush,
+                        fcmOptions: sendOptions.fcmOptions,
+                    })
+                    .catch((error) =>
+                        onError
+                            ? onError(
+                                  token,
+                                  error,
+                                  () => send(attempts + 1),
+                                  attempts + 1
+                              )
+                            : console.error(
+                                  `Error sending notification to token ${token}:`,
+                                  error
+                              )
+                    );
+
+            return send(0);
+        })
+    );
 }
 
 export async function notifyTopic<T extends NotificationData = any>(
