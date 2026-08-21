@@ -11,76 +11,80 @@ import {
 } from "@/types/notification";
 import { IUserData } from "@/types/user-data";
 import { UserData } from "@/models/UserData";
+import { delay } from "./utils";
+
+const MAX_SEND_ATTEMPTS = 3;
 
 export async function notifyUser<T extends NotificationData>(
     user: Pick<IUserData, "_id" | "fcmTokens">,
     sendOptions: NotificationSendOptions<T>
 ) {
-    await notify(
-        user.fcmTokens,
-        sendOptions,
-        async (token, error, retry, attempts) => {
-            if (error instanceof FirebaseMessagingError) {
-                if (
-                    error.code.endsWith(
-                        MessagingClientErrorCode
-                            .REGISTRATION_TOKEN_NOT_REGISTERED.code
-                    )
-                ) {
-                    // Remove invalid token
-                    await UserData.findByIdAndUpdate(user._id, {
-                        $pull: { fcmTokens: token },
-                    });
+    const messageBase = {
+        notification: sendOptions.notification,
+        data: sendOptions.data as unknown as { [key: string]: string },
+        android: sendOptions.android,
+        apns: sendOptions.apns,
+        webpush: sendOptions.webpush,
+        fcmOptions: sendOptions.fcmOptions,
+    };
 
-                    return;
-                }
-                // Exponential backoff retry
-                if (attempts < 3) {
-                    setTimeout(retry, (1 << attempts) * 1000, attempts + 1);
-                    return;
-                }
+    let tokens = [...user.fcmTokens];
+
+    for (
+        let attempts = 0;
+        tokens.length > 0 && attempts < MAX_SEND_ATTEMPTS;
+        attempts++
+    ) {
+        // Exponential backoff before retrying
+        if (attempts > 0) {
+            await delay((1 << (attempts - 1)) * 1000);
+        }
+
+        const batchResponse = await getMessaging(adminApp).sendEachForMulticast(
+            {
+                ...messageBase,
+                tokens,
             }
+        );
+
+        const invalidTokens: string[] = [];
+        const retryableTokens: string[] = [];
+
+        batchResponse.responses.forEach((response, index) => {
+            if (response.success) return;
+
+            const token = tokens[index];
+            const error = response.error;
+
+            if (
+                error instanceof FirebaseMessagingError &&
+                error.code.endsWith(
+                    MessagingClientErrorCode
+                        .REGISTRATION_TOKEN_NOT_REGISTERED.code
+                )
+            ) {
+                invalidTokens.push(token);
+                return;
+            }
+
+            if (attempts < MAX_SEND_ATTEMPTS - 1) {
+                retryableTokens.push(token);
+                return;
+            }
+
             console.error(
                 `Error sending notification to user ${user._id} with token ${token}:`,
                 error
             );
-        }
-    );
-}
+        });
 
-export async function notify<T extends NotificationData>(
-    tokens: string[],
-    sendOptions: NotificationSendOptions<T>,
-    onError?: (
-        token: string,
-        error: any,
-        retry: () => Promise<any>,
-        attempts: number
-    ) => any
-) {
-    for (const token of tokens) {
-        const retry = (attempts: number = 0) =>
-            getMessaging(adminApp)
-                .send({
-                    token,
-                    notification: sendOptions.notification,
-                    data: sendOptions.data as unknown as {
-                        [key: string]: string;
-                    },
-                    android: sendOptions.android,
-                    apns: sendOptions.apns,
-                    webpush: sendOptions.webpush,
-                    fcmOptions: sendOptions.fcmOptions,
-                })
-                .catch((error) =>
-                    onError
-                        ? onError(token, error, retry, attempts + 1)
-                        : console.error(
-                              `Error sending notification to token ${token}:`,
-                              error
-                          )
-                );
-        retry();
+        if (invalidTokens.length > 0) {
+            await UserData.findByIdAndUpdate(user._id, {
+                $pull: { fcmTokens: { $in: invalidTokens } },
+            });
+        }
+
+        tokens = retryableTokens;
     }
 }
 

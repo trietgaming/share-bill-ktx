@@ -11,13 +11,22 @@ export async function handleBackgroundMessage(payload: MessagePayload) {
     const [title, options, additionalData] = createNotification(payload);
 
     try {
-        const user: { uid: string } | null = await fetch("/api/auth").then(
-            (res) => res.json()
-        );
+        const authResponse = await fetch("/api/auth");
+        const user: { uid?: string } | null = authResponse.ok
+            ? await authResponse.json()
+            : null;
 
-        if (user) {
+        let hasVisibleClient = false;
+
+        if (user?.uid) {
             if (self.clients && self.clients.matchAll) {
-                const clients = await self.clients.matchAll();
+                const clients = await self.clients.matchAll({
+                    type: "window",
+                    includeUncontrolled: true,
+                });
+                hasVisibleClient = clients.some(
+                    (client) => client.visibilityState === "visible"
+                );
                 clients.forEach((client) => {
                     client.postMessage({ type: "FCM_MESSAGE", payload });
                 });
@@ -32,7 +41,8 @@ export async function handleBackgroundMessage(payload: MessagePayload) {
         }
 
         // If the message contains a notification payload, Firebase SDK would automatically display it.
-        if (!payload.notification)
+        // Skip when a tab is already visible since the page displays the message itself.
+        if (!payload.notification && !hasVisibleClient)
             await self.registration.showNotification(title, options);
     } catch (error) {
         console.error(

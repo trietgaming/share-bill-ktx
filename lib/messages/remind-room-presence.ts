@@ -33,7 +33,7 @@ export async function remindRoomsPresence() {
 
     while (true) {
         console.log("Processing rooms after ID:", lastId);
-        const query: any = {};
+        const query: { _id?: { $gt: string } } = {};
         if (lastId) {
             query._id = { $gt: lastId };
         }
@@ -68,9 +68,11 @@ export async function remindRoomsPresence() {
                     }
                 ).lean();
                 // Only send if presence is still undetermined
+                // (missing record or missing day counts as undetermined)
+                const currentStatus = userPresence?.presence?.[dayInt];
                 if (
-                    userPresence?.presence[dayInt] !==
-                    PresenceStatus.UNDETERMINED
+                    currentStatus !== undefined &&
+                    currentStatus !== PresenceStatus.UNDETERMINED
                 ) {
                     return;
                 }

@@ -1,4 +1,4 @@
-import { isYYYYMM } from "@/lib/utils";
+import { z } from "zod";
 import { getAuthenticatedUser } from "@/lib/firebase/server";
 import { Membership } from "@/models/Membership";
 import { MonthPresence } from "@/models/MonthPresence";
@@ -6,6 +6,18 @@ import { MarkPresenceBody } from "@/types/actions";
 import { NextResponse } from "next/server";
 import { ensureDbConnection } from "@/lib/db-connect";
 import { revalidateTag } from "next/cache";
+import { PresenceStatus } from "@/enums/presence";
+
+const markPresenceSchema = z.object({
+    month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+    day: z.number().int().min(0).max(30),
+    status: z.union([
+        z.literal(PresenceStatus.UNDETERMINED),
+        z.literal(PresenceStatus.PRESENT),
+        z.literal(PresenceStatus.ABSENT),
+    ]),
+    roomId: z.string().min(1),
+});
 
 export async function POST(request: Request) {
     ensureDbConnection();
@@ -18,17 +30,21 @@ export async function POST(request: Request) {
         );
     }
 
-    const body: MarkPresenceBody = await request.json();
+    const parsedBody = markPresenceSchema.safeParse(await request.json());
 
-    // Validate the request body
-    if (
-        !isYYYYMM(body.month) ||
-        !Number.isInteger(body.day) ||
-        body.day < 0 ||
-        body.day > 31 ||
-        !body.status ||
-        !body.roomId
-    ) {
+    if (!parsedBody.success) {
+        return NextResponse.json(
+            { success: false, message: "Invalid request body" },
+            { status: 400 }
+        );
+    }
+
+    const body: MarkPresenceBody = parsedBody.data;
+
+    const [year, monthNumber] = body.month.split("-").map(Number);
+    const daysInMonth = new Date(year, monthNumber, 0).getDate();
+
+    if (body.day >= daysInMonth) {
         return NextResponse.json(
             { success: false, message: "Invalid request body" },
             { status: 400 }
@@ -58,6 +74,7 @@ export async function POST(request: Request) {
             userId: user.uid,
             roomId: body.roomId,
             month: body.month,
+            presence: Array(daysInMonth).fill(PresenceStatus.UNDETERMINED),
         });
     }
     monthPresence.presence[body.day] = body.status;
@@ -67,7 +84,7 @@ export async function POST(request: Request) {
         revalidateTag(`room-month-presence-${body.roomId}`);
     } catch {
         return NextResponse.json(
-            { success: false, message: "Invalid request body" },
+            { success: false, message: "Failed to save presence" },
             { status: 400 }
         );
     }

@@ -5,7 +5,7 @@ import {
 } from "@/types/notification";
 import { IRoom } from "@/types/room";
 import "server-only";
-import { notify, notifyUser } from "@/lib/notify";
+import { notifyUser } from "@/lib/notify";
 import { NotificationType } from "@/enums/notification";
 import { IInvoice } from "@/types/invoice";
 import { Room } from "@/models/Room";

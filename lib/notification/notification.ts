@@ -6,26 +6,20 @@ import { subscribeToNotification } from "../actions/notification";
 import { handleAction } from "@/lib/action-handler";
 
 export async function requestPermission() {
-
-    let timeout: NodeJS.Timeout | undefined = void 0;
-
     if (Notification.permission === 'granted') {
         return true;
     }
 
-    return new Promise<boolean>(async (resolve, reject) => {
-        timeout = setTimeout(() => reject(new Error('Quá thời gian chờ cấp quyền')), 5000);
+    const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Quá thời gian chờ cấp quyền')), 5000)
+    );
 
-        const permission = await Notification.requestPermission();
+    const permission = await Promise.race([
+        Notification.requestPermission(),
+        timeout,
+    ]);
 
-        clearTimeout(timeout);
-
-        if (permission === 'granted') {
-            resolve(true);
-        } else {
-            resolve(false);
-        }
-    });
+    return permission === 'granted';
 }
 
 async function registerServiceWorker() {

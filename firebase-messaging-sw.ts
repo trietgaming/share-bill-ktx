@@ -17,14 +17,7 @@ const messaging = getMessaging(app);
 onBackgroundMessage(messaging, handleBackgroundMessage);
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  event.waitUntil(self.skipWaiting());
 });
 
-// self.addEventListener('activate', (event) => {
-//   console.log('Service worker activating...');
-// });
-
 self.addEventListener('notificationclick', handleNotificationClick)
-
-// self.addEventListener('fetch', (event) => {  
-// });          

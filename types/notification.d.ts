@@ -62,7 +62,6 @@ export interface ExtendedNotificationOptions extends NotificationOptions {
     requireInteraction?: boolean;
     silent?: boolean | null;
     tag?: string;
-    renotify?: boolean;
     image?: string;
 }
 

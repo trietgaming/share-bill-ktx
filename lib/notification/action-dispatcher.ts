@@ -1,15 +1,24 @@
 import { NotificationClickAction } from "@/enums/notification";
-import { markPresent } from "./actions/mark-present";
-import { markAbsent } from "./actions/mark-absent";
-import { NotificationData } from "@/types/notification";
+import { PresenceStatus } from "@/enums/presence";
+import { markPresence } from "./actions/mark-presence";
+import { PresenceReminderNotificationData } from "@/types/notification";
 
-export function dispatchAction(action: string, data: NotificationData | any, isForeground = false) {
+export function dispatchAction(
+    action: string,
+    data: PresenceReminderNotificationData | undefined,
+    isForeground = false
+): Promise<void> | undefined {
+    if (!data) {
+        console.error("Missing notification data for action:", action);
+        return;
+    }
+
     switch (action) {
         case NotificationClickAction.MARK_PRESENT:
-            return markPresent(data, isForeground);
+            return markPresence(data, PresenceStatus.PRESENT, isForeground);
         case NotificationClickAction.MARK_ABSENT:
-            return markAbsent(data, isForeground);
+            return markPresence(data, PresenceStatus.ABSENT, isForeground);
         default:
-            console.log("Unknown action:", action);
+            console.error("Unknown notification action:", action);
     }
 }
