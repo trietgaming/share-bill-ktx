@@ -9,11 +9,6 @@ const nextConfig = {
     // codebase - a separate, larger piece of work than this fix pass.
     ignoreDuringBuilds: true,
   },
-  typescript: {
-    // `tsc --noEmit` is clean as of this change; keep builds honest instead
-    // of silently swallowing future type errors.
-    ignoreBuildErrors: false,
-  },
   images: {
     unoptimized: true,
   },
