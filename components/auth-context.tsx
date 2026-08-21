@@ -4,7 +4,7 @@ import { handleAction } from "@/lib/action-handler";
 import { getAuthenticatedUserData } from "@/lib/actions/user-data";
 import { LOGIN_PATH, PUBLIC_PATHS } from "@/lib/app-constants";
 import { firebaseClientAuth } from "@/lib/firebase/client";
-import { setAuthCookie } from "@/lib/firebase/server";
+import { setSessionCookie } from "@/lib/firebase/auth-actions";
 import type { IUserDataWithBankAccounts } from "@/types/user-data";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -59,10 +59,6 @@ export const AuthProvider = ({
                     const newUserData = await handleAction(
                         getAuthenticatedUserData(await authUser?.getIdToken())
                     );
-                    console.log(
-                        "Auth state changed, new user data:",
-                        newUserData
-                    );
                     setUserData(newUserData);
                 }
             });
@@ -71,7 +67,7 @@ export const AuthProvider = ({
             (authUser) => {
                 // Set cookie for server-side authentication
                 authUser?.getIdToken().then((idToken) => {
-                    setAuthCookie(idToken);
+                    setSessionCookie(idToken);
                 });
             }
         );

@@ -35,7 +35,11 @@ export async function notifyUser<T extends NotificationData>(
         tokens.length > 0 && attempts < MAX_SEND_ATTEMPTS;
         attempts++
     ) {
-        // Exponential backoff before retrying
+        // Exponential backoff before retrying. Awaited (not setTimeout)
+        // because this whole chain must resolve before the caller - typically
+        // a serverless function handler - returns; a fire-and-forget
+        // setTimeout callback can be dropped once the instance freezes
+        // after the response is sent.
         if (attempts > 0) {
             await delay((1 << (attempts - 1)) * 1000);
         }

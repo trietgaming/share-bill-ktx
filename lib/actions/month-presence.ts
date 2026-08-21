@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { _authenticate, UserCtx } from "@/lib/prechecks/auth";
 import {
     _verifyMembership,
@@ -16,49 +17,66 @@ import { PresenceStatus } from "@/enums/presence";
 import { AppError } from "../errors";
 import { revalidateTag } from "next/cache";
 
+const yyyyMmSchema = z
+    .string()
+    .refine(isYYYYMM, { message: "Định dạng tháng không hợp lệ." });
+
 export const getRoomMonthPresence = serverAction({
     fn: async function (
-        ctx: VerifyMembershipCtx & { month: string },
+        _ctx: VerifyMembershipCtx,
         roomId: string,
         month: string
     ): Promise<IMonthPresence[]> {
-        const user = ctx.user;
-
+        // Reads only - see the `ensureCallerHasMonthPresence` precheck below
+        // for why this function must stay a pure read (results are cached
+        // across every member of the room+month, not just the caller).
         const roomMonthPresences = await MonthPresence.find({ roomId, month });
 
-        if (!roomMonthPresences.some((rmp) => rmp.userId === user.uid)) {
-            const { year, month: m } = parseYYYYMM(month)!;
-            // Create default for caller
+        return serializeDocument<IMonthPresence[]>(roomMonthPresences);
+    },
+    input: (roomId, month) => {
+        z.string().min(1).parse(roomId);
+        yyyyMmSchema.parse(month);
+    },
+    initContext(ctx, roomId) {
+        ctx.roomId = roomId;
+    },
+    prechecks: [
+        _authenticate,
+        _verifyMembership,
+        // Ensure the caller has a presence doc for this room+month, creating
+        // one if missing. This used to happen inside the cached `fn` above,
+        // which meant: (a) it only ever ran on a cold cache, so a second
+        // member hitting a warm cache never got their default doc created,
+        // and (b) the cached response was whatever the *first* caller's
+        // branch produced (sometimes just `[newDoc]` instead of the room's
+        // full presence list). Running it as a precheck means it executes on
+        // every call regardless of cache state, and the revalidateTag right
+        // after keeps the cache correct for whoever reads next.
+        async function ensureCallerHasMonthPresence(
+            ctx: VerifyMembershipCtx,
+            roomId: string,
+            month: string
+        ) {
+            const alreadyExists = await MonthPresence.exists({
+                roomId,
+                userId: ctx.user.uid,
+                month,
+            });
+            if (alreadyExists) return;
 
-            const newPresence = await new MonthPresence({
+            const { year, month: m } = parseYYYYMM(month)!;
+            await new MonthPresence({
                 month,
                 roomId,
-                userId: user.uid,
+                userId: ctx.user.uid,
                 presence: Array(new Date(year, m, 0).getDate()).fill(
                     PresenceStatus.UNDETERMINED
                 ),
             }).save();
 
-            return [serializeDocument<IMonthPresence>(newPresence)];
-        }
-
-        return serializeDocument<IMonthPresence[]>(roomMonthPresences);
-    },
-    initContext(ctx, roomId, month) {
-        ctx.roomId = roomId;
-        ctx.month = month;
-    },
-    prechecks: [
-        async (ctx: { month: string }) => {
-            if (!isYYYYMM(ctx.month)) {
-                return createErrorResponse(
-                    "Định dạng tháng không hợp lệ.",
-                    ErrorCode.INVALID_INPUT
-                );
-            }
+            revalidateTag(`room-month-presence-${roomId}-${month}`);
         },
-        _authenticate,
-        _verifyMembership,
     ],
     cache: (ctx, roomId, month) => {
         return {
@@ -84,27 +102,16 @@ export const getRoomMonthsPresence = serverAction({
 
         return serializeDocument<IMonthPresence[]>(roomMonthPresences);
     },
+    input: (roomId, months) => {
+        z.string().min(1).parse(roomId);
+        z.array(yyyyMmSchema)
+            .max(12, "Không thể truy vấn quá 12 tháng một lần.")
+            .parse(months);
+    },
     initContext: (ctx, roomId, months) => {
         ctx.roomId = roomId;
     },
-    prechecks: [
-        async (ctx, roomId, months) => {
-            if (months.length >= 12) {
-                throw new AppError(
-                    "Không thể truy vấn quá 12 tháng một lần.",
-                    ErrorCode.INVALID_INPUT
-                );
-            }
-            if (!months.every(isYYYYMM)) {
-                throw new AppError(
-                    "Định dạng tháng không hợp lệ.",
-                    ErrorCode.INVALID_INPUT
-                );
-            }
-        },
-        _authenticate,
-        _verifyMembership,
-    ],
+    prechecks: [_authenticate, _verifyMembership],
     cache: (ctx, roomId) => {
         return {
             tags: [`room-month-presence-${roomId}`, `room-${roomId}`],
@@ -121,6 +128,21 @@ export interface UpdateMyMonthPresenceData {
         | PresenceStatus.UNDETERMINED
     )[];
 }
+
+const updateMyMonthPresenceInputSchema = z
+    .object({
+        roomId: z.string().min(1),
+        month: yyyyMmSchema,
+        presence: z.array(
+            z.union([
+                z.literal(PresenceStatus.PRESENT),
+                z.literal(PresenceStatus.ABSENT),
+                z.literal(PresenceStatus.UNDETERMINED),
+            ])
+        ),
+    })
+    .strict();
+
 export const updateMyMonthPresence = serverAction({
     fn: async function (ctx: VerifyMembershipCtx, data: UpdateMyMonthPresenceData): Promise<void> {
         const updateData: IMonthPresence = {
@@ -140,6 +162,7 @@ export const updateMyMonthPresence = serverAction({
 
         revalidateTag(`room-month-presence-${data.roomId}`);
     },
+    input: (data) => updateMyMonthPresenceInputSchema.parse(data),
     initContext: (ctx, data) => {
         ctx.roomId = data.roomId;
     },

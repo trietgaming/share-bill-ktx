@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { Room } from "@/models/Room";
 import mongoose, { HydratedDocument } from "mongoose";
 import { UserData } from "@/models/UserData";
@@ -41,6 +42,17 @@ import {
 import { IClientBankAccount } from "@/types/bank-account";
 import { AppError } from "../errors";
 import { revalidateTag } from "next/cache";
+import { ROOM_MAX_MEMBERS_LIMIT } from "@/lib/app-constants";
+import { logRoomActivity } from "@/lib/actions/room-activity";
+import { RoomActivityType } from "@/enums/room-activity";
+
+const roomDataInputSchema = z
+    .object({
+        name: z.string().min(1, "Tên phòng là bắt buộc").max(100),
+        maxMembers: z.coerce.number().int().min(1).max(ROOM_MAX_MEMBERS_LIMIT),
+        isPrivate: z.boolean(),
+    })
+    .strict();
 
 export const createNewRoom = serverAction({
     fn: async function (
@@ -85,8 +97,17 @@ export const createNewRoom = serverAction({
         });
 
         revalidateTag(`user-rooms-${user.uid}`);
+
+        await logRoomActivity({
+            roomId: newRoom._id.toString(),
+            actorId: user.uid,
+            type: RoomActivityType.ROOM_CREATED,
+            payload: { name: newRoom.name },
+        });
+
         return newRoom._id.toString();
     },
+    input: (data) => roomDataInputSchema.parse(data),
     prechecks: [_authenticate],
 });
 
@@ -141,6 +162,11 @@ export const joinRoom = serverAction({
         });
 
         await sendRoomJoinedNotification(roomId, ctx.user.uid);
+        await logRoomActivity({
+            roomId,
+            actorId: ctx.user.uid,
+            type: RoomActivityType.MEMBER_JOINED,
+        });
 
         revalidateTag(`room-${roomId}`);
         targetRoom.members.forEach((memberId) => {
@@ -148,6 +174,10 @@ export const joinRoom = serverAction({
         });
 
         return true;
+    },
+    input: (roomId, token) => {
+        z.string().min(1).parse(roomId);
+        if (token != null) z.string().parse(token);
     },
     prechecks: [_authenticate],
 });
@@ -184,7 +214,6 @@ export const deleteRoom = serverAction({
 
             // Finally, delete the room
             const room = await Room.findByIdAndDelete(roomId, { session });
-            console.log("deleted room", room);
             room?.members.forEach((memberId) =>
                 revalidateTag(`user-rooms-${memberId}`)
             );
@@ -193,6 +222,9 @@ export const deleteRoom = serverAction({
         revalidateTag(`room-${roomId}`);
         await sendRoomDeletedNotification(ctx.user.uid, roomId);
         return void 0;
+    },
+    input: (roomId) => {
+        z.string().min(1).parse(roomId);
     },
     initContext(ctx, roomId) {
         ctx.roomId = roomId;
@@ -262,6 +294,14 @@ export const leaveRoom = serverAction({
         revalidateTag(`user-rooms-${ctx.user.uid}`);
 
         await sendRoomLeftNotification(roomId, ctx.user.uid);
+        await logRoomActivity({
+            roomId,
+            actorId: ctx.user.uid,
+            type: RoomActivityType.MEMBER_LEFT,
+        });
+    },
+    input: (roomId) => {
+        z.string().min(1).parse(roomId);
     },
     initContext(ctx, roomId) {
         ctx.roomId = roomId;
@@ -294,14 +334,14 @@ export const getRoommates = serverAction({
         });
 
         const roommates = memberships
-            .map(
+            .map((m) =>
                 serializeDocument<
                     Omit<IMembership, "user"> & {
                         user: Omit<IUserData, "bankAccounts"> & {
                             bankAccounts: IClientBankAccount[];
                         };
                     }
-                >
+                >(m)
             )
             .map((m) => ({
                 userId: m.user._id,
@@ -314,6 +354,9 @@ export const getRoommates = serverAction({
             }));
 
         return roommates;
+    },
+    input: (roomId) => {
+        z.string().min(1).parse(roomId);
     },
     prechecks: [_authenticate],
     cache(ctx, roomId) {
@@ -464,8 +507,18 @@ export const kickMember = serverAction({
 
         await sendNotificationToKickedMember(memberId, roomId);
         await sendRoomLeftNotification(roomId, memberId);
+        await logRoomActivity({
+            roomId,
+            actorId: ctx.user.uid,
+            type: RoomActivityType.MEMBER_KICKED,
+            payload: { memberId },
+        });
 
         revalidateTags([`room-${roomId}`, `user-rooms-${memberId}`]);
+    },
+    input: (roomId, memberId) => {
+        z.string().min(1).parse(roomId);
+        z.string().min(1).parse(memberId);
     },
     initContext(ctx, roomId) {
         ctx.roomId = roomId;
@@ -490,13 +543,29 @@ export const updateRoomData = serverAction({
             throw new AppError("Phòng không tồn tại", ErrorCode.NOT_FOUND);
         }
 
-        Object.assign(room, data);
+        // Whitelist explicitly - never Object.assign raw client data onto the
+        // document (the schema also has `members`/`inviteToken` paths that
+        // must never be client-settable through this action).
+        room.name = data.name;
+        room.maxMembers = data.maxMembers;
+        room.isPrivate = data.isPrivate;
 
         await room.save();
+
+        await logRoomActivity({
+            roomId,
+            actorId: ctx.user.uid,
+            type: RoomActivityType.ROOM_UPDATED,
+            payload: { name: room.name },
+        });
 
         revalidateTags([`room-${roomId}`, `user-rooms-${ctx.user.uid}`]);
         // TODO: send notification to room members about the update
         return void 0;
+    },
+    input: (roomId, data) => {
+        z.string().min(1).parse(roomId);
+        roomDataInputSchema.parse(data);
     },
     initContext(ctx, roomId) {
         ctx.roomId = roomId;
@@ -518,8 +587,24 @@ export const updateUserRole = serverAction({
 
         await ctx.targetMembership.save();
 
+        await logRoomActivity({
+            roomId,
+            actorId: ctx.user.uid,
+            type: RoomActivityType.MEMBER_ROLE_UPDATED,
+            payload: { memberId, targetRole },
+        });
+
         // TODO: send notification to room members about the update
         revalidateTag(`room-${roomId}`);
+    },
+    input: (roomId, memberId, targetRole) => {
+        z.string().min(1).parse(roomId);
+        z.string().min(1).parse(memberId);
+        // z.nativeEnum() needs a real runtime enum object; MemberRole is a
+        // const enum (inlined, no such object), so list members explicitly.
+        z.enum([MemberRole.ADMIN, MemberRole.MODERATOR, MemberRole.MEMBER]).parse(
+            targetRole
+        );
     },
     initContext: (ctx, roomId) => {
         ctx.roomId = roomId;

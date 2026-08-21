@@ -165,7 +165,6 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
         useState<PersonalInvoice | null>(null);
 
     const openInvoiceCheckoutDialog = (invoice: PersonalInvoice) => {
-        console.log("Opening checkout dialog for invoice", invoice);
         setSelectedInvoiceToPay(invoice);
         setIsCheckoutDialogOpen(true);
     };

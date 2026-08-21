@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { getAuthenticatedUser } from "@/lib/firebase/server";
 import { getUserData } from "@/lib/user-data";
 import { serializeDocument } from "../serializer";
@@ -42,9 +43,10 @@ export const getAuthenticatedUserData = serverAction({
     },
     cache: (ctx) => {
         if (!ctx.user) return null;
+        // ctx.user.exp is a JWT `exp` claim: unix seconds, not milliseconds.
         return {
             tags: [`user-data-${ctx.user.uid}`],
-            duration: ctx.user.exp - Date.now() - 60, // cache until 1 minute before token expiration
+            duration: ctx.user.exp - Math.floor(Date.now() / 1000) - 60, // cache until 1 minute before token expiration
         };
     },
 });
@@ -66,7 +68,7 @@ export const updateUserPhoto = serverAction({
             upload_preset: "avatar_upload",
         });
 
-        const photoURL = uploadResult?.url;
+        const photoURL = uploadResult?.secure_url;
         if (!photoURL) {
             throw new AppError("Failed to upload image", ErrorCode.UNKNOWN);
         }
@@ -90,7 +92,7 @@ export const updateUserPhoto = serverAction({
             }
             if (photo.size > MAX_FILE_SIZE) {
                 throw new AppError(
-                    "Tệp phải nhỏ hơn 5MB!",
+                    "Tệp phải nhỏ hơn 1MB!",
                     ErrorCode.INVALID_INPUT
                 );
             }
@@ -115,6 +117,11 @@ export const updateUserData = serverAction({
         await userData.save();
         revalidateTag(`user-data-${ctx.user.uid}`);
     },
+    input: (data) => {
+        z.object({ displayName: z.string().min(1).max(100) })
+            .strict()
+            .parse(data);
+    },
     prechecks: [_authenticate],
 });
 
@@ -125,6 +132,16 @@ export interface CreateOrUpdateUserBankAccountFormData {
     bankName: string;
     qrCodeFile?: File;
 }
+
+const bankAccountInputSchema = z
+    .object({
+        id: z.string().min(1).optional(),
+        accountNumber: z.string().max(30).optional(),
+        accountName: z.string().max(100).optional(),
+        bankName: z.string().min(1).max(100),
+        qrCodeFile: z.instanceof(File).optional(),
+    })
+    .strict();
 
 export const createOrUpdateUserBankAccount = serverAction({
     fn: async function (
@@ -160,7 +177,7 @@ export const createOrUpdateUserBankAccount = serverAction({
                 upload_preset: "avatar_upload",
             });
 
-            const qrCodeUrl = uploadResult!.url;
+            const qrCodeUrl = uploadResult!.secure_url;
             bankAccount.qrCodeUrl = qrCodeUrl;
         } else {
             bankAccount.accountName = data.accountName;
@@ -185,6 +202,7 @@ export const createOrUpdateUserBankAccount = serverAction({
 
         return serializeDocument<IClientBankAccount>(newBankAccount);
     },
+    input: (data) => bankAccountInputSchema.parse(data),
     prechecks: [
         async (ctx, data) => {
             if (data.qrCodeFile) {
@@ -240,6 +258,9 @@ export const deleteUserBankAccount = serverAction({
         });
 
         revalidateTag(`user-data-${ctx.user.uid}`);
+    },
+    input: (bankAccountId) => {
+        z.string().min(1).parse(bankAccountId);
     },
     prechecks: [_authenticate],
 });

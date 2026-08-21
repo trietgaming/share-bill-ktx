@@ -13,6 +13,15 @@ jobs:
     steps:
       - name: "Call app's remind API"
         run: |
-          curl -X POST "${{ secrets.APP_ORIGIN }}/api/reminder/presence" \
+          curl -f -X POST "${{ secrets.APP_ORIGIN }}/api/reminder/presence" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
-    
+
+  mark_overdue_invoices:
+    name: "Flip pending invoices past their due date to overdue"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Call app's overdue invoices API"
+        run: |
+          curl -f -X POST "${{ secrets.APP_ORIGIN }}/api/cron/overdue-invoices" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+

@@ -20,7 +20,7 @@ const markPresenceSchema = z.object({
 });
 
 export async function POST(request: Request) {
-    ensureDbConnection();
+    await ensureDbConnection();
     const user = await getAuthenticatedUser();
 
     if (!user) {
@@ -70,6 +70,10 @@ export async function POST(request: Request) {
     });
 
     if (!monthPresence) {
+        // Must be fully sized up front: setting a single sparse index on
+        // an empty array leaves `presence.length` at day+1, which fails
+        // the schema's "one entry per day of month" validator for every
+        // day except the last one.
         monthPresence = new MonthPresence({
             userId: user.uid,
             roomId: body.roomId,
@@ -82,7 +86,9 @@ export async function POST(request: Request) {
     try {
         await monthPresence.save();
         revalidateTag(`room-month-presence-${body.roomId}`);
-    } catch {
+        revalidateTag(`room-month-presence-${body.roomId}-${body.month}`);
+    } catch (error) {
+        console.error("Failed to save presence:", error);
         return NextResponse.json(
             { success: false, message: "Failed to save presence" },
             { status: 400 }
