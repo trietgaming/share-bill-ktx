@@ -43,6 +43,11 @@ export interface NotificationSendOptions<T extends NotificationData> {
  */
 export interface NotificationData extends Record<string, string> {
     type?: NotificationType;
+    messageId?: string;
+    recipientId?: string;
+    title?: string;
+    body?: string;
+    image?: string;
     /**
      * Indicates whether the notification should be stored in the notification center or not.
      */
@@ -73,6 +78,7 @@ export interface NotificationBlueprint<T extends NotificationData>
 
 export interface AdditionalNotificationData {
     status: "read" | "unread";
+    messageId?: string;
     /**
      * Time since epoch when the notification was received.
      */
@@ -101,7 +107,7 @@ export interface NewInvoiceNotificationData extends NotificationData {
 }
 
 export interface UpdateInvoiceNotificationData extends NotificationData {
-    type: NotificationType.INVOICE_UPDATE;
+    type: NotificationType.UPDATE_INVOICE;
     roomId: string;
     roomName: string;
     invoiceId: string;
@@ -136,6 +142,32 @@ export interface RoomDeletedNotificationData extends NotificationData {
     roomId: string;
     roomName: string;
     deleteByUserName: string;
+}
+
+export interface NotificationCursor {
+    receivedAt: number;
+    id: number;
+}
+
+export interface KickedFromRoomNotificationData extends NotificationData {
+    type: NotificationType.KICKED_FROM_ROOM;
+    roomId: string;
+    roomName: string;
+}
+
+export interface MonthPresenceFulfilledNotificationData extends NotificationData {
+    type: NotificationType.MONTH_PRESENCE_FULFILLED;
+    roomId: string;
+    roomName: string;
+    month: string;
+}
+
+export interface PaymentReminderNotificationData extends NotificationData {
+    type: NotificationType.PAYMENT_REMINDER;
+    roomId: string;
+    roomName: string;
+    invoiceId: string;
+    invoiceName: string;
 }
 
 export interface PresenceReminderNotificationData extends NotificationData {

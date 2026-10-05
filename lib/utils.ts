@@ -146,35 +146,33 @@ export function calculateShare(
                 );
             }
 
-            if (monthPresences.length === 0) {
-                const equalShares = allocateIntegerShares(
-                    invoice.applyTo.map(() => 1),
-                    invoice.amount
-                );
-                return [equalShares[userIndex] ?? 0, false];
-            }
-
-            // Not payable yet if some applyTo members haven't recorded
-            // presence at all, or any recorded day is still undetermined.
-            let isPayable = monthPresences.length >= invoice.applyTo.length;
-
+            const month = parseYYYYMM(invoice.monthApplied);
+            if (!month) throw new Error("Tháng áp dụng hóa đơn không hợp lệ.");
+            const daysInMonth = new Date(month.year, month.month, 0).getDate();
             const presentDaysByUser = new Map<string, number>();
             for (const att of monthPresences) {
-                const presentDays = count(att.presence, (availability) => {
-                    if (availability === PresenceStatus.UNDETERMINED) {
-                        isPayable = false;
-                    }
-                    return availability === PresenceStatus.PRESENT;
-                });
+                if (att.roomId !== invoice.roomId || att.month !== invoice.monthApplied) {
+                    continue;
+                }
+                // Only explicitly absent days are excluded. Undetermined or
+                // missing entries are present, including legacy short arrays.
+                const presentDays = Array.from({ length: daysInMonth }, (_, day) =>
+                    att.presence[day] === PresenceStatus.ABSENT ? 0 : 1
+                ).reduce<number>((total, present) => total + present, 0);
                 presentDaysByUser.set(att.userId, presentDays);
             }
 
+            // Missing records and undetermined days count as present. Only
+            // members covered by this invoice contribute to the split.
             const weights = invoice.applyTo.map(
-                (uid) => presentDaysByUser.get(uid) ?? 0
+                (uid) => presentDaysByUser.get(uid) ?? daysInMonth
             );
+            // There is no presence ratio yet; never charge absent members
+            // through the allocator's equal-split fallback.
+            if (sum(weights) === 0) return [0, false];
             const shares = allocateIntegerShares(weights, invoice.amount);
 
-            return [shares[userIndex] ?? 0, isPayable];
+            return [shares[userIndex] ?? 0, true];
         }
 
         case InvoiceSplitMethod.BY_FIXED_AMOUNT: {

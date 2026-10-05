@@ -17,6 +17,7 @@ const markPresenceSchema = z.object({
         z.literal(PresenceStatus.ABSENT),
     ]),
     roomId: z.string().min(1),
+    recipientId: z.string().min(1).optional(),
 });
 
 export async function POST(request: Request) {
@@ -40,6 +41,13 @@ export async function POST(request: Request) {
     }
 
     const body: MarkPresenceBody = parsedBody.data;
+
+    if (parsedBody.data.recipientId && parsedBody.data.recipientId !== user.uid) {
+        return NextResponse.json(
+            { success: false, message: "Notification belongs to another user" },
+            { status: 403 }
+        );
+    }
 
     const [year, monthNumber] = body.month.split("-").map(Number);
     const daysInMonth = new Date(year, monthNumber, 0).getDate();

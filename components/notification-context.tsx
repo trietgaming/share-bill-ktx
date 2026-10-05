@@ -10,25 +10,23 @@ import {
     useMemo,
     useState,
 } from "react";
-import Dexie, { EntityTable } from "dexie";
-import { MessagePayload, NotificationPayload } from "@firebase/messaging";
+import Dexie from "dexie";
+import type { MessagePayload } from "firebase/messaging";
 import {
-    DefinedUseInfiniteQueryResult,
     InfiniteData,
     useInfiniteQuery,
     UseInfiniteQueryResult,
-    useQuery,
 } from "@tanstack/react-query";
 import { createNotification } from "@/lib/notification/notification-factory";
-import {
-    ForegroundNotification,
-    NotificationRecord,
-} from "@/types/notification";
+import { NotificationRecord, NotificationCursor } from "@/types/notification";
 import { toast } from "sonner";
 import { Bell } from "lucide-react";
 import { useAuth } from "./auth-context";
-import { notificationDb } from "@/lib/notification/notification-db";
+import { notificationDb, storeNotification, getNotificationPage } from "@/lib/notification/notification-db";
 import { handleForegroundMessage } from "@/lib/notification/foreground-message-dispatcher";
+import { presenceQueryKey, queryClient } from "@/lib/query-client";
+import { NotificationType } from "@/enums/notification";
+import { useRouter } from "next/navigation";
 
 export interface NotificationContextType {
     isNotificationPermissionGranted: boolean | null;
@@ -37,7 +35,7 @@ export interface NotificationContextType {
         InfiniteData<
             {
                 items: NotificationRecord[];
-                nextCursor: number | null;
+                nextCursor: NotificationCursor | null;
             },
             unknown
         >,
@@ -45,6 +43,7 @@ export interface NotificationContextType {
     >;
     clearAllNotifications: () => Promise<void>;
     removeNotification: (id: number) => Promise<void>;
+    markNotificationRead: (id: number) => Promise<void>;
 }
 
 export interface NotificationProviderProps {
@@ -59,39 +58,20 @@ export const NotificationProvider = ({
     children,
 }: NotificationProviderProps) => {
     const { userData } = useAuth();
+    const userId = userData?._id || "";
+    const router = useRouter();
 
     const notificationQuery = useInfiniteQuery<{
         items: NotificationRecord[];
-        nextCursor: number | null;
+        nextCursor: NotificationCursor | null;
     }>({
-        queryKey: ["notifications"],
-        queryFn: async ({ pageParam }) => {
-            const PAGE_SIZE = 20;
-
-            const query = notificationDb.notifications
-                .where(["userId", "receivedAt"])
-                .between(
-                    [userData?._id || "", 0],
-                    [userData?._id || "", pageParam || Date.now()],
-                    true,
-                    true
-                )
-                .reverse()
-                .limit(PAGE_SIZE)
-                .toArray();
-
-            const items = await query;
-
-            const nextCursor =
-                items.length == PAGE_SIZE
-                    ? items[items.length - 1].receivedAt - 1
-                    : null;
-
-            return { items, nextCursor };
-        },
-        initialPageParam: 0,
+        queryKey: ["notifications", userId],
+        enabled: !!userId,
+        queryFn: ({ pageParam }) => getNotificationPage(userId, pageParam as NotificationCursor | null),
+        initialPageParam: null,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
     });
+    const refetchNotifications = notificationQuery.refetch;
 
     const notifications = useMemo<NotificationRecord[]>(
         () => notificationQuery.data?.pages.flatMap((page) => page.items) || [],
@@ -104,73 +84,94 @@ export const NotificationProvider = ({
     ] = useState<boolean | null>(null);
 
     useEffect(() => {
+        let disposed = false;
+        let permissionStatus: PermissionStatus | undefined;
         const handlePermissionChange = () => {
-            if ("Notification" in window) {
-                setIsNotificationPermissionGranted(
-                    Notification.permission === "granted"
-                );
-            }
+            setIsNotificationPermissionGranted(
+                "Notification" in window && Notification.permission === "granted"
+            );
         };
 
         handlePermissionChange();
 
-        navigator.permissions
-            .query({ name: "notifications" })
-            .then((permissionStatus) => {
-                permissionStatus.onchange = handlePermissionChange;
-            });
+        window.addEventListener("focus", handlePermissionChange);
+        document.addEventListener("visibilitychange", handlePermissionChange);
+        navigator.permissions?.query({ name: "notifications" })
+            .then((status) => {
+                if (disposed) return;
+                permissionStatus = status;
+                status.onchange = handlePermissionChange;
+            }).catch(() => { /* Some browsers do not expose this permission. */ });
 
         return () => {
-            navigator.permissions
-                .query({ name: "notifications" })
-                .then((permissionStatus) => {
-                    permissionStatus.onchange = null;
-                });
+            disposed = true;
+            if (permissionStatus) permissionStatus.onchange = null;
+            window.removeEventListener("focus", handlePermissionChange);
+            document.removeEventListener("visibilitychange", handlePermissionChange);
         };
     }, []);
 
     useEffect(() => {
-        if (!isNotificationPermissionGranted) {
-            return;
-        }
+        if (!isNotificationPermissionGranted || !userId) return;
+        initializeNotification().catch((error) => {
+            console.error("Error initializing notifications:", error);
+        });
+    }, [isNotificationPermissionGranted, userId]);
 
-        initializeNotification();
+    useEffect(() => {
+        if (!userId || !("serviceWorker" in navigator) || !firebaseMessaging) return;
+        let active = true;
 
-        const messageHandler = async (payload: MessagePayload) => {
-            handleForegroundMessage(payload);
-
-            const [title, notificationOptions, additionalData] =
-                createNotification(payload);
-            const notification = {
-                title,
-                ...notificationOptions,
-                ...additionalData,
-                userId: userData?._id || "",
-            } as NotificationRecord;
-
-            notification._id = await notificationDb.notifications.add(
-                notification
-            );
-            console.log("Added notification to IndexedDB", notification);
-            await notificationQuery.refetch();
-
-            toast(notification.title, {
-                description: notification.body,
-                icon: notification.icon ? (
-                    <img src={notification.icon} alt="" />
-                ) : (
-                    <Bell />
-                ),
+        const messageHandler = async (payload: MessagePayload, fromWorker = false) => {
+            if (payload.data?.recipientId && payload.data.recipientId !== userId) return;
+            const results = await Promise.allSettled([
+                handleForegroundMessage(payload),
+                storeNotification(payload, userId),
+            ]);
+            results.forEach((result) => {
+                if (result.status === "rejected") console.error("Error handling notification:", result.reason);
             });
+            if (!active) return;
+            await refetchNotifications();
+
+            if ((payload.data?.type === NotificationType.ROOM_DELETED ||
+                payload.data?.type === NotificationType.KICKED_FROM_ROOM) &&
+                window.location.pathname.startsWith(`/room/${payload.data.roomId}/`)) {
+                router.replace("/");
+            }
+
+            const [title, notificationOptions] =
+                createNotification(payload);
+            const stored = results[1].status === "fulfilled" && results[1].value;
+            if (stored || payload.data?.persistent === "false" ||
+                (fromWorker && document.visibilityState === "visible")) {
+                toast(title, {
+                    description: notificationOptions.body,
+                    icon: notificationOptions.icon ? (
+                        <img src={notificationOptions.icon} alt="" />
+                    ) : (
+                        <Bell />
+                    ),
+                });
+            }
         };
 
-        const unsubscribeMessage = onMessage(firebaseMessaging, messageHandler);
+        const unsubscribeMessage = onMessage(firebaseMessaging, (payload) => {
+            messageHandler(payload).catch(console.error);
+        });
 
         // For case user is not focus on the page and receive message
         const serviceWorkerMessageHandler = (event: MessageEvent) => {
             if (event.data?.type === "FCM_MESSAGE") {
                 const payload = event.data.payload;
-                messageHandler(payload);
+                messageHandler(payload, true).catch(console.error);
+            } else if (event.data?.type === "NOTIFICATION_ACTION_COMPLETED") {
+                const data = event.data.data;
+                if (data?.recipientId && data.recipientId !== userId) return;
+                if (data?.roomId) {
+                    queryClient.invalidateQueries({ queryKey: presenceQueryKey(data.roomId) });
+                }
+                refetchNotifications().catch(console.error);
             }
         };
 
@@ -180,26 +181,36 @@ export const NotificationProvider = ({
         );
 
         return () => {
+            active = false;
             unsubscribeMessage();
             navigator.serviceWorker.removeEventListener(
                 "message",
                 serviceWorkerMessageHandler
             );
         };
-    }, [isNotificationPermissionGranted, userData]);
+    }, [userId, refetchNotifications, router]);
 
     const clearAllNotifications = useCallback(async () => {
-        await notificationDb.notifications.clear();
-        await notificationQuery.refetch();
-    }, [notificationDb, notificationQuery]);
+        if (!userId) return;
+        await notificationDb.notifications.where("[userId+receivedAt]")
+            .between([userId, Dexie.minKey], [userId, Dexie.maxKey], true, true).delete();
+        await refetchNotifications();
+    }, [userId, refetchNotifications]);
 
     const removeNotification = useCallback(
         async (id: number) => {
-            await notificationDb.notifications.delete(id);
-            await notificationQuery.refetch();
+            await notificationDb.notifications.where("_id").equals(id)
+                .filter((notification) => notification.userId === userId).delete();
+            await refetchNotifications();
         },
-        [notificationDb, notificationQuery]
+        [userId, refetchNotifications]
     );
+
+    const markNotificationRead = useCallback(async (id: number) => {
+        await notificationDb.notifications.where("_id").equals(id)
+            .filter((notification) => notification.userId === userId).modify({ status: "read" });
+        await refetchNotifications();
+    }, [userId, refetchNotifications]);
 
     return (
         <NotificationContext.Provider
@@ -209,6 +220,7 @@ export const NotificationProvider = ({
                 notificationQuery,
                 clearAllNotifications,
                 removeNotification,
+                markNotificationRead,
             }}
         >
             {children}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -15,6 +15,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { dispatchAction } from "@/lib/notification/action-dispatcher";
+import { notificationTarget } from "@/lib/notification/notification-target";
+import { useRouter } from "next/navigation";
+import type { NotificationRecord } from "@/types/notification";
 
 export function NotificationPrompt() {
     const [isRequesting, setIsRequesting] = useState(false);
@@ -83,13 +86,31 @@ export function NotificationNotSupported() {
 }
 
 export function NotificationList() {
-    const { notifications, notificationQuery, removeNotification } =
+    const { notifications, notificationQuery, removeNotification, markNotificationRead } =
         useNotification();
+    const router = useRouter();
+    const pendingActionsRef = useRef(new Set<number>());
+    const [pendingActions, setPendingActions] = useState(new Set<number>());
+
+    const handleNotificationAction = async (notification: NotificationRecord, action: string) => {
+        if (pendingActionsRef.current.has(notification._id)) return;
+        pendingActionsRef.current.add(notification._id);
+        setPendingActions(new Set(pendingActionsRef.current));
+        try {
+            await dispatchAction(action, notification.data, true);
+            await removeNotification(notification._id);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Không thể xử lý thông báo. Vui lòng thử lại.");
+        } finally {
+            pendingActionsRef.current.delete(notification._id);
+            setPendingActions(new Set(pendingActionsRef.current));
+        }
+    };
 
     const handleNotificationScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const target = e.target as HTMLDivElement;
         if (
-            target.scrollHeight - target.scrollTop < target.clientHeight &&
+            target.scrollHeight - target.scrollTop <= target.clientHeight + 1 &&
             notificationQuery.hasNextPage &&
             !notificationQuery.isFetchingNextPage
         ) {
@@ -138,29 +159,28 @@ export function NotificationList() {
                                     notification.receivedAt
                                 ).toLocaleString()}
                             </p>
-                            {notification.actions?.length! >= 1 && (
-                                <div className="mt-2 space-x-2">
-                                    {notification.actions?.map((action) => (
-                                        <Button
-                                            key={action.action}
-                                            variant="outline"
-                                            onClick={async (e) => {
-                                                e.currentTarget.disabled = true;
-                                                await dispatchAction(
-                                                    action.action,
-                                                    notification.data,
-                                                    true
-                                                );
-                                                removeNotification(
-                                                    notification._id
-                                                );
-                                            }}
-                                        >
-                                            {action.title}
-                                        </Button>
-                                    ))}
-                                </div>
-                            )}
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {notification.actions?.map((action) => (
+                                    <Button
+                                        key={action.action}
+                                        variant="outline"
+                                        disabled={pendingActions.has(notification._id)}
+                                        onClick={() => handleNotificationAction(notification, action.action)}
+                                    >
+                                        {action.title}
+                                    </Button>
+                                ))}
+                                <Button variant="outline" onClick={async () => {
+                                    try {
+                                        await markNotificationRead(notification._id);
+                                    } catch (error) {
+                                        console.error("Error marking notification as read:", error);
+                                    }
+                                    router.push(notificationTarget(notification.data));
+                                }}>
+                                    Xem chi tiết
+                                </Button>
+                            </div>
                         </div>
                         <Button
                             size="icon"
@@ -231,7 +251,7 @@ export function NotificationDropdown() {
                             Xóa tất cả
                         </Button>
                     </div>
-                    {!isNotificationPermissionGranted ? (
+                    {!isNotificationPermissionGranted && notifications.length === 0 ? (
                         isNotificationSupported ? (
                             <NotificationPrompt />
                         ) : (

@@ -11,6 +11,9 @@ import { firebaseConfig } from "@/lib/firebase/config";
 import { handleBackgroundMessage } from "@/sw/handle-background-message";
 import { handleNotificationClick } from "@/sw/handle-notification-click";
 
+// Firebase's listener can stop propagation; our custom click handler must win.
+self.addEventListener('notificationclick', handleNotificationClick);
+
 const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
 
@@ -20,4 +23,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
 });
 
-self.addEventListener('notificationclick', handleNotificationClick)
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});

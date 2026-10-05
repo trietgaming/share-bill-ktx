@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test": "node --test tests/*.test.cjs",
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
@@ -81,6 +82,7 @@
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "fake-indexeddb": "^6.2.5",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",

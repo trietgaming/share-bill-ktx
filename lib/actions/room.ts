@@ -195,7 +195,7 @@ export const deleteRoom = serverAction({
         }
 
         const session = await mongoose.startSession();
-        await session.withTransaction(async () => {
+        const deletedRoom = await session.withTransaction(async () => {
             // Delete all memberships related to the room
             await Membership.deleteMany({ room: roomId }, { session });
 
@@ -217,10 +217,11 @@ export const deleteRoom = serverAction({
             room?.members.forEach((memberId) =>
                 revalidateTag(`user-rooms-${memberId}`)
             );
+            return room;
         });
 
         revalidateTag(`room-${roomId}`);
-        await sendRoomDeletedNotification(ctx.user.uid, roomId);
+        if (deletedRoom) await sendRoomDeletedNotification(ctx.user.uid, deletedRoom);
         return void 0;
     },
     input: (roomId) => {

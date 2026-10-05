@@ -156,7 +156,7 @@ export function PresenceCalendar() {
         },
         onError: (error) => {
             queryClient.invalidateQueries({
-                queryKey: presenceQueryKey(room._id, toYYYYMM(year, month)),
+                queryKey: presenceQueryKey(room._id),
             });
             console.error("Failed to update presence:", error);
             toast.error("Có lỗi xảy ra khi cập nhật ngày ở.", {
@@ -165,6 +165,7 @@ export function PresenceCalendar() {
         },
         onSettled: () => {
             toast.dismiss("update-presence");
+            queryClient.invalidateQueries({ queryKey: presenceQueryKey(room._id) });
         },
     });
 
@@ -236,20 +237,25 @@ export function PresenceCalendar() {
             }
         );
 
-        queryClient.setQueryData<IMonthPresence[]>(
-            ["presence", room._id],
+        queryClient.setQueriesData<IMonthPresence[]>(
+            {
+                queryKey: presenceQueryKey(room._id),
+                predicate: (query) => query.queryKey[2] === "invoice-months",
+            },
             (old) => {
-                return (
-                    old?.map((mp) => {
-                        if (
-                            mp.userId === userData!._id &&
-                            mp.month == snapshot.month
-                        ) {
-                            return snapshot!;
-                        }
-                        return mp;
-                    }) || old
-                );
+                if (!old || !snapshot) return old;
+                if (!old.some((mp) => mp.userId === snapshot.userId && mp.month === snapshot.month)) {
+                    return [...old, snapshot];
+                }
+                return old.map((mp) => {
+                    if (
+                        mp.userId === userData!._id &&
+                        mp.month == snapshot.month
+                    ) {
+                        return snapshot!;
+                    }
+                    return mp;
+                });
             }
         );
 

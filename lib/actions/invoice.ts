@@ -372,12 +372,18 @@ export const payInvoice = serverAction({
 
             if (!isPayable) {
                 throw new AppError(
-                    "Bạn hoặc các thành viên chưa hoàn thành điểm danh, không thể thanh toán hóa đơn này.",
+                    "Các thành viên của hóa đơn đều vắng mặt trong tháng này, không có ngày ở để chia tiền.",
                     ErrorCode.FORBIDDEN
                 );
             }
 
             const roundedShare = Math.round(totalAmountToPay);
+            if (roundedShare <= 0) {
+                throw new AppError(
+                    "Bạn không có phần tiền cần thanh toán cho hóa đơn này.",
+                    ErrorCode.FORBIDDEN
+                );
+            }
             const userPayInfo = invoice.payInfo?.find(
                 (pi) => pi.paidBy === ctx.user.uid
             );

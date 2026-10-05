@@ -28,6 +28,7 @@ export type PrecheckResponse<T> = Promise<SuccessPrecheckResult<T> | ErrorPreche
 export type PrecheckSyncResponse<T> = SuccessPrecheckResult<T> | ErrorPrecheckResult;
 
 export interface MarkPresenceBody {
+    recipientId?: string;
     /**
      * Month in the format of YYYY-MM
      */

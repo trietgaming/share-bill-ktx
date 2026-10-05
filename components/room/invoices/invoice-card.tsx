@@ -238,7 +238,9 @@ export function InvoiceCard({
                                     disabled
                                     className="bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
                                 >
-                                    ✓ Bạn đã thanh toán
+                                    {invoice.myPayInfo
+                                        ? "✓ Bạn đã thanh toán"
+                                        : "Không có phần thanh toán"}
                                 </Button>
                             </div>
                         ) : (
@@ -253,7 +255,7 @@ export function InvoiceCard({
                                     ? invoice.splitMethod ===
                                           InvoiceSplitMethod.BY_PRESENCE &&
                                       !invoice.isPayable
-                                        ? "Chưa tích đủ ngày ở"
+                                        ? "Chưa có ngày ở để chia"
                                         : "Thanh toán"
                                     : "Không có người nhận"}
                             </Button>

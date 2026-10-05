@@ -3,12 +3,11 @@ import { ForegroundMessageHandler } from "../foreground-message-dispatcher";
 
 export const handleInvoicesChange: ForegroundMessageHandler<{
     roomId: string;
-}> = (data) => {
+}> = async (data) => {
     // Invalidate invoices query for the specific room
-    queryClient.invalidateQueries({
+    await Promise.all([queryClient.invalidateQueries({
         queryKey: invoicesQueryKey(data.roomId),
-    });
-    queryClient.invalidateQueries({
+    }), queryClient.invalidateQueries({
         queryKey: paidInvoicesQueryKey(data.roomId),
-    });
+    })]);
 };

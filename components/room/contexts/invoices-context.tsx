@@ -1,7 +1,6 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import {
     UseQueryResult,
-    useInfiniteQuery,
     useQuery,
 } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth-context";
@@ -10,7 +9,6 @@ import { IInvoice, PersonalInvoice } from "@/types/invoice";
 import {
     invoicesQueryKey,
     presenceQueryKey,
-    queryClient,
 } from "@/lib/query-client";
 import { getInvoicesByRoom } from "@/lib/actions/invoice";
 import { getRoomMonthsPresence } from "@/lib/actions/month-presence";
@@ -18,7 +16,7 @@ import { IMonthPresence } from "@/types/month-presence";
 import { InvoiceCheckoutDialog } from "../invoice-checkout-dialog";
 import { handleAction } from "@/lib/action-handler";
 import { InvoiceDialog } from "@/components/room/invoice-dialog";
-import { PresenceStatus } from "@/enums/presence";
+import { InvoiceSplitMethod } from "@/enums/invoice";
 import { calculateShare } from "@/lib/utils";
 
 interface InvoicesContextType {
@@ -48,29 +46,25 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
 
     const pendingInvoicesQuery = useQuery<IInvoice[]>({
         queryKey: invoicesQueryKey(room._id),
-        queryFn: () => {
-            queryClient.invalidateQueries({
-                queryKey: presenceQueryKey(room._id),
-            });
-            return handleAction(getInvoicesByRoom(room._id));
-        },
+        queryFn: () => handleAction(getInvoicesByRoom(room._id)),
         staleTime: 1000 * 60 * 60, // 1 hour
     });
 
-    const monthsPresenceQuery = useQuery({
-        queryKey: presenceQueryKey(room._id),
-        queryFn: async () => {
-            const months = pendingInvoicesQuery.data
-                ?.filter(
-                    (inv) => inv.type === "walec" || inv.type === "roomCost"
-                )
-                .map((inv) => inv.monthApplied!)
-                .filter((v, i, a) => a.indexOf(v) === i); // unique
+    const presenceMonths = useMemo(
+        () => [...new Set(pendingInvoicesQuery.data
+            ?.filter((inv) => inv.splitMethod === InvoiceSplitMethod.BY_PRESENCE)
+            .map((inv) => inv.monthApplied)
+            .filter((month): month is string => !!month) || [])].sort(),
+        [pendingInvoicesQuery.data]
+    );
 
-            if (!months || months.length === 0) return [];
+    const monthsPresenceQuery = useQuery({
+        queryKey: [...presenceQueryKey(room._id), "invoice-months", ...presenceMonths],
+        queryFn: async () => {
+            if (presenceMonths.length === 0) return [];
 
             const monthsPresence = await handleAction(
-                getRoomMonthsPresence(room._id, months)
+                getRoomMonthsPresence(room._id, presenceMonths)
             );
             return monthsPresence;
         },
@@ -79,7 +73,8 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
     });
 
     const otherInvoices = useMemo<PersonalInvoice[]>(() => {
-        if (!pendingInvoicesQuery.data) return [];
+        if (!pendingInvoicesQuery.data || !userData) return [];
+        if (presenceMonths.length > 0 && !monthsPresenceQuery.data) return [];
 
         return pendingInvoicesQuery.data
             .filter(
@@ -95,7 +90,9 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
                 const [share, isPayable] = calculateShare(
                     inv,
                     userData!._id,
-                    []
+                    monthsPresenceQuery.data?.filter(
+                        (presence) => presence.month === inv.monthApplied
+                    ) || []
                 );
 
                 const personalAmount = Math.round(share - userPaidAmount);
@@ -103,20 +100,20 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
                 return {
                     ...inv,
                     personalAmount,
-                    isPaidByMe: personalAmount <= 0,
+                    isPaidByMe: isPayable && personalAmount <= 0,
                     isPayable: isPayable && personalAmount > 0 && !!inv.payTo,
                     myPayInfo: inv.payInfo?.find(
                         (p) => p.paidBy === userData!._id
                     ),
                 };
             });
-    }, [pendingInvoicesQuery.data]);
+    }, [pendingInvoicesQuery.data, monthsPresenceQuery.data, presenceMonths.length, userData?._id]);
 
     const monthlyInvoices = useMemo(() => {
         if (
             !pendingInvoicesQuery.data ||
             !monthsPresenceQuery.data ||
-            !roommates
+            !roommates || !userData
         )
             return [];
 
@@ -153,12 +150,12 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
             return {
                 ...inv,
                 personalAmount,
-                isPaidByMe: personalAmount <= 0,
+                isPaidByMe: isPayable && personalAmount <= 0,
                 isPayable: isPayable && personalAmount > 0 && !!inv.payTo,
                 myPayInfo: inv.payInfo?.find((p) => p.paidBy === userData!._id),
             };
         });
-    }, [pendingInvoicesQuery.data, monthsPresenceQuery.data, roommates]);
+    }, [pendingInvoicesQuery.data, monthsPresenceQuery.data, roommates, userData?._id]);
 
     const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
     const [selectedInvoiceToPay, setSelectedInvoiceToPay] =

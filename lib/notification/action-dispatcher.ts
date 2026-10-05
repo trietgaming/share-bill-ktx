@@ -19,20 +19,16 @@ export function dispatchAction(
     action: string,
     data: NotificationData | undefined,
     isForeground = false
-): Promise<void> | undefined {
+): Promise<void> {
     if (!data) {
-        console.error("Missing notification data for action:", action);
-        return;
+        return Promise.reject(new Error("Thông báo thiếu dữ liệu để xử lý."));
     }
 
     switch (action) {
         case NotificationClickAction.MARK_PRESENT:
         case NotificationClickAction.MARK_ABSENT:
             if (!isPresenceReminderData(data)) {
-                console.error(
-                    `Notification data of type "${data.type}" does not support action "${action}"`
-                );
-                return;
+                return Promise.reject(new Error("Hành động không phù hợp với loại thông báo này."));
             }
             return markPresence(
                 data,
@@ -42,6 +38,6 @@ export function dispatchAction(
                 isForeground
             );
         default:
-            console.error("Unknown notification action:", action);
+            return Promise.reject(new Error("Hành động thông báo chưa được hỗ trợ."));
     }
 }

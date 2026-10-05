@@ -161,6 +161,7 @@ export const updateMyMonthPresence = serverAction({
         );
 
         revalidateTag(`room-month-presence-${data.roomId}`);
+        revalidateTag(`room-month-presence-${data.roomId}-${data.month}`);
     },
     input: (data) => updateMyMonthPresenceInputSchema.parse(data),
     initContext: (ctx, data) => {

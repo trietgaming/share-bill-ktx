@@ -8,30 +8,29 @@ export async function markPresence(
     status: PresenceStatus,
     isForeground = false
 ) {
-    try {
-        const response = await fetch("/api/presence", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                roomId: data.roomId,
-                month: data.month,
-                day: Number.parseInt(data.day, 10),
-                status,
-            } as MarkPresenceBody),
+    const response = await fetch("/api/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            roomId: data.roomId,
+            month: data.month,
+            day: Number(data.day),
+            status,
+            recipientId: data.recipientId,
+        } satisfies MarkPresenceBody),
+    });
+
+    if (!response.ok) {
+        throw new Error(
+            response.status === 401
+                ? "Phiên đăng nhập đã hết hạn. Mở ứng dụng để đăng nhập và thử lại."
+                : "Không thể tích ngày ở. Vui lòng thử lại."
+        );
+    }
+
+    if (isForeground) {
+        await queryClient.invalidateQueries({
+            queryKey: presenceQueryKey(data.roomId),
         });
-
-        if (!response.ok) {
-            throw new Error(
-                `Failed to mark presence (${status}): ${response.status}`
-            );
-        }
-
-        if (isForeground) {
-            queryClient.invalidateQueries({
-                queryKey: presenceQueryKey(data.roomId, data.month),
-            });
-        }
-    } catch (error) {
-        console.error("Error marking presence:", error);
     }
 }

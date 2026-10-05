@@ -6,28 +6,22 @@ import { subscribeToNotification } from "../actions/notification";
 import { handleAction } from "@/lib/action-handler";
 
 export async function requestPermission() {
+    if (!("Notification" in window)) {
+        throw new Error("Trình duyệt không hỗ trợ thông báo.");
+    }
     if (Notification.permission === 'granted') {
         return true;
     }
 
-    const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Quá thời gian chờ cấp quyền')), 5000)
-    );
-
-    const permission = await Promise.race([
-        Notification.requestPermission(),
-        timeout,
-    ]);
+    const permission = await Notification.requestPermission();
 
     return permission === 'granted';
 }
 
 async function registerServiceWorker() {
-    let registration = await navigator.serviceWorker.getRegistration("/");
-    if (registration) return registration;
-
     if ('serviceWorker' in navigator) {
-        registration = await navigator.serviceWorker.register(
+        // register() also checks for an update to an existing worker.
+        const registration = await navigator.serviceWorker.register(
             "/firebase-messaging-sw.js",
             {
                 scope: "/",
@@ -55,10 +49,8 @@ export async function initializeNotification() {
         serviceWorkerRegistration: registration,
     });
 
-    const cachedToken = localStorage.getItem('fcm_token');
-
-    if (firebaseToken && firebaseToken !== cachedToken) {
-        localStorage.setItem('fcm_token', firebaseToken);
-        await handleAction(subscribeToNotification(firebaseToken))
-    }
+    if (!firebaseToken) throw new Error("Không thể lấy mã đăng ký thông báo. Vui lòng thử lại.");
+    // Reconcile with the server on each initialization. A cached browser
+    // token may have been evicted or reassigned after changing accounts.
+    await handleAction(subscribeToNotification(firebaseToken));
 }

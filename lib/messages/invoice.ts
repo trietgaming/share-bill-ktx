@@ -5,7 +5,7 @@ import {
 } from "@/types/notification";
 import { IRoom } from "@/types/room";
 import "server-only";
-import { notifyUser } from "@/lib/notify";
+import { notifyUsers } from "@/lib/notify";
 import { NotificationType } from "@/enums/notification";
 import { IInvoice } from "@/types/invoice";
 import { Room } from "@/models/Room";
@@ -21,9 +21,8 @@ export async function sendNewInvoiceNotification(invoice: IInvoice) {
         "fcmTokens",
     ]).lean();
 
-    for (const user of users) {
-        if (!user.fcmTokens || user._id === invoice.createdBy) continue;
-        notifyUser<NewInvoiceNotificationData>(user, {
+    await notifyUsers<NewInvoiceNotificationData>(
+        users.filter((user) => user.fcmTokens?.length && user._id !== invoice.createdBy), {
             data: {
                 type: NotificationType.NEW_INVOICE,
                 persistent: "true",
@@ -34,7 +33,6 @@ export async function sendNewInvoiceNotification(invoice: IInvoice) {
                 roomName: room.name,
             },
         });
-    }
 }
 
 export async function sendUpdateInvoiceNotification(
@@ -57,10 +55,8 @@ export async function sendUpdateInvoiceNotification(
     
     if (!updateUser) return;
 
-    for (const user of users) {
-        if (!user.fcmTokens || user._id === updateUserId) continue;
-
-        notifyUser<UpdateInvoiceNotificationData>(user, {
+    await notifyUsers<UpdateInvoiceNotificationData>(
+        users.filter((user) => user.fcmTokens?.length && user._id !== updateUserId), {
             data: {
                 type: NotificationType.UPDATE_INVOICE,
                 persistent: "true",
@@ -71,7 +67,6 @@ export async function sendUpdateInvoiceNotification(
                 roomName: room.name,
             },
         });
-    }
 }
 
 export async function sendDeleteInvoiceNotification(
@@ -92,9 +87,8 @@ export async function sendDeleteInvoiceNotification(
 
     if (!deleteUser) return;
 
-    for (const user of users) {
-        if (!user.fcmTokens || user._id === deleteUserId) continue;
-        notifyUser<DeleteInvoiceNotificationData>(user, {
+    await notifyUsers<DeleteInvoiceNotificationData>(
+        users.filter((user) => user.fcmTokens?.length && user._id !== deleteUserId), {
             data: {
                 type: NotificationType.DELETE_INVOICE,
                 persistent: "true",
@@ -105,5 +99,4 @@ export async function sendDeleteInvoiceNotification(
                 roomName: room.name,
             },
         });
-    }
 }

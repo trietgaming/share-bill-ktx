@@ -1,7 +1,8 @@
 import { NotificationType } from "@/enums/notification";
 import { Room } from "@/models/Room";
 import { UserData } from "@/models/UserData";
-import { notifyUser } from "@/lib/notify";
+import { notifyUsers } from "@/lib/notify";
+import type { IRoom } from "@/types/room";
 import {
     MemberJoinedNotificationData,
     MemberLeftNotificationData,
@@ -24,10 +25,8 @@ export async function sendRoomJoinedNotification(
 
     if (!newMember) return;
 
-    for (const member of roomMembers) {
-        if (!member.fcmTokens || member._id === newMemberId) continue;
-
-        notifyUser<MemberJoinedNotificationData>(member, {
+    await notifyUsers<MemberJoinedNotificationData>(
+        roomMembers.filter((member) => member.fcmTokens?.length && member._id !== newMemberId), {
             notification: {
                 title: `Thành viên ${newMember.displayName} vừa tham gia phòng ${room.name}`,
             },
@@ -39,7 +38,6 @@ export async function sendRoomJoinedNotification(
                 memberName: newMember.displayName || "Thành viên",
             },
         });
-    }
 }
 
 export async function sendRoomLeftNotification(
@@ -57,10 +55,8 @@ export async function sendRoomLeftNotification(
     ]).lean();
     if (!leftUser) return;
 
-    for (const member of roomMembers) {
-        if (!member.fcmTokens || member._id === leftUserId) continue;
-
-        notifyUser<MemberLeftNotificationData>(member, {
+    await notifyUsers<MemberLeftNotificationData>(
+        roomMembers.filter((member) => member.fcmTokens?.length && member._id !== leftUserId), {
             notification: {
                 title: `Thành viên ${leftUser.displayName} đã rời khỏi phòng ${room.name}`,
             },
@@ -72,7 +68,6 @@ export async function sendRoomLeftNotification(
                 memberName: leftUser.displayName || "Thành viên",
             },
         });
-    }
 }
 export async function sendNotificationToKickedMember(
     userId: string,
@@ -84,7 +79,7 @@ export async function sendNotificationToKickedMember(
     if (!user || !room || !user.fcmTokens || user.fcmTokens.length === 0)
         return;
 
-    notifyUser(user, {
+    await notifyUsers([user], {
         notification: {
             title: `Bạn đã bị xóa khỏi phòng ${room.name}`,
             body: "Bạn có thể tham gia lại bất cứ lúc nào.",
@@ -100,11 +95,8 @@ export async function sendNotificationToKickedMember(
 
 export async function sendRoomDeletedNotification(
     deleteByUserId: string,
-    roomId: string
+    room: Pick<IRoom, "_id" | "name" | "members">
 ) {
-    const room = await Room.findById(roomId, ["name", "members"]).lean();
-    if (!room) return;
-
     const roomMembers = await UserData.find({ _id: { $in: room.members } }, [
         "fcmTokens",
     ]).lean();
@@ -113,10 +105,8 @@ export async function sendRoomDeletedNotification(
         "displayName",
     ]).lean();
 
-    for (const member of roomMembers) {
-        if (!member.fcmTokens || member._id === deleteByUserId) continue;
-
-        notifyUser<RoomDeletedNotificationData>(member, {
+    await notifyUsers<RoomDeletedNotificationData>(
+        roomMembers.filter((member) => member.fcmTokens?.length && member._id !== deleteByUserId), {
             notification: {
                 title: `Phòng ${room.name} đã bị xóa`,
                 body: "Bạn không thể truy cập phòng này nữa.",
@@ -124,10 +114,9 @@ export async function sendRoomDeletedNotification(
             data: {
                 type: NotificationType.ROOM_DELETED,
                 persistent: "true",
-                roomId: roomId,
+                roomId: room._id.toString(),
                 roomName: room.name,
                 deleteByUserName: deleteByUser?.displayName || "Quản trị viên",
             },
         });
-    }
 }

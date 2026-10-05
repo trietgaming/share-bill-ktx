@@ -12,6 +12,7 @@ import {
 import { IUserData } from "@/types/user-data";
 import { UserData } from "@/models/UserData";
 import { delay } from "./utils";
+import { randomUUID } from "node:crypto";
 
 const MAX_SEND_ATTEMPTS = 3;
 
@@ -20,15 +21,22 @@ export async function notifyUser<T extends NotificationData>(
     sendOptions: NotificationSendOptions<T>
 ) {
     const messageBase = {
-        notification: sendOptions.notification,
-        data: sendOptions.data as unknown as { [key: string]: string },
+        // Data-only messages preserve worker actions and avoid Firebase's automatic UI.
+        data: {
+            ...sendOptions.data,
+            ...(sendOptions.notification?.title ? { title: sendOptions.notification.title } : {}),
+            ...(sendOptions.notification?.body ? { body: sendOptions.notification.body } : {}),
+            ...(sendOptions.notification?.imageUrl ? { image: sendOptions.notification.imageUrl } : {}),
+            messageId: randomUUID(),
+            recipientId: user._id,
+        } as { [key: string]: string },
         android: sendOptions.android,
         apns: sendOptions.apns,
         webpush: sendOptions.webpush,
         fcmOptions: sendOptions.fcmOptions,
     };
 
-    let tokens = [...user.fcmTokens];
+    let tokens = [...new Set(user.fcmTokens || [])];
 
     for (
         let attempts = 0;
@@ -44,12 +52,15 @@ export async function notifyUser<T extends NotificationData>(
             await delay((1 << (attempts - 1)) * 1000);
         }
 
-        const batchResponse = await getMessaging(adminApp).sendEachForMulticast(
-            {
-                ...messageBase,
-                tokens,
-            }
-        );
+        let batchResponse;
+        try {
+            batchResponse = await getMessaging(adminApp).sendEachForMulticast({
+                ...messageBase, tokens,
+            });
+        } catch (error) {
+            if (attempts === MAX_SEND_ATTEMPTS - 1) throw error;
+            continue;
+        }
 
         const invalidTokens: string[] = [];
         const retryableTokens: string[] = [];
@@ -90,6 +101,18 @@ export async function notifyUser<T extends NotificationData>(
 
         tokens = retryableTokens;
     }
+}
+
+export async function notifyUsers<T extends NotificationData>(
+    users: Pick<IUserData, "_id" | "fcmTokens">[],
+    sendOptions: NotificationSendOptions<T>
+) {
+    const results = await Promise.allSettled(users.map((user) => notifyUser(user, sendOptions)));
+    results.forEach((result, index) => {
+        if (result.status === "rejected") {
+            console.error(`Failed to notify user ${users[index]._id}:`, result.reason);
+        }
+    });
 }
 
 export async function notifyTopic<T extends NotificationData = any>(
