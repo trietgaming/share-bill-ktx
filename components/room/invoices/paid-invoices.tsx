@@ -28,6 +28,7 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
+import { InvoiceMemberPayments } from "./invoice-member-payments";
 
 const typeConfig = {
     walec: {
@@ -130,30 +131,7 @@ function PaidInvoiceCard({ invoice }: { invoice: IInvoice }) {
                                 </div>
                             )}
                             <Separator />
-                            {invoice.payInfo.map((payInfo) => {
-                                const roommate = roommates?.find(
-                                    (rm) => rm.userId === payInfo.paidBy
-                                );
-                                if (!roommate) return null;
-                                return (
-                                    <div
-                                        key={roommate.userId}
-                                        className="flex items-center gap-2 justify-between text-muted-foreground text-xs"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <UserAvatar
-                                                className="w-4 h-4"
-                                                user={roommate}
-                                            />
-                                            <span>
-                                                <b>{roommate.displayName}</b> đã
-                                                thanh toán
-                                            </span>
-                                        </div>
-                                        <b>{formatCurrency(payInfo.amount)}</b>
-                                    </div>
-                                );
-                            })}
+                            <InvoiceMemberPayments invoice={invoice} />
                             <div className="text-muted-foreground text-xs flex justify-between">
                                 Tổng đã trả:
                                 <b className="text-green-600 dark:text-green-400">

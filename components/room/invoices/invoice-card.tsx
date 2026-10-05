@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
 import { InvoiceSplitMethod } from "@/enums/invoice";
+import { InvoiceMemberPayments } from "./invoice-member-payments";
 
 const typeConfig = {
     walec: {
@@ -48,7 +49,7 @@ export function InvoiceCard({
         roommatesQuery: { data: roommates },
         membership,
     } = useRoommates();
-    const { openInvoiceCheckoutDialog } = useInvoices();
+    const { openInvoiceCheckoutDialog, monthsPresenceQuery } = useInvoices();
     const { userData } = useAuth();
 
     const config = typeConfig[invoice.type];
@@ -168,30 +169,10 @@ export function InvoiceCard({
                                 </div>
                             )}
                             <Separator />
-                            {invoice.payInfo.map((payInfo) => {
-                                const roommate = roommates?.find(
-                                    (rm) => rm.userId === payInfo.paidBy
-                                );
-                                if (!roommate) return null;
-                                return (
-                                    <div
-                                        key={roommate.userId}
-                                        className="flex items-center gap-2 justify-between text-muted-foreground text-xs"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <UserAvatar
-                                                className="w-4 h-4"
-                                                user={roommate}
-                                            />
-                                            <span>
-                                                <b>{roommate.displayName}</b> đã
-                                                thanh toán
-                                            </span>
-                                        </div>
-                                        <b>{formatCurrency(payInfo.amount)}</b>
-                                    </div>
-                                );
-                            })}
+                            <InvoiceMemberPayments
+                                invoice={invoice}
+                                monthPresences={monthsPresenceQuery.data}
+                            />
                             <div className="text-muted-foreground text-xs flex justify-between">
                                 Tổng đã trả:
                                 <b>

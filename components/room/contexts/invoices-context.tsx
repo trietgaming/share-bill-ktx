@@ -21,6 +21,7 @@ import { calculateShare } from "@/lib/utils";
 
 interface InvoicesContextType {
     pendingInvoicesQuery: UseQueryResult<IInvoice[], Error>;
+    monthsPresenceQuery: UseQueryResult<IMonthPresence[], Error>;
     /** Personal amount must be calculated using presence info */
     monthlyInvoices: PersonalInvoice[];
     otherInvoices: PersonalInvoice[];
@@ -176,6 +177,7 @@ export const InvoicesProvider = ({ children }: { children: any }) => {
         <InvoicesContext.Provider
             value={{
                 pendingInvoicesQuery,
+                monthsPresenceQuery,
                 monthlyInvoices,
                 otherInvoices,
                 openInvoiceCheckoutDialog,
